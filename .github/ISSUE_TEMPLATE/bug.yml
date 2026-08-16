@@ -1,0 +1,34 @@
+name: Bug report
+description: Something in the prototype is broken or behaves unexpectedly.
+labels: [bug]
+body:
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What did you expect, and what actually happened instead?
+    validations:
+      required: true
+  - type: input
+    id: flow
+    attributes:
+      label: Which flow?
+      description: Onboarding, Map, Profile, Connect, or Coordinator Dashboard?
+      placeholder: e.g. Mentor Map
+    validations:
+      required: false
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1.
+        2.
+        3.
+    validations:
+      required: false
+  - type: markdown
+    attributes:
+      value: |
+        Please do not include real member or mentor data in this issue — see `docs/PII.md`.
+        Use mock/fake data to illustrate the bug.

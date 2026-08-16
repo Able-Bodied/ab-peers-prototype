@@ -1,0 +1,24 @@
+name: Feature request
+description: Propose a new screen, flow, or improvement to the prototype.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What's the gap?
+      description: What can't a user (mentee, mentor, or coordinator) do today that they should be able to?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed approach
+      description: Rough sketch of the flow or UI. Links to docs/CONTEXT.md if it maps to one of the MVP flows.
+    validations:
+      required: false
+  - type: markdown
+    attributes:
+      value: |
+        Check `docs/CONTEXT.md` first — if this belongs to the "future / explicitly deferred"
+        list (forum, badging, classifieds, AI matching, etc.), it's probably out of scope for
+        this repo right now.
