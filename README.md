@@ -14,7 +14,7 @@ pnpm dev
 
 Then open the URL Vite prints (typically http://localhost:5173).
 
-Requires Node 22 (see `.nvmrc`) and pnpm via corepack — no separate pnpm install needed.
+Requires Node 24 (see `.nvmrc`) and pnpm via corepack — no separate pnpm install needed.
 
 ## What to build this weekend
 
