@@ -45,7 +45,7 @@ Separately, there is no single fresh list of adaptive events. Every organization
 
 ## 5. Rough overview
 
-Three tabs: **Peers**, **Mentors**, **Events**. Horizontal swipe moves between them; the tab bar does the same with a tap.
+**Peers** and **Mentors** are segmented pills at the top of Discover; **Events** and the rest sit in the bottom bar. Horizontal swipe cycles between Peers and Mentors; the pills do the same with a tap. See [§7.2](#72-gestures).
 
 Two profile depths. Everyone becomes a **Peer** after onboarding. Peers upgrade to a longer **Mentor** profile later ([§10](#10-becoming-a-mentor)). Organizations enter through a separate web form and claim flow, not through the app.
 
@@ -157,11 +157,32 @@ Also: an **alt-text field**, and **photo visibility separate from profile visibi
 
 The tab is **Peers**, not People — it is the word the community uses and the word the rest of the product uses.
 
-**Bigger photos.** Cards lead with a large image rather than a small avatar. Two reasons: a photo carries what text cannot — chair, posture, hand function, being outside doing something — and at launch a state may hold three people. A dense list of three rows announces how empty it is; three large cards read as a considered selection.
+### 7.0 Full-bleed cards
 
-Cards show photo, name, disability and level, city, what they use, and the interests you have in common. Mentor cards add time since injury, their org badge, and a capacity badge.
+Modelled directly on Bumble BFF. **The photo is the card.** It fills the frame edge to edge, roughly two thirds of the screen, and everything else sits on top of it: name and details over the image at the top, bio and interest pills over a dark scrim at the bottom, and a large circular wave button in the lower right. One card per screen, scrolled vertically.
 
-![Peers tab filtered to California and SCI para](screens/home.png)
+- **A photo carries what text cannot** — the chair, posture, hand function, whether someone is outside doing something. A newly injured quad seeing another quad on a trail gets "this is possible" in a way no bio delivers. Giving it the whole frame is the point.
+- **Density advertises emptiness.** At launch a state may hold three people. A compact list of three rows makes a screen that is visibly nine-tenths blank; three full-screen cards read as a considered selection rather than everything we have. **We are deliberately trading profiles-per-screen for how the screen feels when there are few.** Revisit when a typical state returns twenty or more.
+- **The wave is a large circular button on the card**, not a small link in a row. It is the primary action in the product and should be the largest tap target on screen.
+
+What sits on the card, in order: name, then **disability, level and what they use** — where Bumble puts age and city, we put the things that decide whether this is the right person. Age and city go on the second line. A pill shows time since injury. The bio truncates at three lines. Interest pills scroll horizontally along the bottom and deliberately run off the edge, which signals there is more.
+
+Where there is no photo, the generated initial tile fills the same frame — a large block of colour with the initials, which reads as a design choice rather than a missing image. This is what makes the photo genuinely optional ([§6.4](#64-photos)).
+
+Mentor cards add the org badge and capacity. **Watch this one:** a full-bleed card shows less at a glance, and Mentors is closer to a decision than a browse — someone is comparing four people on whether they are open and what they will discuss. It may want a shorter card than Peers. Judge it on a real phone.
+
+**Navigation follows from the card.** With cards this large, Peers and Mentors become segmented pills at the top of a Discover surface rather than top-level tabs, and the bottom bar carries sections: **Discover · Events · Chats · Activity · Me**. That is Bumble's structure and it is defensible here — Events is not a kind of person, and Chats and Activity need somewhere to live. It does supersede the three-tab model in [§5](#5-rough-overview); if we would rather keep Peers / Mentors / Events as the bottom bar, the card design still works, but Chats and Activity need another home.
+
+### 7.2 Gestures
+
+- **Horizontal swipe cycles Peers and Mentors.** Left or right moves between the two segments, and the top pills do exactly the same thing with a tap. Two segments only, so it stops at each end rather than wrapping — with two items a wrap reads as a glitch.
+- **Vertical scroll moves through cards**, one card per screen.
+- **Swipe is an accelerator, never the only way.** Every gesture has a tap equivalent, because switch control, keyboard and VoiceOver users cannot reliably swipe. This is the same rule that ruled out swipe-to-decide in the first place.
+
+**Two gesture conflicts to handle, both real:**
+
+- **The interest pills at the bottom of a card scroll horizontally.** A drag that starts on that strip scrolls the pills; it must not change segment. Standard nested horizontal scrolling — the inner scroller claims the gesture, and only hands it up once it hits its own end.
+- **iOS reserves the left screen edge.** In a PWA or browser tab, a swipe starting within roughly 20px of the left edge is the system back gesture and we do not get it. Ignore gestures originating at the very edge rather than fighting for them, or people will get inconsistent behaviour depending on where their thumb landed.
 
 ### 7.1 Filters
 
@@ -388,6 +409,29 @@ The hackathon build is step 1 only. See [`WORKPLAN.md`](WORKPLAN.md).
 5. Does the Events tab need a public web view for SEO, given members are behind sign-in?
 
 ## 18. Later, not now
+
+### Forums — partner with CareCure rather than run our own
+
+A **Forums** tab replaces Activity in the bottom bar at some point. We do not build the forum.
+
+CareCure is a twenty-five-year-old SCI forum already running on Discourse, with around 20,000 registered accounts — and roughly 50 monthly actives. That second number is the warning, not the opportunity: a forum with no posts is worse than no forum, and unlike events it cannot be seeded from public data. Starting a second SCI forum next to a struggling one splits an already thin community twice over.
+
+**What we bring them is the thing they actually lack.** CareCure hand-approves every account because AI-generated spam overwhelmed them. Every PeerConnect member is phone-verified, and mentors are vouched for by a hospital or foundation. A member arriving through us is pre-vetted in a way a cold signup never is, which removes the work that is exhausting them — and they have said they are looking for new blood.
+
+**How to integrate, in increasing order of effort:**
+
+| Step | What it takes |
+| --- | --- |
+| Forums tab opens CareCure in a full-page view | Hours. Zero operating cost, no servers, no moderation burden. |
+| Single sign-on via DiscourseConnect | About a day on our side — one endpoint and a shared secret — plus two settings in their admin. Members land already signed in. |
+| A PeerConnect category inside CareCure | Their decision. Gives our arrivals somewhere obvious to land rather than dropping them into a 25-year-old archive. |
+| Surface their latest topics in our app via `/latest.json` | A day. A strip of recent threads on Discover, deep-linking into CareCure. |
+
+**Do not iframe it.** Safari blocks third-party cookies, so an embedded Discourse session breaks on iOS. Full-page navigation or an in-app browser, not an iframe.
+
+**Do not host our own Discourse.** Postgres, Redis, SMTP deliverability, backups and security patching are a standing commitment, not a build task — about $100 a month managed, or a person if self-hosted. All of that to compete with a partner.
+
+**Open:** moderation stays theirs, which is the right answer but means our members are subject to their rules and their moderators. Worth agreeing explicitly before we send anyone. And if they decline, the fallback is not our own general forum — it is discussion attached to things that already have people in them, like a thread per event visible to everyone who RSVPed.
 
 - **Vacation exchange.** Wojtek's idea, with Alfred's addition: members list a spare room and whether they would host someone. Genuinely valuable — accessible accommodation is hard to find and expensive, and a peer's spare room is already adapted. It is also a different risk class from messaging: someone staying overnight in a stranger's home needs verification, reviews, and a clear line on what we are responsible for. Worth building once there is a real community with a reputation system.
 - **Follower counts and an organization directory ranked by them** — see [§11.2](#112-badges-filtering-and-following).
