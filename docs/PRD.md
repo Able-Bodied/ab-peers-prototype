@@ -161,6 +161,8 @@ The tab is **Peers**, not People — it is the word the community uses and the w
 
 Modelled directly on Bumble BFF. **The photo is the card.** It fills the frame edge to edge, roughly two thirds of the screen, and everything else sits on top of it: name and details over the image at the top, bio and interest pills over a dark scrim at the bottom, and a large circular wave button in the lower right. One card per screen, scrolled vertically.
 
+![A Peers card filling the screen: name, then SCI para, T6 and manual chair, with age and city on the second line and a "3 years post-injury" pill. The initial tile stands in for a missing photo. The bio truncates at three lines over a dark scrim, the wave button sits lower right, and interest pills run off the right edge. Peers and Mentors are segmented pills above the card; Discover, Events, Chats, Activity and Me sit in the bottom bar.](screens/home.png)
+
 - **A photo carries what text cannot** — the chair, posture, hand function, whether someone is outside doing something. A newly injured quad seeing another quad on a trail gets "this is possible" in a way no bio delivers. Giving it the whole frame is the point.
 - **Density advertises emptiness.** At launch a state may hold three people. A compact list of three rows makes a screen that is visibly nine-tenths blank; three full-screen cards read as a considered selection rather than everything we have. **We are deliberately trading profiles-per-screen for how the screen feels when there are few.** Revisit when a typical state returns twenty or more.
 - **The wave is a large circular button on the card**, not a small link in a row. It is the primary action in the product and should be the largest tap target on screen.
