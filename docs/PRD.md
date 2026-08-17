@@ -81,7 +81,7 @@ Nine screens: welcome, phone number, verification code, then six steps, of which
 | 3 | Disability | Type, level if SCI, how long you have been disabled, **and what you use**. See [§6.1](#61-disability-duration-and-what-you-use). |
 | 4 | Location | "Use my location" or state and city. See [§6.3](#63-location-asked-in-context). |
 | 5 | Photo | Optional, skippable. See [§6.4](#64-photos). |
-| 6 | Interests | **Optional.** Moved after the photo — skipping the photo skips this too. |
+| 6 | Interests | **Optional**, and capped at 20 fixed categories — see [§8.2](#82-chips-only-work-if-the-vocabulary-is-controlled). Moved after the photo; skipping the photo skips this too. |
 
 ![All ten onboarding screens plus the under-18 block state](screens/onboarding-full.png)
 
@@ -161,8 +161,6 @@ The tab is **Peers**, not People — it is the word the community uses and the w
 
 Modelled directly on Bumble BFF. **The photo is the card.** It fills the frame edge to edge, roughly two thirds of the screen, and everything else sits on top of it: name and details over the image at the top, bio and interest pills over a dark scrim at the bottom, and a large circular wave button in the lower right. One card per screen, scrolled vertically.
 
-![A Peers card filling the screen: name, then SCI para, T6 and manual chair, with age and city on the second line and a "3 years post-injury" pill. The initial tile stands in for a missing photo. The bio truncates at three lines over a dark scrim, the wave button sits lower right, and interest pills run off the right edge. Peers and Mentors are segmented pills above the card; Discover, Events, Chats, Activity and Me sit in the bottom bar.](screens/home.png)
-
 - **A photo carries what text cannot** — the chair, posture, hand function, whether someone is outside doing something. A newly injured quad seeing another quad on a trail gets "this is possible" in a way no bio delivers. Giving it the whole frame is the point.
 - **Density advertises emptiness.** At launch a state may hold three people. A compact list of three rows makes a screen that is visibly nine-tenths blank; three full-screen cards read as a considered selection rather than everything we have. **We are deliberately trading profiles-per-screen for how the screen feels when there are few.** Revisit when a typical state returns twenty or more.
 - **The wave is a large circular button on the card**, not a small link in a row. It is the primary action in the product and should be the largest tap target on screen.
@@ -207,20 +205,39 @@ A profile carries the photo, bio, what they use, the topics they will discuss, i
 
 ![A mentor profile, verified by the organization that trained her](screens/profile.png)
 
-### 8.1 Ask me about
+### 8.1 Ask me about — a filter, not a one-tap question
 
-Ran's idea, and the best thing to come out of the v4 comments. The topics list stops being a static description and becomes the opener.
+Every profile lists what someone will discuss, under the heading **Ask me about**. Each item is tappable, and **tapping it filters the browse deck to everyone who talks about that** — it does not send a message.
 
-**"Happy to talk about" becomes "Ask me about"**, and every chip is tappable. Tapping *Suprapubic catheter* sends *"Hi — I have a question about suprapubic catheters."* rather than a bare wave. See `openerFor()` in `src/mocks/selectors.ts`.
+This reverses the v5 decision. The earlier design had a chip compose *"I have a question about suprapubic catheters"* and send it in one tap, which solved the blank-page problem. It also **made asking too cheap.** We have roughly 25 mentors and no upper bound on mentees, and volume is what overwhelms a mentor, not the quality of any single message. Friction in front of the first message is a feature, not a defect.
 
-Why this matters more than it looks:
+So the chips behave the same as interests and affiliation: they are discovery, not contact. Contact stays behind the wave and the message, where the capacity controls apply.
 
-- **It solves the blank page.** The hardest thing about the first message is not courage, it is not knowing what to write. This writes it.
-- **It is better for the mentor.** A wave is an obligation with no content; "a question about catheters" is answerable in two minutes.
-- **It grades the ladder more finely.** Read → wave → **ask about one thing** → write freely → meet.
-- **It generates data.** Which topics get tapped tells us what people actually need help with, which feeds the topic list, the mentor recruitment pitch and the events we prioritise.
+**The blank-page problem is still real**, and if we want to solve it later the right place is inside the compose step — a "what's this about?" picker that pre-fills the opener once someone has already decided to write. That keeps the help without turning a browse tap into an outbound message.
 
-Keep the plain wave as well — some people want to say hello without declaring a problem, and someone three months in may not know what to ask yet. The opener text is editable before sending.
+**The volume controls that actually matter** are elsewhere and should be built rather than assumed: mentor capacity states (open, at capacity, paused), a rate limit on waves per person per day, and the ability to turn off unsolicited contact entirely.
+
+### 8.2 Chips only work if the vocabulary is controlled
+
+Measured against the 25 NorCal mentor profiles, where topics are free text as written by each mentor:
+
+| | |
+| --- | --- |
+| Distinct topic strings | 104 |
+| Strings that match exactly one person | 83 |
+| Strings that match three or more | 8 |
+
+**Four out of five topic chips are a dead end** — you tap it and get back the person whose profile you were on. The eight that work are the ones drawn from Craig's fixed Q10 and Q23 lists: *Wheelchair assist devices* returns 17 people, *Vehicle modifications* 9, *Suprapubic catheter* 5. The free-text ones — "other adaptive equipment", "self and supra-pubic cath", "moving back in with family after injury" — return one each, because nobody phrases it the same way twice.
+
+The same applies to interests. Raw text like "1960s car restorations" or "has been to all seven continents" reads well and matches nobody. Mapping the 25 mentors onto **20 fixed interest categories** puts 23 of them into at least one, and makes the shared-interest line on a card mean something: Cooking & food 10 people, Wheelchair sports 9, Family & pets 7, Reading & writing 7.
+
+**So: two fields, two jobs.**
+
+- **A controlled list** drives chips, filters and matching. Interests are capped at 20 categories. Topics come from the Craig lists.
+- **Free text** is kept and displayed — *"In their words: cooking, reading, swimming, hiking, kayaking"* — because it is what people actually read on a profile.
+- **Imported profiles get mapped on the way in**, keeping the person's own wording for display. Where a free-text answer becomes common, it graduates into the controlled list.
+
+Only controlled-vocabulary items should be tappable. A chip that returns one result is a broken promise.
 
 ## 9. Events
 
@@ -382,7 +399,7 @@ The invite link in [§11.1](#111-getting-an-organizations-mentors-in--the-seedin
 - Onboarding completion rate, and drop-off by step
 - Invite-link conversion per organization — the seeding metric
 - Photo attach rate, and wave rate with a photo versus without
-- **Waves and "Ask me about" taps sent, and reply rate for each** — if the topic openers out-reply plain waves, lean into them
+- **Waves sent and reply rate**, and separately **topic-filter taps** — the second tells us what people are looking for even when they never make contact
 - Events live, and percentage verified in the last 7 days
 - Notification open rate and mute rate — the early warning that we are becoming the newsletter
 - RSVPs per event, check-ins as a share of RSVPs, virtual versus in-person split
@@ -393,7 +410,7 @@ The invite link in [§11.1](#111-getting-an-organizations-mentors-in--the-seedin
 ## 16. Build order
 
 1. Onboarding, Peer profile, Peers browse, the wave
-2. "Ask me about" openers and messaging; notification ask at first wave
+2. Messaging, mentor capacity states and wave rate limits; notification ask at first wave
 3. Events tab, ingestion, RSVP, virtual events with one-tap join
 4. Org invite links and pre-vouching — the seeding flow
 5. Mentor upgrade flow, capacity controls, org badges and filter
@@ -446,6 +463,7 @@ CareCure is a twenty-five-year-old SCI forum already running on Discourse, with 
 
 | Version | Change |
 | --- | --- |
+| v6 | "Ask me about" reversed from one-tap openers to filters, to protect mentor capacity. Controlled-vocabulary rule added with measured evidence. Interests capped at 20 categories. Org and unclaimed badges specified. Full-bleed cards and gestures. |
 | v5 | Comments from Ran, Alfred and Wojtek on v4 incorporated: sign-in required, Peers rename, Ask me about, equipment filter, org invite links, shorter onboarding, vacation exchange. Moved into the repo as markdown. |
 | v4 | Onboarding fully specified: six steps, 18+ gate, duration bucket, optional photo, location asked in context. |
 | v3 | Virtual events; mentor upgrade flow with equipment and grants. |
