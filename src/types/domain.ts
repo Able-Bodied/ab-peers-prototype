@@ -1,72 +1,347 @@
-// Shared domain vocabulary for the AbleBodied peer-mentor matching tool.
-//
-// This file must stay structurally identical to `packages/types` in the
-// `ab-peers` monorepo (see docs/CONTEXT.md — "Working model"). When the
-// prototype UI graduates into `ab-peers/apps/web`, these types should be a
-// drop-in swap for the real ones. Do not add prototype-only fields here;
-// put prototype conveniences in `src/mocks` instead.
+/**
+ * Domain types for ab-peers-prototype.
+ *
+ * Single source of truth for every shape in the app. Additive changes are fine;
+ * renaming a field is a conversation first — four route folders import from here.
+ *
+ * Mirrors PRD v5. Where this disagrees with docs/CONTEXT.md, CONTEXT.md wins and
+ * this file should be corrected.
+ */
 
-export type InjuryType = 'SCI' | 'TBI' | 'SCI+TBI' | 'stroke';
+/* ------------------------------------------------------------------ enums */
 
-/** Neurological level of injury, e.g. "C5", "T4", "L1". Free text on purpose. */
-export type InjuryLevel = string;
+export const DISABILITIES = [
+  "SCI - para",
+  "SCI - quad",
+  "TBI",
+  "Spina Bifida",
+  "Cerebral Palsy",
+  "Amputee",
+  "MS",
+  "Combo (SCI and TBI)",
+  "Other",
+] as const;
+export type Disability = (typeof DISABILITIES)[number];
 
-export type Completeness = 'complete' | 'incomplete';
+/** Level only applies to SCI and Combo. Ranges exist because people describe them that way. */
+export const INJURY_LEVELS = [
+  "C1","C2","C3","C4","C5","C6","C7","C8",
+  "C4/5","C5/6","C6/7",
+  "T1","T2","T3","T4","T5","T6","T7","T8","T9","T10","T11","T12","T11/12",
+  "L1","L2","L3","L4","L5",
+  "S1","S2","S3","S4",
+  "Do not know",
+] as const;
+export type InjuryLevel = (typeof INJURY_LEVELS)[number];
 
-export type MobilityEquipment = 'manual chair' | 'power chair' | 'walker' | 'none' | 'other';
+export const COMPLETENESS = ["Complete", "Incomplete", "Do not know"] as const;
+export type Completeness = (typeof COMPLETENESS)[number];
 
-export interface Location {
-  city: string;
-  state: string;
-  /** City-center granularity only in mocks — see docs/PII.md. */
-  lat: number;
-  lng: number;
-}
+/**
+ * How long someone has been disabled. A bucket, not a date — easier to answer,
+ * and "Since birth" is a normal option rather than an escape hatch.
+ * Always store `durationAnsweredOn` alongside it and roll people forward,
+ * or the "newly injured" segment fills with people who no longer are.
+ */
+export const DURATIONS = [
+  "Since birth",
+  "Less than 6 months",
+  "6 - 12 months",
+  "1 - 3 years",
+  "3 - 10 years",
+  "10+ years",
+] as const;
+export type DurationBucket = (typeof DURATIONS)[number];
 
-export interface Peer {
-  id: string;
-  displayName: string;
-  pronouns?: string;
-  injuryType: InjuryType;
-  injuryLevel?: InjuryLevel;
-  completeness?: Completeness;
-  yearsPostInjury?: number;
-  equipment?: MobilityEquipment[];
-  location: Location;
-  languages: string[];
-  interests: string[];
-  bio?: string;
-  avatarUrl?: string;
-}
+/** Asked in onboarding, because equipment is a browse filter. */
+export const EQUIPMENT = [
+  "Manual chair",
+  "Power assist",
+  "Power chair",
+  "Scooter",
+  "Crutches or walker",
+  "Walks unaided",
+  "Prefer not to say",
+] as const;
+export type Equipment = (typeof EQUIPMENT)[number];
 
-export interface Mentor extends Peer {
-  role: 'mentor';
-  menteeCapacity?: number;
-  /** e.g. "tendon transfer", "hand cycling", "parenting after injury" */
-  topics: string[];
-  /** e.g. "Craig Hospital", "NorCal SCI" */
-  affiliations: string[];
-}
+export const SPORTS_EQUIPMENT = [
+  "Handcycle",
+  "Monoski or sit-ski",
+  "Sport wheelchair",
+  "Racing chair",
+  "Off-road or trail chair",
+  "Kayak and paddling",
+  "FES bike",
+  "Standing frame",
+  "Adaptive climbing gear",
+  "Hunting or fishing rig",
+  "Scuba gear",
+  "Other",
+] as const;
+export type SportsEquipment = (typeof SPORTS_EQUIPMENT)[number];
 
-export interface Coordinator {
-  id: string;
-  displayName: string;
-  organizationId: string;
-  /** example.com only in mocks — see docs/PII.md. */
-  email: string;
-}
+export const GRANTS = [
+  "Kelly Brush Foundation",
+  "Challenged Athletes Foundation",
+  "Reeve Foundation Quality of Life",
+  "Triumph Foundation",
+  "High Fives",
+  "Swim with Mike",
+  "State Department of Rehabilitation",
+  "VA",
+  "Other",
+] as const;
+export type Grant = (typeof GRANTS)[number];
 
-export interface Organization {
+export const AGE_BANDS = ["18-29", "30-39", "40-49", "50-59", "60-69", "70+"] as const;
+export type AgeBand = (typeof AGE_BANDS)[number];
+
+export const CAPACITIES = ["open", "at capacity", "paused"] as const;
+export type Capacity = (typeof CAPACITIES)[number];
+
+export const MEMBER_TYPES = ["peer", "mentor"] as const;
+export type MemberType = (typeof MEMBER_TYPES)[number];
+
+export const RELATIONSHIPS = [
+  "Self",
+  "Family member (parent)",
+  "Family member (partner)",
+  "Caregiver",
+] as const;
+export type Relationship = (typeof RELATIONSHIPS)[number];
+
+export const EVENT_MODES = ["in-person", "virtual"] as const;
+export type EventMode = (typeof EVENT_MODES)[number];
+
+export const ROSTER_VISIBILITY = ["attendees", "first-names", "off"] as const;
+export type RosterVisibility = (typeof ROSTER_VISIBILITY)[number];
+
+export const INTERESTS = [
+  "3D printing",
+  "Archery",
+  "Baking",
+  "Birding",
+  "Board games",
+  "Camping",
+  "Coffee",
+  "Cooking",
+  "Dogs",
+  "Film & TV",
+  "Fishing",
+  "Gardening",
+  "Gym & fitness",
+  "Handcycling",
+  "Hiking with a trail chair",
+  "Kayaking",
+  "Live music",
+  "Monoskiing",
+  "Painting",
+  "Photography",
+  "Podcasts",
+  "Reading",
+  "Road trips",
+  "Rock climbing",
+  "Sailing",
+  "Scuba diving",
+  "Sled hockey",
+  "Swimming",
+  "Travel",
+  "Video games",
+  "Volunteering",
+  "Wheelchair basketball",
+  "Wheelchair rugby",
+  "Wheelchair tennis",
+  "Woodworking"
+] as const;
+export type Interest = (typeof INTERESTS)[number];
+
+/** Craig Q10 + Q23, plus what NorCal's mentors actually say. Free text supplements it. */
+export const TOPICS = [
+  "Aging with SCI",
+  "Baclofen pump",
+  "Being injured young",
+  "Botox",
+  "Bowel program",
+  "Choosing a wheelchair",
+  "Choosing adaptive equipment",
+  "Colostomy",
+  "Dating & intimacy",
+  "Dictation & assistive tech",
+  "Driving & hand controls",
+  "Getting back on a bike",
+  "Going back to school",
+  "Grants & funding",
+  "Hiring & managing caregivers",
+  "Home modifications",
+  "Intermittent catheterization",
+  "Mental health",
+  "Moving out & living independently",
+  "Pain management",
+  "Pregnancy & parenting",
+  "Pressure sores",
+  "Returning to work",
+  "SSI/SSDI & benefits",
+  "Service animals",
+  "Spasticity & tone",
+  "Suprapubic catheter",
+  "Transfers",
+  "Travel & flying",
+  "UTIs",
+  "Vehicle modifications"
+] as const;
+export type Topic = (typeof TOPICS)[number];
+
+export const US_STATES = [
+  "Arizona",
+  "California",
+  "Colorado",
+  "Florida",
+  "Georgia",
+  "Idaho",
+  "Maryland",
+  "Michigan",
+  "Minnesota",
+  "Nevada",
+  "New Jersey",
+  "New York",
+  "North Carolina",
+  "Oregon",
+  "Pennsylvania",
+  "Texas",
+  "Utah",
+  "Vermont",
+  "Washington"
+] as const;
+export type UsState = (typeof US_STATES)[number];
+
+/* ------------------------------------------------------------------ models */
+
+export interface Org {
   id: string;
   name: string;
-  location: Location;
-  website?: string;
+  city: string;
+  state: string;
+  description: string;
+  website: string;
+  /** Unclaimed orgs are visible but marked, and are not surfaced without live events. */
+  claimed: boolean;
+  tags: string[];
+  followerCount: number;
 }
 
-export interface Connection {
+export interface Member {
   id: string;
-  fromPeerId: string;
-  toMentorId: string;
-  status: 'requested' | 'accepted' | 'declined';
+  type: MemberType;
+  displayName: string;
+
+  /** Optional, always. A required photo filters out the people we most need. */
+  photoUrl: string | null;
+  photoAlt: string | null;
+  /** Fallback tile colour when there is no photo. */
+  avatarColor: string;
+
+  city: string;
+  state: UsState;
+
+  disability: Disability;
+  level: InjuryLevel | null;
+  completeness: Completeness | null;
+
+  duration: DurationBucket;
+  /** ISO date. Used to roll the bucket forward over time. */
+  durationAnsweredOn: string;
+  /** Derived where known; null for congenital or unknown. Display as a range. */
+  yearsSince: number | null;
+
+  ageBand: AgeBand;
+  relationship: Relationship;
+
+  equipment: Equipment[];
+  equipmentDetail: string | null;
+  sportsEquipment: SportsEquipment[];
+  willAdviseOnEquipment: boolean;
+
+  grants: Grant[];
+  willHelpWithGrants: boolean;
+
+  languages: string[];
+  interests: Interest[];
+  /** Shown as "Ask me about" and tappable — each one composes an opener. */
+  topics: Topic[];
+
+  bio: string;
+  employment: string | null;
+  living: string | null;
+
+  affiliations: string[];
+  /** Org id. Presence of this is what makes someone a Mentor rather than an Experienced peer. */
+  verifiedBy: string | null;
+
+  openToMessages: boolean;
+  capacity: Capacity | null;
+
+  /** Opt-out of appearing in browse without losing the ability to browse or wave. */
+  showInBrowse: boolean;
+}
+
+export interface EventItem {
+  id: string;
+  title: string;
+  orgId: string;
+  mode: EventMode;
+  city: string;
+  /** "Virtual" for online events — they deliberately bypass the state filter. */
+  state: string;
+  /** ISO 8601 with offset. */
+  startsAt: string;
+  timeLabel: string;
+  recurring: boolean;
+  recurrenceLabel: string | null;
+  activity: string;
+  description: string;
+  accessNotes: string;
+  goingCount: number;
+  /** Never render before the viewer has RSVPed. */
+  joinUrl: string | null;
+  rosterVisibility: RosterVisibility;
+}
+
+export interface Wave {
+  id: string;
+  fromMemberId: string;
+  toMemberId: string;
+  /** Null for a plain wave; set when sent from an "Ask me about" chip. */
+  topic: Topic | null;
+  message: string | null;
   createdAt: string;
+  wavedBack: boolean;
+}
+
+export interface Rsvp {
+  eventId: string;
+  memberId: string;
+  createdAt: string;
+  checkedIn: boolean;
+}
+
+/** Fake for the prototype. Everything member-facing assumes a session exists. */
+export interface Session {
+  member: Member;
+}
+
+export interface MemberFilters {
+  state: UsState | "All";
+  disability: Disability | "All";
+  equipment?: Equipment | "All";
+  orgId?: string | "All";
+  duration?: DurationBucket | "All";
+  language?: string | "All";
+  topic?: Topic | "All";
+}
+
+export interface EventFilters {
+  state: UsState | "Virtual" | "All";
+  includeVirtual: boolean;
+  activity?: string | "All";
 }

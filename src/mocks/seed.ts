@@ -1,201 +1,3813 @@
-// Mock fixtures for the prototype. Every value here is invented — see
-// docs/PII.md and src/mocks/AGENTS.md before adding or editing anything in
-// this file. Names come from a fixed fake-name list, emails are
-// `@example.com`, and coordinates are city-center only (no street-level
-// precision, no real member data of any kind).
+/**
+ * Mock data. SYNTHETIC ONLY — no real people.
+ *
+ * Read docs/PII.md before touching this file. Never paste in a real mentor's
+ * name, photo, phone number or email, including anything from a public org page.
+ * Public listing is not consent to appear here.
+ */
 
-import type { Coordinator, Location, Mentor, Organization } from '@/types/domain';
+import type { EventItem, Member, Org } from "@/types/domain";
 
-// -- Locations (city-center only) -------------------------------------------
-
-const denver: Location = { city: 'Denver', state: 'CO', lat: 39.7392, lng: -104.9903 };
-const sanJose: Location = { city: 'San Jose', state: 'CA', lat: 37.3382, lng: -121.8863 };
-const atlanta: Location = { city: 'Atlanta', state: 'GA', lat: 33.749, lng: -84.388 };
-const chicago: Location = { city: 'Chicago', state: 'IL', lat: 41.8781, lng: -87.6298 };
-const austin: Location = { city: 'Austin', state: 'TX', lat: 30.2672, lng: -97.7431 };
-const seattle: Location = { city: 'Seattle', state: 'WA', lat: 47.6062, lng: -122.3321 };
-const miami: Location = { city: 'Miami', state: 'FL', lat: 25.7617, lng: -80.1918 };
-const minneapolis: Location = { city: 'Minneapolis', state: 'MN', lat: 44.9778, lng: -93.265 };
-
-// -- Organizations ------------------------------------------------------------
-
-export const organizations: Organization[] = [
+export const ORGS: Org[] = [
   {
-    id: 'org-craig',
-    name: 'Craig Hospital',
-    location: denver,
-    website: 'https://example.com/craig-hospital',
+    "id": "craig-hospital",
+    "name": "Craig Hospital",
+    "city": "Englewood",
+    "state": "Colorado",
+    "description": "Rehabilitation hospital with a national peer mentor program spanning 300+ trained mentors.",
+    "website": "https://craighospital.org",
+    "claimed": true,
+    "tags": [
+      "Cycling",
+      "Rehabilitation",
+      "Peer mentoring",
+      "Independent living"
+    ],
+    "followerCount": 0
   },
   {
-    id: 'org-norcal',
-    name: 'NorCal SCI Network',
-    location: sanJose,
-    website: 'https://example.com/norcal-sci',
+    "id": "norcal-sci",
+    "name": "NorCal SCI",
+    "city": "Concord",
+    "state": "California",
+    "description": "Northern California Spinal Cord Injury Foundation — 25 trained peer mentors and a weekly support group.",
+    "website": "https://norcalsci.org",
+    "claimed": true,
+    "tags": [
+      "Cycling",
+      "Peer mentoring"
+    ],
+    "followerCount": 0
   },
+  {
+    "id": "christopher-dana-reeve-foundation",
+    "name": "Christopher & Dana Reeve Foundation",
+    "city": "Short Hills",
+    "state": "New Jersey",
+    "description": "National peer mentor network, information line, and quality-of-life grants.",
+    "website": "https://christopherreeve.org",
+    "claimed": true,
+    "tags": [
+      "Cycling",
+      "Advocacy",
+      "Water sports",
+      "Adaptive sports"
+    ],
+    "followerCount": 0
+  },
+  {
+    "id": "triumph-foundation",
+    "name": "Triumph Foundation",
+    "city": "Santa Clarita",
+    "state": "California",
+    "description": "Southern California adaptive sports, ambassador program, and equipment grants.",
+    "website": "https://triumph-foundation.org",
+    "claimed": true,
+    "tags": [
+      "Cycling",
+      "Water sports",
+      "Support groups",
+      "Peer mentoring"
+    ],
+    "followerCount": 0
+  },
+  {
+    "id": "ability360",
+    "name": "Ability360",
+    "city": "Phoenix",
+    "state": "Arizona",
+    "description": "Independent living center with a large adaptive sports and fitness facility.",
+    "website": "https://ability360.org",
+    "claimed": false,
+    "tags": [
+      "Peer mentoring",
+      "Advocacy"
+    ],
+    "followerCount": 0
+  },
+  {
+    "id": "kelly-brush-foundation",
+    "name": "Kelly Brush Foundation",
+    "city": "Burlington",
+    "state": "Vermont",
+    "description": "Adaptive equipment grants and the Adaptive Rec Hub events directory.",
+    "website": "https://kellybrushfoundation.org",
+    "claimed": false,
+    "tags": [
+      "Peer mentoring",
+      "Cycling",
+      "Advocacy",
+      "Independent living"
+    ],
+    "followerCount": 0
+  },
+  {
+    "id": "lionheart-community",
+    "name": "Lionheart Community",
+    "city": "Fresno",
+    "state": "California",
+    "description": "Central Valley peer community and adaptive recreation programs.",
+    "website": "https://lionheartcommunity.org",
+    "claimed": false,
+    "tags": [
+      "Adaptive sports",
+      "Rehabilitation",
+      "Equipment grants"
+    ],
+    "followerCount": 0
+  },
+  {
+    "id": "borp",
+    "name": "BORP",
+    "city": "Berkeley",
+    "state": "California",
+    "description": "Bay Area Outreach & Recreation Program — cycling, goalball, and wheelchair basketball.",
+    "website": "https://borp.org",
+    "claimed": false,
+    "tags": [
+      "Adaptive sports",
+      "Equipment grants",
+      "Peer mentoring",
+      "Support groups"
+    ],
+    "followerCount": 0
+  },
+  {
+    "id": "high-fives-foundation",
+    "name": "High Fives Foundation",
+    "city": "Truckee",
+    "state": "California",
+    "description": "Recovery support and adaptive winter sports for athletes with life-changing injuries.",
+    "website": "https://highfivesfoundation.org",
+    "claimed": false,
+    "tags": [
+      "Winter sports",
+      "Cycling",
+      "Advocacy",
+      "Support groups"
+    ],
+    "followerCount": 0
+  },
+  {
+    "id": "achieve-tahoe",
+    "name": "Achieve Tahoe",
+    "city": "Alpine Meadows",
+    "state": "California",
+    "description": "Adaptive ski and snowboard lessons in the Sierra.",
+    "website": "https://achievetahoe.org",
+    "claimed": false,
+    "tags": [
+      "Winter sports",
+      "Peer mentoring",
+      "Water sports"
+    ],
+    "followerCount": 0
+  },
+  {
+    "id": "bay-area-association-of-disabled-s",
+    "name": "Bay Area Association of Disabled Sailors",
+    "city": "San Francisco",
+    "state": "California",
+    "description": "Adaptive sailing on the Bay for all experience levels.",
+    "website": "https://baads.org",
+    "claimed": false,
+    "tags": [
+      "Water sports",
+      "Support groups",
+      "Winter sports",
+      "Cycling"
+    ],
+    "followerCount": 0
+  },
+  {
+    "id": "santa-clara-valley-medical-center-",
+    "name": "Santa Clara Valley Medical Center SCI Peer Support",
+    "city": "San Jose",
+    "state": "California",
+    "description": "Weekly SCI peer support group, Mondays at 4pm.",
+    "website": "https://scvmc.scvh.org",
+    "claimed": false,
+    "tags": [
+      "Peer mentoring",
+      "Water sports"
+    ],
+    "followerCount": 0
+  },
+  {
+    "id": "shepherd-center",
+    "name": "Shepherd Center",
+    "city": "Atlanta",
+    "state": "Georgia",
+    "description": "SCI and brain injury rehabilitation hospital with peer support programs.",
+    "website": "https://shepherd.org",
+    "claimed": false,
+    "tags": [
+      "Winter sports",
+      "Support groups"
+    ],
+    "followerCount": 0
+  },
+  {
+    "id": "move-united",
+    "name": "Move United",
+    "city": "Rockville",
+    "state": "Maryland",
+    "description": "National adaptive sports network with member chapters across the country.",
+    "website": "https://moveunitedsport.org",
+    "claimed": false,
+    "tags": [
+      "Winter sports",
+      "Support groups",
+      "Adaptive sports",
+      "Equipment grants"
+    ],
+    "followerCount": 0
+  },
+  {
+    "id": "adaptive-adventures",
+    "name": "Adaptive Adventures",
+    "city": "Westminster",
+    "state": "Colorado",
+    "description": "Adaptive cycling, paddling, and ski programs nationwide.",
+    "website": "https://adaptiveadventures.org",
+    "claimed": false,
+    "tags": [
+      "Rehabilitation",
+      "Adaptive sports"
+    ],
+    "followerCount": 0
+  },
+  {
+    "id": "angel-city-sports",
+    "name": "Angel City Sports",
+    "city": "Los Angeles",
+    "state": "California",
+    "description": "Free adaptive sports clinics and the annual Angel City Games.",
+    "website": "https://angelcitysports.org",
+    "claimed": false,
+    "tags": [
+      "Adaptive sports",
+      "Winter sports",
+      "Rehabilitation",
+      "Water sports"
+    ],
+    "followerCount": 0
+  },
+  {
+    "id": "disability-sports-northwest",
+    "name": "Disability Sports Northwest",
+    "city": "Portland",
+    "state": "Oregon",
+    "description": "Adaptive sports leagues and clinics across the Pacific Northwest.",
+    "website": "https://example.org",
+    "claimed": false,
+    "tags": [
+      "Support groups",
+      "Rehabilitation",
+      "Adaptive sports"
+    ],
+    "followerCount": 0
+  },
+  {
+    "id": "turning-point-peer-network",
+    "name": "Turning Point Peer Network",
+    "city": "Austin",
+    "state": "Texas",
+    "description": "Peer mentorship and equipment lending library for Central Texas.",
+    "website": "https://example.org",
+    "claimed": false,
+    "tags": [
+      "Advocacy",
+      "Rehabilitation"
+    ],
+    "followerCount": 0
+  }
 ];
 
-// -- Coordinators ---------------------------------------------------------
+export const MEMBERS: Member[] = [
+  {
+    "id": "p_001",
+    "type": "peer",
+    "displayName": "Neve B.",
+    "photoUrl": null,
+    "photoAlt": null,
+    "avatarColor": "#2E5C8A",
+    "city": "Salinas",
+    "state": "California",
+    "disability": "TBI",
+    "level": null,
+    "completeness": null,
+    "duration": "10+ years",
+    "durationAnsweredOn": "2026-08-16",
+    "yearsSince": 30,
+    "ageBand": "60-69",
+    "relationship": "Self",
+    "equipment": [
+      "Manual chair"
+    ],
+    "equipmentDetail": "Manual chair",
+    "sportsEquipment": [
+      "Sport wheelchair"
+    ],
+    "willAdviseOnEquipment": false,
+    "grants": [],
+    "willHelpWithGrants": false,
+    "languages": [
+      "English",
+      "Spanish"
+    ],
+    "interests": [
+      "Dogs",
+      "Photography",
+      "Volunteering",
+      "Podcasts",
+      "Wheelchair tennis"
+    ],
+    "topics": [],
+    "bio": "30 years post-injury. Manual chair. Mostly here for the dogs crowd.",
+    "employment": "Part time",
+    "living": "Lives with my partner",
+    "affiliations": [],
+    "verifiedBy": null,
+    "openToMessages": false,
+    "capacity": null,
+    "showInBrowse": true
+  },
+  {
+    "id": "p_002",
+    "type": "peer",
+    "displayName": "Elias B.",
+    "photoUrl": null,
+    "photoAlt": null,
+    "avatarColor": "#4A4E8C",
+    "city": "Salem",
+    "state": "Oregon",
+    "disability": "TBI",
+    "level": null,
+    "completeness": null,
+    "duration": "1 - 3 years",
+    "durationAnsweredOn": "2026-08-16",
+    "yearsSince": 1,
+    "ageBand": "30-39",
+    "relationship": "Self",
+    "equipment": [
+      "Power chair",
+      "Manual chair"
+    ],
+    "equipmentDetail": "Manual chair, power chair for longer days",
+    "sportsEquipment": [
+      "Sport wheelchair"
+    ],
+    "willAdviseOnEquipment": false,
+    "grants": [],
+    "willHelpWithGrants": false,
+    "languages": [
+      "ASL",
+      "English"
+    ],
+    "interests": [
+      "Cooking",
+      "Wheelchair tennis",
+      "Wheelchair rugby"
+    ],
+    "topics": [],
+    "bio": "Trying to build a circle locally. Coffee, cooking, whatever gets me out of the house.",
+    "employment": "Part time",
+    "living": "Lives with my husband",
+    "affiliations": [
+      "borp"
+    ],
+    "verifiedBy": null,
+    "openToMessages": false,
+    "capacity": null,
+    "showInBrowse": true
+  },
+  {
+    "id": "p_003",
+    "type": "peer",
+    "displayName": "Rhea S.",
+    "photoUrl": null,
+    "photoAlt": null,
+    "avatarColor": "#0E6B5C",
+    "city": "Tacoma",
+    "state": "Washington",
+    "disability": "SCI - quad",
+    "level": "C4",
+    "completeness": "Complete",
+    "duration": "3 - 10 years",
+    "durationAnsweredOn": "2026-08-16",
+    "yearsSince": 5,
+    "ageBand": "20-29",
+    "relationship": "Self",
+    "equipment": [
+      "Manual chair"
+    ],
+    "equipmentDetail": "Manual chair",
+    "sportsEquipment": [],
+    "willAdviseOnEquipment": false,
+    "grants": [],
+    "willHelpWithGrants": false,
+    "languages": [
+      "English"
+    ],
+    "interests": [
+      "Scuba diving",
+      "Video games",
+      "Travel",
+      "Podcasts",
+      "Photography"
+    ],
+    "topics": [],
+    "bio": "5 years post-injury. Manual chair. Mostly here for the scuba diving crowd.",
+    "employment": "Full time",
+    "living": "Lives with family",
+    "affiliations": [
+      "norcal-sci"
+    ],
+    "verifiedBy": null,
+    "openToMessages": false,
+    "capacity": null,
+    "showInBrowse": true
+  },
+  {
+    "id": "p_004",
+    "type": "peer",
+    "displayName": "Ravi C.",
+    "photoUrl": null,
+    "photoAlt": null,
+    "avatarColor": "#1B5F4E",
+    "city": "Santa Cruz",
+    "state": "California",
+    "disability": "SCI - quad",
+    "level": "C6/7",
+    "completeness": "Incomplete",
+    "duration": "10+ years",
+    "durationAnsweredOn": "2026-08-16",
+    "yearsSince": 12,
+    "ageBand": "30-39",
+    "relationship": "Self",
+    "equipment": [
+      "Crutches or walker"
+    ],
+    "equipmentDetail": "Walks short distances with forearm crutches",
+    "sportsEquipment": [
+      "Handcycle"
+    ],
+    "willAdviseOnEquipment": false,
+    "grants": [],
+    "willHelpWithGrants": false,
+    "languages": [
+      "English",
+      "Vietnamese"
+    ],
+    "interests": [
+      "Camping",
+      "Baking",
+      "Podcasts",
+      "Handcycling",
+      "Painting"
+    ],
+    "topics": [],
+    "bio": "Trying to build a circle locally. Coffee, camping, whatever gets me out of the house.",
+    "employment": "Full time",
+    "living": "Lives alone with a dog",
+    "affiliations": [
+      "borp"
+    ],
+    "verifiedBy": null,
+    "openToMessages": false,
+    "capacity": null,
+    "showInBrowse": true
+  },
+  {
+    "id": "p_005",
+    "type": "peer",
+    "displayName": "Paloma V.",
+    "photoUrl": null,
+    "photoAlt": null,
+    "avatarColor": "#6B3FA0",
+    "city": "Santa Rosa",
+    "state": "California",
+    "disability": "SCI - para",
+    "level": "T3",
+    "completeness": "Do not know",
+    "duration": "10+ years",
+    "durationAnsweredOn": "2026-08-16",
+    "yearsSince": 20,
+    "ageBand": "60-69",
+    "relationship": "Self",
+    "equipment": [
+      "Manual chair"
+    ],
+    "equipmentDetail": "Power-assist manual chair",
+    "sportsEquipment": [
+      "Monoski or sit-ski"
+    ],
+    "willAdviseOnEquipment": false,
+    "grants": [],
+    "willHelpWithGrants": false,
+    "languages": [
+      "English",
+      "Portuguese"
+    ],
+    "interests": [
+      "Board games",
+      "Swimming",
+      "Camping",
+      "Monoskiing",
+      "Cooking"
+    ],
+    "topics": [],
+    "bio": "Getting back into board games after a long break. Always up for company.",
+    "employment": "Part time",
+    "living": "Lives with my wife and two kids",
+    "affiliations": [],
+    "verifiedBy": null,
+    "openToMessages": false,
+    "capacity": null,
+    "showInBrowse": true
+  },
+  {
+    "id": "p_006",
+    "type": "peer",
+    "displayName": "Jonah L.",
+    "photoUrl": null,
+    "photoAlt": null,
+    "avatarColor": "#8A5A2B",
+    "city": "Minneapolis",
+    "state": "Minnesota",
+    "disability": "Spina Bifida",
+    "level": "S4",
+    "completeness": "Complete",
+    "duration": "10+ years",
+    "durationAnsweredOn": "2026-08-16",
+    "yearsSince": 73,
+    "ageBand": "70-79",
+    "relationship": "Self",
+    "equipment": [
+      "Scooter"
+    ],
+    "equipmentDetail": "Mobility scooter",
+    "sportsEquipment": [],
+    "willAdviseOnEquipment": false,
+    "grants": [],
+    "willHelpWithGrants": false,
+    "languages": [
+      "English",
+      "Spanish"
+    ],
+    "interests": [
+      "Woodworking",
+      "Video games",
+      "Birding",
+      "Film & TV"
+    ],
+    "topics": [],
+    "bio": "73 years post-injury. Mobility scooter. Mostly here for the woodworking crowd.",
+    "employment": "Full time",
+    "living": "Lives with my parents while I finish school",
+    "affiliations": [
+      "borp"
+    ],
+    "verifiedBy": null,
+    "openToMessages": false,
+    "capacity": null,
+    "showInBrowse": true
+  },
+  {
+    "id": "p_007",
+    "type": "peer",
+    "displayName": "Bo T.",
+    "photoUrl": null,
+    "photoAlt": null,
+    "avatarColor": "#C9491B",
+    "city": "Fort Collins",
+    "state": "Colorado",
+    "disability": "MS",
+    "level": null,
+    "completeness": null,
+    "duration": "1 - 3 years",
+    "durationAnsweredOn": "2026-08-16",
+    "yearsSince": 1,
+    "ageBand": "20-29",
+    "relationship": "Self",
+    "equipment": [
+      "Scooter"
+    ],
+    "equipmentDetail": "Mobility scooter",
+    "sportsEquipment": [
+      "Sport wheelchair"
+    ],
+    "willAdviseOnEquipment": false,
+    "grants": [],
+    "willHelpWithGrants": false,
+    "languages": [
+      "English",
+      "Spanish"
+    ],
+    "interests": [
+      "Kayaking",
+      "Wheelchair rugby",
+      "Archery"
+    ],
+    "topics": [],
+    "bio": "1 years in and still figuring parts of it out. Mostly here to meet people who ride.",
+    "employment": "Not working",
+    "living": "Lives with my partner",
+    "affiliations": [],
+    "verifiedBy": null,
+    "openToMessages": false,
+    "capacity": null,
+    "showInBrowse": true
+  },
+  {
+    "id": "p_008",
+    "type": "peer",
+    "displayName": "Callum N.",
+    "photoUrl": null,
+    "photoAlt": null,
+    "avatarColor": "#1B5F4E",
+    "city": "Henderson",
+    "state": "Nevada",
+    "disability": "Amputee",
+    "level": null,
+    "completeness": null,
+    "duration": "10+ years",
+    "durationAnsweredOn": "2026-08-16",
+    "yearsSince": 24,
+    "ageBand": "70-79",
+    "relationship": "Self",
+    "equipment": [
+      "Manual chair"
+    ],
+    "equipmentDetail": "Manual chair",
+    "sportsEquipment": [
+      "Monoski or sit-ski"
+    ],
+    "willAdviseOnEquipment": false,
+    "grants": [],
+    "willHelpWithGrants": false,
+    "languages": [
+      "English",
+      "Spanish"
+    ],
+    "interests": [
+      "Monoskiing",
+      "Film & TV",
+      "Swimming",
+      "Archery"
+    ],
+    "topics": [],
+    "bio": "Getting back into monoskiing after a long break. Always up for company.",
+    "employment": "Full time",
+    "living": "Lives with my husband",
+    "affiliations": [],
+    "verifiedBy": null,
+    "openToMessages": false,
+    "capacity": null,
+    "showInBrowse": true
+  },
+  {
+    "id": "p_009",
+    "type": "peer",
+    "displayName": "Jonah O.",
+    "photoUrl": null,
+    "photoAlt": null,
+    "avatarColor": "#8A5A2B",
+    "city": "Concord",
+    "state": "California",
+    "disability": "TBI",
+    "level": null,
+    "completeness": null,
+    "duration": "1 - 3 years",
+    "durationAnsweredOn": "2026-08-16",
+    "yearsSince": 2,
+    "ageBand": "20-29",
+    "relationship": "Self",
+    "equipment": [
+      "Crutches or walker"
+    ],
+    "equipmentDetail": "Walks short distances with forearm crutches",
+    "sportsEquipment": [],
+    "willAdviseOnEquipment": false,
+    "grants": [],
+    "willHelpWithGrants": false,
+    "languages": [
+      "English",
+      "Spanish"
+    ],
+    "interests": [
+      "Sailing",
+      "Rock climbing",
+      "Dogs",
+      "Volunteering",
+      "Photography",
+      "Gardening"
+    ],
+    "topics": [],
+    "bio": "Getting back into sailing after a long break. Always up for company.",
+    "employment": "Full time",
+    "living": "Lives with my wife and two kids",
+    "affiliations": [],
+    "verifiedBy": null,
+    "openToMessages": false,
+    "capacity": null,
+    "showInBrowse": true
+  },
+  {
+    "id": "p_010",
+    "type": "peer",
+    "displayName": "Maeve K.",
+    "photoUrl": null,
+    "photoAlt": null,
+    "avatarColor": "#A8341E",
+    "city": "Boulder",
+    "state": "Colorado",
+    "disability": "MS",
+    "level": null,
+    "completeness": null,
+    "duration": "10+ years",
+    "durationAnsweredOn": "2026-08-16",
+    "yearsSince": 27,
+    "ageBand": "70-79",
+    "relationship": "Self",
+    "equipment": [
+      "Power assist",
+      "Manual chair"
+    ],
+    "equipmentDetail": "Manual chair with SmartDrive",
+    "sportsEquipment": [],
+    "willAdviseOnEquipment": false,
+    "grants": [],
+    "willHelpWithGrants": false,
+    "languages": [
+      "English"
+    ],
+    "interests": [
+      "Travel",
+      "Camping",
+      "Woodworking",
+      "Painting"
+    ],
+    "topics": [],
+    "bio": "New-ish to the area and looking for people to do things with on weekends.",
+    "employment": "Full time",
+    "living": "Lives with my wife and two kids",
+    "affiliations": [],
+    "verifiedBy": null,
+    "openToMessages": false,
+    "capacity": null,
+    "showInBrowse": true
+  },
+  {
+    "id": "p_011",
+    "type": "peer",
+    "displayName": "Felix C.",
+    "photoUrl": null,
+    "photoAlt": null,
+    "avatarColor": "#6B3FA0",
+    "city": "Las Vegas",
+    "state": "Nevada",
+    "disability": "SCI - para",
+    "level": "T5",
+    "completeness": "Complete",
+    "duration": "10+ years",
+    "durationAnsweredOn": "2026-08-16",
+    "yearsSince": 13,
+    "ageBand": "50-59",
+    "relationship": "Self",
+    "equipment": [
+      "Manual chair"
+    ],
+    "equipmentDetail": "Manual chair",
+    "sportsEquipment": [],
+    "willAdviseOnEquipment": false,
+    "grants": [],
+    "willHelpWithGrants": false,
+    "languages": [
+      "English"
+    ],
+    "interests": [
+      "Live music",
+      "Photography",
+      "Film & TV",
+      "Video games"
+    ],
+    "topics": [],
+    "bio": "Trying to build a circle locally. Coffee, live music, whatever gets me out of the house.",
+    "employment": "Student",
+    "living": "Lives with my parents while I finish school",
+    "affiliations": [],
+    "verifiedBy": null,
+    "openToMessages": false,
+    "capacity": null,
+    "showInBrowse": true
+  },
+  {
+    "id": "p_012",
+    "type": "peer",
+    "displayName": "Hector F.",
+    "photoUrl": null,
+    "photoAlt": null,
+    "avatarColor": "#14483C",
+    "city": "Ann Arbor",
+    "state": "Michigan",
+    "disability": "SCI - para",
+    "level": "T11",
+    "completeness": "Complete",
+    "duration": "3 - 10 years",
+    "durationAnsweredOn": "2026-08-16",
+    "yearsSince": 3,
+    "ageBand": "20-29",
+    "relationship": "Self",
+    "equipment": [
+      "Manual chair"
+    ],
+    "equipmentDetail": "Manual chair and a trail chair",
+    "sportsEquipment": [],
+    "willAdviseOnEquipment": false,
+    "grants": [],
+    "willHelpWithGrants": false,
+    "languages": [
+      "English"
+    ],
+    "interests": [
+      "Birding",
+      "Camping",
+      "Photography",
+      "Dogs"
+    ],
+    "topics": [],
+    "bio": "Trying to build a circle locally. Coffee, birding, whatever gets me out of the house.",
+    "employment": "Student",
+    "living": "Lives with my partner",
+    "affiliations": [],
+    "verifiedBy": null,
+    "openToMessages": false,
+    "capacity": null,
+    "showInBrowse": true
+  },
+  {
+    "id": "p_013",
+    "type": "peer",
+    "displayName": "Terrance Z.",
+    "photoUrl": null,
+    "photoAlt": null,
+    "avatarColor": "#A8341E",
+    "city": "Chico",
+    "state": "California",
+    "disability": "SCI - quad",
+    "level": "C5",
+    "completeness": "Complete",
+    "duration": "10+ years",
+    "durationAnsweredOn": "2026-08-16",
+    "yearsSince": 21,
+    "ageBand": "40-49",
+    "relationship": "Self",
+    "equipment": [
+      "Power chair"
+    ],
+    "equipmentDetail": "Power chair",
+    "sportsEquipment": [],
+    "willAdviseOnEquipment": false,
+    "grants": [],
+    "willHelpWithGrants": false,
+    "languages": [
+      "English"
+    ],
+    "interests": [
+      "Video games",
+      "Road trips",
+      "Baking",
+      "Photography",
+      "Swimming"
+    ],
+    "topics": [],
+    "bio": "Not looking for advice so much as people who get it without a long explanation.",
+    "employment": "Full time",
+    "living": "Lives with my partner",
+    "affiliations": [
+      "norcal-sci"
+    ],
+    "verifiedBy": null,
+    "openToMessages": false,
+    "capacity": null,
+    "showInBrowse": true
+  },
+  {
+    "id": "p_014",
+    "type": "peer",
+    "displayName": "Desmond S.",
+    "photoUrl": null,
+    "photoAlt": null,
+    "avatarColor": "#C9491B",
+    "city": "Philadelphia",
+    "state": "Pennsylvania",
+    "disability": "SCI - quad",
+    "level": "C7",
+    "completeness": "Complete",
+    "duration": "10+ years",
+    "durationAnsweredOn": "2026-08-16",
+    "yearsSince": 27,
+    "ageBand": "60-69",
+    "relationship": "Self",
+    "equipment": [
+      "Crutches or walker"
+    ],
+    "equipmentDetail": "Walks short distances with forearm crutches",
+    "sportsEquipment": [],
+    "willAdviseOnEquipment": false,
+    "grants": [],
+    "willHelpWithGrants": false,
+    "languages": [
+      "English"
+    ],
+    "interests": [
+      "Podcasts",
+      "Board games",
+      "Film & TV",
+      "Baking",
+      "Swimming"
+    ],
+    "topics": [],
+    "bio": "Recently moved to Philadelphia. Would love to find the local scene.",
+    "employment": "Student",
+    "living": "Lives alone",
+    "affiliations": [
+      "borp"
+    ],
+    "verifiedBy": null,
+    "openToMessages": false,
+    "capacity": null,
+    "showInBrowse": true
+  },
+  {
+    "id": "p_015",
+    "type": "peer",
+    "displayName": "Mira C.",
+    "photoUrl": null,
+    "photoAlt": null,
+    "avatarColor": "#14483C",
+    "city": "Pittsburgh",
+    "state": "Pennsylvania",
+    "disability": "SCI - para",
+    "level": "T2",
+    "completeness": "Complete",
+    "duration": "3 - 10 years",
+    "durationAnsweredOn": "2026-08-16",
+    "yearsSince": 5,
+    "ageBand": "20-29",
+    "relationship": "Self",
+    "equipment": [
+      "Power chair"
+    ],
+    "equipmentDetail": "Power chair",
+    "sportsEquipment": [
+      "Handcycle"
+    ],
+    "willAdviseOnEquipment": false,
+    "grants": [],
+    "willHelpWithGrants": false,
+    "languages": [
+      "English",
+      "Mandarin"
+    ],
+    "interests": [
+      "Kayaking",
+      "Gym & fitness",
+      "Handcycling",
+      "Sled hockey",
+      "Fishing"
+    ],
+    "topics": [],
+    "bio": "New-ish to the area and looking for people to do things with on weekends.",
+    "employment": "Not working",
+    "living": "Lives with a roommate",
+    "affiliations": [],
+    "verifiedBy": null,
+    "openToMessages": false,
+    "capacity": null,
+    "showInBrowse": true
+  },
+  {
+    "id": "p_016",
+    "type": "peer",
+    "displayName": "Nella L.",
+    "photoUrl": null,
+    "photoAlt": null,
+    "avatarColor": "#4A4E8C",
+    "city": "Eugene",
+    "state": "Oregon",
+    "disability": "MS",
+    "level": null,
+    "completeness": null,
+    "duration": "3 - 10 years",
+    "durationAnsweredOn": "2026-08-16",
+    "yearsSince": 3,
+    "ageBand": "60-69",
+    "relationship": "Self",
+    "equipment": [
+      "Crutches or walker"
+    ],
+    "equipmentDetail": "Walks short distances with forearm crutches",
+    "sportsEquipment": [
+      "Handcycle",
+      "Sport wheelchair"
+    ],
+    "willAdviseOnEquipment": false,
+    "grants": [],
+    "willHelpWithGrants": false,
+    "languages": [
+      "English",
+      "French"
+    ],
+    "interests": [
+      "Camping",
+      "Handcycling",
+      "Wheelchair rugby",
+      "Wheelchair tennis",
+      "Cooking",
+      "Gardening"
+    ],
+    "topics": [],
+    "bio": "Injured in 2023. Happy to talk, happier to get out and do something.",
+    "employment": "Full time",
+    "living": "Lives with my parents while I finish school",
+    "affiliations": [],
+    "verifiedBy": null,
+    "openToMessages": false,
+    "capacity": null,
+    "showInBrowse": true
+  },
+  {
+    "id": "p_017",
+    "type": "peer",
+    "displayName": "Lena K.",
+    "photoUrl": null,
+    "photoAlt": null,
+    "avatarColor": "#4A4E8C",
+    "city": "Boulder",
+    "state": "Colorado",
+    "disability": "SCI - para",
+    "level": "L4",
+    "completeness": "Incomplete",
+    "duration": "3 - 10 years",
+    "durationAnsweredOn": "2026-08-16",
+    "yearsSince": 7,
+    "ageBand": "60-69",
+    "relationship": "Self",
+    "equipment": [
+      "Crutches or walker"
+    ],
+    "equipmentDetail": "Walks short distances with forearm crutches",
+    "sportsEquipment": [],
+    "willAdviseOnEquipment": false,
+    "grants": [],
+    "willHelpWithGrants": false,
+    "languages": [
+      "English"
+    ],
+    "interests": [
+      "Podcasts",
+      "Dogs",
+      "3D printing",
+      "Video games",
+      "Hiking with a trail chair",
+      "Archery"
+    ],
+    "topics": [],
+    "bio": "Injured in 2019. Happy to talk, happier to get out and do something.",
+    "employment": "Student",
+    "living": "Lives alone with a dog",
+    "affiliations": [],
+    "verifiedBy": null,
+    "openToMessages": false,
+    "capacity": null,
+    "showInBrowse": true
+  },
+  {
+    "id": "p_018",
+    "type": "peer",
+    "displayName": "Bianca L.",
+    "photoUrl": null,
+    "photoAlt": null,
+    "avatarColor": "#4A4E8C",
+    "city": "Spokane",
+    "state": "Washington",
+    "disability": "SCI - quad",
+    "level": "C5",
+    "completeness": "Do not know",
+    "duration": "3 - 10 years",
+    "durationAnsweredOn": "2026-08-16",
+    "yearsSince": 9,
+    "ageBand": "20-29",
+    "relationship": "Self",
+    "equipment": [
+      "Crutches or walker"
+    ],
+    "equipmentDetail": "Walks short distances with forearm crutches",
+    "sportsEquipment": [],
+    "willAdviseOnEquipment": false,
+    "grants": [],
+    "willHelpWithGrants": false,
+    "languages": [
+      "English",
+      "Spanish"
+    ],
+    "interests": [
+      "Rock climbing",
+      "Film & TV",
+      "Reading",
+      "Birding"
+    ],
+    "topics": [],
+    "bio": "9 years in and still figuring parts of it out. Mostly here to meet people who ride.",
+    "employment": "Full time",
+    "living": "Lives alone",
+    "affiliations": [],
+    "verifiedBy": null,
+    "openToMessages": false,
+    "capacity": null,
+    "showInBrowse": true
+  },
+  {
+    "id": "p_019",
+    "type": "peer",
+    "displayName": "Clara F.",
+    "photoUrl": null,
+    "photoAlt": null,
+    "avatarColor": "#0E6B5C",
+    "city": "Fresno",
+    "state": "California",
+    "disability": "Cerebral Palsy",
+    "level": null,
+    "completeness": null,
+    "duration": "3 - 10 years",
+    "durationAnsweredOn": "2026-08-16",
+    "yearsSince": 3,
+    "ageBand": "20-29",
+    "relationship": "Self",
+    "equipment": [
+      "Crutches or walker"
+    ],
+    "equipmentDetail": "Walks short distances with forearm crutches",
+    "sportsEquipment": [],
+    "willAdviseOnEquipment": false,
+    "grants": [],
+    "willHelpWithGrants": false,
+    "languages": [
+      "English",
+      "Portuguese"
+    ],
+    "interests": [
+      "Rock climbing",
+      "Dogs",
+      "Woodworking",
+      "Kayaking"
+    ],
+    "topics": [],
+    "bio": "Injured in 2023. Happy to talk, happier to get out and do something.",
+    "employment": "Full time",
+    "living": "Lives alone",
+    "affiliations": [
+      "norcal-sci"
+    ],
+    "verifiedBy": null,
+    "openToMessages": false,
+    "capacity": null,
+    "showInBrowse": true
+  },
+  {
+    "id": "p_020",
+    "type": "peer",
+    "displayName": "Silas H.",
+    "photoUrl": null,
+    "photoAlt": null,
+    "avatarColor": "#8A5A2B",
+    "city": "Denver",
+    "state": "Colorado",
+    "disability": "TBI",
+    "level": null,
+    "completeness": null,
+    "duration": "10+ years",
+    "durationAnsweredOn": "2026-08-16",
+    "yearsSince": 15,
+    "ageBand": "40-49",
+    "relationship": "Self",
+    "equipment": [
+      "Manual chair"
+    ],
+    "equipmentDetail": "Power-assist manual chair",
+    "sportsEquipment": [],
+    "willAdviseOnEquipment": false,
+    "grants": [],
+    "willHelpWithGrants": false,
+    "languages": [
+      "English",
+      "Spanish"
+    ],
+    "interests": [
+      "Baking",
+      "Archery",
+      "Hiking with a trail chair",
+      "Live music"
+    ],
+    "topics": [],
+    "bio": "New-ish to the area and looking for people to do things with on weekends.",
+    "employment": "Retired",
+    "living": "Lives alone",
+    "affiliations": [],
+    "verifiedBy": null,
+    "openToMessages": false,
+    "capacity": null,
+    "showInBrowse": true
+  },
+  {
+    "id": "p_021",
+    "type": "peer",
+    "displayName": "Bo F.",
+    "photoUrl": null,
+    "photoAlt": null,
+    "avatarColor": "#2E5C8A",
+    "city": "Philadelphia",
+    "state": "Pennsylvania",
+    "disability": "Amputee",
+    "level": null,
+    "completeness": null,
+    "duration": "10+ years",
+    "durationAnsweredOn": "2026-08-16",
+    "yearsSince": 15,
+    "ageBand": "60-69",
+    "relationship": "Self",
+    "equipment": [
+      "Manual chair"
+    ],
+    "equipmentDetail": "Manual chair",
+    "sportsEquipment": [],
+    "willAdviseOnEquipment": false,
+    "grants": [],
+    "willHelpWithGrants": false,
+    "languages": [
+      "English",
+      "Spanish"
+    ],
+    "interests": [
+      "Painting",
+      "Photography",
+      "Sled hockey",
+      "Film & TV",
+      "Archery",
+      "Live music"
+    ],
+    "topics": [],
+    "bio": "Getting back into painting after a long break. Always up for company.",
+    "employment": "Retired",
+    "living": "Lives with my partner",
+    "affiliations": [
+      "triumph-foundation"
+    ],
+    "verifiedBy": null,
+    "openToMessages": false,
+    "capacity": null,
+    "showInBrowse": true
+  },
+  {
+    "id": "p_022",
+    "type": "peer",
+    "displayName": "Danae P.",
+    "photoUrl": null,
+    "photoAlt": null,
+    "avatarColor": "#0E6B5C",
+    "city": "Santa Cruz",
+    "state": "California",
+    "disability": "Cerebral Palsy",
+    "level": null,
+    "completeness": null,
+    "duration": "1 - 3 years",
+    "durationAnsweredOn": "2026-08-16",
+    "yearsSince": 1,
+    "ageBand": "60-69",
+    "relationship": "Self",
+    "equipment": [
+      "Manual chair"
+    ],
+    "equipmentDetail": "Manual chair and a trail chair",
+    "sportsEquipment": [
+      "Monoski or sit-ski"
+    ],
+    "willAdviseOnEquipment": false,
+    "grants": [],
+    "willHelpWithGrants": false,
+    "languages": [
+      "ASL",
+      "English"
+    ],
+    "interests": [
+      "Monoskiing",
+      "Baking",
+      "Sled hockey"
+    ],
+    "topics": [],
+    "bio": "Recently moved to Santa Cruz. Would love to find the local scene.",
+    "employment": "Student",
+    "living": "Lives with my parents while I finish school",
+    "affiliations": [],
+    "verifiedBy": null,
+    "openToMessages": false,
+    "capacity": null,
+    "showInBrowse": true
+  },
+  {
+    "id": "p_023",
+    "type": "peer",
+    "displayName": "Quinn T.",
+    "photoUrl": null,
+    "photoAlt": null,
+    "avatarColor": "#4A4E8C",
+    "city": "San Jose",
+    "state": "California",
+    "disability": "Cerebral Palsy",
+    "level": null,
+    "completeness": null,
+    "duration": "10+ years",
+    "durationAnsweredOn": "2026-08-16",
+    "yearsSince": 14,
+    "ageBand": "50-59",
+    "relationship": "Self",
+    "equipment": [
+      "Power chair",
+      "Manual chair"
+    ],
+    "equipmentDetail": "Manual chair, power chair for longer days",
+    "sportsEquipment": [],
+    "willAdviseOnEquipment": false,
+    "grants": [],
+    "willHelpWithGrants": false,
+    "languages": [
+      "English",
+      "Vietnamese"
+    ],
+    "interests": [
+      "Swimming",
+      "Volunteering",
+      "Travel",
+      "Road trips",
+      "Kayaking"
+    ],
+    "topics": [],
+    "bio": "Not looking for advice so much as people who get it without a long explanation.",
+    "employment": "Full time",
+    "living": "Lives alone",
+    "affiliations": [],
+    "verifiedBy": null,
+    "openToMessages": false,
+    "capacity": null,
+    "showInBrowse": true
+  },
+  {
+    "id": "p_024",
+    "type": "peer",
+    "displayName": "Cyrus C.",
+    "photoUrl": null,
+    "photoAlt": null,
+    "avatarColor": "#A8341E",
+    "city": "Tempe",
+    "state": "Arizona",
+    "disability": "SCI - para",
+    "level": "L2",
+    "completeness": "Do not know",
+    "duration": "10+ years",
+    "durationAnsweredOn": "2026-08-16",
+    "yearsSince": 16,
+    "ageBand": "50-59",
+    "relationship": "Self",
+    "equipment": [
+      "Power chair"
+    ],
+    "equipmentDetail": "Power chair",
+    "sportsEquipment": [],
+    "willAdviseOnEquipment": false,
+    "grants": [],
+    "willHelpWithGrants": false,
+    "languages": [
+      "English"
+    ],
+    "interests": [
+      "Birding",
+      "Hiking with a trail chair",
+      "Painting",
+      "Board games",
+      "Fishing",
+      "Gardening"
+    ],
+    "topics": [],
+    "bio": "New-ish to the area and looking for people to do things with on weekends.",
+    "employment": "Part time",
+    "living": "Lives with my parents while I finish school",
+    "affiliations": [],
+    "verifiedBy": null,
+    "openToMessages": false,
+    "capacity": null,
+    "showInBrowse": true
+  },
+  {
+    "id": "p_025",
+    "type": "peer",
+    "displayName": "Noor T.",
+    "photoUrl": null,
+    "photoAlt": null,
+    "avatarColor": "#0E6B5C",
+    "city": "Eureka",
+    "state": "California",
+    "disability": "Spina Bifida",
+    "level": "L4",
+    "completeness": "Do not know",
+    "duration": "10+ years",
+    "durationAnsweredOn": "2026-08-16",
+    "yearsSince": 53,
+    "ageBand": "50-59",
+    "relationship": "Self",
+    "equipment": [
+      "Manual chair"
+    ],
+    "equipmentDetail": "Power-assist manual chair",
+    "sportsEquipment": [],
+    "willAdviseOnEquipment": false,
+    "grants": [],
+    "willHelpWithGrants": false,
+    "languages": [
+      "English",
+      "Spanish"
+    ],
+    "interests": [
+      "Baking",
+      "Board games",
+      "Dogs",
+      "Scuba diving",
+      "Kayaking"
+    ],
+    "topics": [],
+    "bio": "Trying to build a circle locally. Coffee, baking, whatever gets me out of the house.",
+    "employment": "Full time",
+    "living": "Lives with my parents while I finish school",
+    "affiliations": [
+      "ability360"
+    ],
+    "verifiedBy": null,
+    "openToMessages": false,
+    "capacity": null,
+    "showInBrowse": true
+  },
+  {
+    "id": "p_026",
+    "type": "peer",
+    "displayName": "Noor Z.",
+    "photoUrl": null,
+    "photoAlt": null,
+    "avatarColor": "#C9491B",
+    "city": "Albany",
+    "state": "New York",
+    "disability": "SCI - para",
+    "level": "T9",
+    "completeness": "Incomplete",
+    "duration": "10+ years",
+    "durationAnsweredOn": "2026-08-16",
+    "yearsSince": 23,
+    "ageBand": "60-69",
+    "relationship": "Self",
+    "equipment": [
+      "Power chair"
+    ],
+    "equipmentDetail": "Power chair",
+    "sportsEquipment": [],
+    "willAdviseOnEquipment": false,
+    "grants": [],
+    "willHelpWithGrants": false,
+    "languages": [
+      "English",
+      "Mandarin"
+    ],
+    "interests": [
+      "Volunteering",
+      "Kayaking",
+      "Camping"
+    ],
+    "topics": [],
+    "bio": "Trying to build a circle locally. Coffee, volunteering, whatever gets me out of the house.",
+    "employment": "Full time",
+    "living": "Lives with my partner",
+    "affiliations": [
+      "triumph-foundation"
+    ],
+    "verifiedBy": null,
+    "openToMessages": false,
+    "capacity": null,
+    "showInBrowse": true
+  },
+  {
+    "id": "p_027",
+    "type": "peer",
+    "displayName": "Rafael P.",
+    "photoUrl": null,
+    "photoAlt": null,
+    "avatarColor": "#6B3FA0",
+    "city": "Livermore",
+    "state": "California",
+    "disability": "SCI - para",
+    "level": "T1",
+    "completeness": "Incomplete",
+    "duration": "3 - 10 years",
+    "durationAnsweredOn": "2026-08-16",
+    "yearsSince": 4,
+    "ageBand": "40-49",
+    "relationship": "Self",
+    "equipment": [
+      "Manual chair"
+    ],
+    "equipmentDetail": "Manual chair",
+    "sportsEquipment": [
+      "Sport wheelchair"
+    ],
+    "willAdviseOnEquipment": false,
+    "grants": [],
+    "willHelpWithGrants": false,
+    "languages": [
+      "English"
+    ],
+    "interests": [
+      "Sailing",
+      "Wheelchair basketball",
+      "Fishing",
+      "Painting"
+    ],
+    "topics": [],
+    "bio": "4 years in and still figuring parts of it out. Mostly here to meet people who ride.",
+    "employment": "Not working",
+    "living": "Lives with my parents while I finish school",
+    "affiliations": [
+      "norcal-sci"
+    ],
+    "verifiedBy": null,
+    "openToMessages": false,
+    "capacity": null,
+    "showInBrowse": true
+  },
+  {
+    "id": "p_028",
+    "type": "peer",
+    "displayName": "Desmond M.",
+    "photoUrl": null,
+    "photoAlt": null,
+    "avatarColor": "#6B3FA0",
+    "city": "Savannah",
+    "state": "Georgia",
+    "disability": "Other",
+    "level": null,
+    "completeness": null,
+    "duration": "3 - 10 years",
+    "durationAnsweredOn": "2026-08-16",
+    "yearsSince": 8,
+    "ageBand": "20-29",
+    "relationship": "Self",
+    "equipment": [
+      "Manual chair"
+    ],
+    "equipmentDetail": "Manual chair and a trail chair",
+    "sportsEquipment": [
+      "Monoski or sit-ski"
+    ],
+    "willAdviseOnEquipment": false,
+    "grants": [],
+    "willHelpWithGrants": false,
+    "languages": [
+      "English",
+      "Vietnamese"
+    ],
+    "interests": [
+      "Photography",
+      "Woodworking",
+      "Monoskiing",
+      "Live music"
+    ],
+    "topics": [],
+    "bio": "Not looking for advice so much as people who get it without a long explanation.",
+    "employment": "Full time",
+    "living": "Lives alone with a dog",
+    "affiliations": [],
+    "verifiedBy": null,
+    "openToMessages": false,
+    "capacity": null,
+    "showInBrowse": true
+  },
+  {
+    "id": "p_029",
+    "type": "peer",
+    "displayName": "Bea S.",
+    "photoUrl": null,
+    "photoAlt": null,
+    "avatarColor": "#A8341E",
+    "city": "Lakewood",
+    "state": "Colorado",
+    "disability": "Cerebral Palsy",
+    "level": null,
+    "completeness": null,
+    "duration": "1 - 3 years",
+    "durationAnsweredOn": "2026-08-16",
+    "yearsSince": 2,
+    "ageBand": "50-59",
+    "relationship": "Self",
+    "equipment": [
+      "Power assist",
+      "Manual chair"
+    ],
+    "equipmentDetail": "Manual chair with SmartDrive",
+    "sportsEquipment": [],
+    "willAdviseOnEquipment": false,
+    "grants": [],
+    "willHelpWithGrants": false,
+    "languages": [
+      "English",
+      "Mandarin"
+    ],
+    "interests": [
+      "Fishing",
+      "Sled hockey",
+      "Video games"
+    ],
+    "topics": [],
+    "bio": "New-ish to the area and looking for people to do things with on weekends.",
+    "employment": "Full time",
+    "living": "Lives with my husband",
+    "affiliations": [
+      "norcal-sci"
+    ],
+    "verifiedBy": null,
+    "openToMessages": false,
+    "capacity": null,
+    "showInBrowse": true
+  },
+  {
+    "id": "p_030",
+    "type": "peer",
+    "displayName": "Danae T.",
+    "photoUrl": null,
+    "photoAlt": null,
+    "avatarColor": "#8A5A2B",
+    "city": "Minneapolis",
+    "state": "Minnesota",
+    "disability": "SCI - para",
+    "level": "T7",
+    "completeness": "Incomplete",
+    "duration": "1 - 3 years",
+    "durationAnsweredOn": "2026-08-16",
+    "yearsSince": 1,
+    "ageBand": "50-59",
+    "relationship": "Self",
+    "equipment": [
+      "Scooter"
+    ],
+    "equipmentDetail": "Mobility scooter",
+    "sportsEquipment": [
+      "Monoski or sit-ski",
+      "Sport wheelchair"
+    ],
+    "willAdviseOnEquipment": false,
+    "grants": [],
+    "willHelpWithGrants": false,
+    "languages": [
+      "English"
+    ],
+    "interests": [
+      "Scuba diving",
+      "Reading",
+      "Wheelchair rugby",
+      "Monoskiing",
+      "Travel",
+      "Gym & fitness"
+    ],
+    "topics": [],
+    "bio": "1 years post-injury. Mobility scooter. Mostly here for the scuba diving crowd.",
+    "employment": "Full time",
+    "living": "Lives with my parents while I finish school",
+    "affiliations": [
+      "norcal-sci"
+    ],
+    "verifiedBy": null,
+    "openToMessages": false,
+    "capacity": null,
+    "showInBrowse": true
+  },
+  {
+    "id": "p_031",
+    "type": "peer",
+    "displayName": "Bo E.",
+    "photoUrl": null,
+    "photoAlt": null,
+    "avatarColor": "#3D5A3A",
+    "city": "Oakland",
+    "state": "California",
+    "disability": "SCI - para",
+    "level": "T5",
+    "completeness": "Complete",
+    "duration": "1 - 3 years",
+    "durationAnsweredOn": "2026-08-16",
+    "yearsSince": 2,
+    "ageBand": "50-59",
+    "relationship": "Self",
+    "equipment": [
+      "Scooter"
+    ],
+    "equipmentDetail": "Mobility scooter",
+    "sportsEquipment": [
+      "Sport wheelchair"
+    ],
+    "willAdviseOnEquipment": false,
+    "grants": [],
+    "willHelpWithGrants": false,
+    "languages": [
+      "English",
+      "Tagalog"
+    ],
+    "interests": [
+      "Road trips",
+      "Wheelchair tennis",
+      "Travel",
+      "Coffee",
+      "Camping",
+      "Hiking with a trail chair"
+    ],
+    "topics": [],
+    "bio": "Trying to build a circle locally. Coffee, road trips, whatever gets me out of the house.",
+    "employment": "Part time",
+    "living": "Lives alone with a dog",
+    "affiliations": [
+      "triumph-foundation"
+    ],
+    "verifiedBy": null,
+    "openToMessages": false,
+    "capacity": null,
+    "showInBrowse": true
+  },
+  {
+    "id": "p_032",
+    "type": "peer",
+    "displayName": "Marcus D.",
+    "photoUrl": null,
+    "photoAlt": null,
+    "avatarColor": "#4A4E8C",
+    "city": "Englewood",
+    "state": "Colorado",
+    "disability": "SCI - para",
+    "level": "L5",
+    "completeness": "Complete",
+    "duration": "10+ years",
+    "durationAnsweredOn": "2026-08-16",
+    "yearsSince": 12,
+    "ageBand": "50-59",
+    "relationship": "Self",
+    "equipment": [
+      "Scooter"
+    ],
+    "equipmentDetail": "Mobility scooter",
+    "sportsEquipment": [],
+    "willAdviseOnEquipment": false,
+    "grants": [],
+    "willHelpWithGrants": false,
+    "languages": [
+      "English"
+    ],
+    "interests": [
+      "Archery",
+      "Travel",
+      "Hiking with a trail chair",
+      "Rock climbing",
+      "Woodworking"
+    ],
+    "topics": [],
+    "bio": "Trying to build a circle locally. Coffee, archery, whatever gets me out of the house.",
+    "employment": "Not working",
+    "living": "Lives with family",
+    "affiliations": [],
+    "verifiedBy": null,
+    "openToMessages": false,
+    "capacity": null,
+    "showInBrowse": true
+  },
+  {
+    "id": "p_033",
+    "type": "peer",
+    "displayName": "Leo K.",
+    "photoUrl": null,
+    "photoAlt": null,
+    "avatarColor": "#6B3FA0",
+    "city": "Portland",
+    "state": "Oregon",
+    "disability": "SCI - quad",
+    "level": "C4/5",
+    "completeness": "Do not know",
+    "duration": "1 - 3 years",
+    "durationAnsweredOn": "2026-08-16",
+    "yearsSince": 1,
+    "ageBand": "20-29",
+    "relationship": "Self",
+    "equipment": [
+      "Power assist",
+      "Manual chair"
+    ],
+    "equipmentDetail": "Manual chair with SmartDrive",
+    "sportsEquipment": [
+      "Handcycle",
+      "Sport wheelchair"
+    ],
+    "willAdviseOnEquipment": false,
+    "grants": [],
+    "willHelpWithGrants": false,
+    "languages": [
+      "English",
+      "Vietnamese"
+    ],
+    "interests": [
+      "Swimming",
+      "Wheelchair basketball",
+      "Hiking with a trail chair",
+      "Photography",
+      "Handcycling"
+    ],
+    "topics": [],
+    "bio": "New-ish to the area and looking for people to do things with on weekends.",
+    "employment": "Full time",
+    "living": "Lives with my partner",
+    "affiliations": [
+      "norcal-sci"
+    ],
+    "verifiedBy": null,
+    "openToMessages": false,
+    "capacity": null,
+    "showInBrowse": true
+  },
+  {
+    "id": "p_034",
+    "type": "peer",
+    "displayName": "Fiona N.",
+    "photoUrl": null,
+    "photoAlt": null,
+    "avatarColor": "#2E5C8A",
+    "city": "Sunnyvale",
+    "state": "California",
+    "disability": "SCI - quad",
+    "level": "C1",
+    "completeness": "Complete",
+    "duration": "10+ years",
+    "durationAnsweredOn": "2026-08-16",
+    "yearsSince": 10,
+    "ageBand": "70-79",
+    "relationship": "Self",
+    "equipment": [
+      "Power chair"
+    ],
+    "equipmentDetail": "Power chair",
+    "sportsEquipment": [
+      "Monoski or sit-ski"
+    ],
+    "willAdviseOnEquipment": false,
+    "grants": [],
+    "willHelpWithGrants": false,
+    "languages": [
+      "English"
+    ],
+    "interests": [
+      "Sled hockey",
+      "Film & TV",
+      "Travel",
+      "Archery",
+      "Monoskiing",
+      "Swimming"
+    ],
+    "topics": [],
+    "bio": "10 years post-injury. Power chair. Mostly here for the sled hockey crowd.",
+    "employment": "Retired",
+    "living": "Lives with my husband",
+    "affiliations": [],
+    "verifiedBy": null,
+    "openToMessages": false,
+    "capacity": null,
+    "showInBrowse": true
+  },
+  {
+    "id": "p_035",
+    "type": "peer",
+    "displayName": "Tomas V.",
+    "photoUrl": null,
+    "photoAlt": null,
+    "avatarColor": "#A8341E",
+    "city": "Fresno",
+    "state": "California",
+    "disability": "SCI - para",
+    "level": "L3",
+    "completeness": "Complete",
+    "duration": "10+ years",
+    "durationAnsweredOn": "2026-08-16",
+    "yearsSince": 29,
+    "ageBand": "50-59",
+    "relationship": "Self",
+    "equipment": [
+      "Scooter"
+    ],
+    "equipmentDetail": "Mobility scooter",
+    "sportsEquipment": [],
+    "willAdviseOnEquipment": false,
+    "grants": [],
+    "willHelpWithGrants": false,
+    "languages": [
+      "ASL",
+      "English"
+    ],
+    "interests": [
+      "Reading",
+      "Camping",
+      "Volunteering",
+      "Live music",
+      "Road trips"
+    ],
+    "topics": [],
+    "bio": "New-ish to the area and looking for people to do things with on weekends.",
+    "employment": "Student",
+    "living": "Lives with family",
+    "affiliations": [],
+    "verifiedBy": null,
+    "openToMessages": false,
+    "capacity": null,
+    "showInBrowse": true
+  },
+  {
+    "id": "p_036",
+    "type": "peer",
+    "displayName": "Reid W.",
+    "photoUrl": null,
+    "photoAlt": null,
+    "avatarColor": "#6B3FA0",
+    "city": "Tucson",
+    "state": "Arizona",
+    "disability": "Other",
+    "level": null,
+    "completeness": null,
+    "duration": "10+ years",
+    "durationAnsweredOn": "2026-08-16",
+    "yearsSince": 33,
+    "ageBand": "50-59",
+    "relationship": "Self",
+    "equipment": [
+      "Manual chair"
+    ],
+    "equipmentDetail": "Manual chair and a trail chair",
+    "sportsEquipment": [],
+    "willAdviseOnEquipment": false,
+    "grants": [],
+    "willHelpWithGrants": false,
+    "languages": [
+      "English",
+      "Korean"
+    ],
+    "interests": [
+      "Photography",
+      "Fishing",
+      "Cooking",
+      "Live music",
+      "Camping"
+    ],
+    "topics": [],
+    "bio": "Getting back into photography after a long break. Always up for company.",
+    "employment": "Full time",
+    "living": "Lives with my partner",
+    "affiliations": [],
+    "verifiedBy": null,
+    "openToMessages": false,
+    "capacity": null,
+    "showInBrowse": true
+  },
+  {
+    "id": "p_037",
+    "type": "peer",
+    "displayName": "Nadia V.",
+    "photoUrl": null,
+    "photoAlt": null,
+    "avatarColor": "#14483C",
+    "city": "Sunnyvale",
+    "state": "California",
+    "disability": "SCI - para",
+    "level": "T2",
+    "completeness": "Do not know",
+    "duration": "1 - 3 years",
+    "durationAnsweredOn": "2026-08-16",
+    "yearsSince": 1,
+    "ageBand": "60-69",
+    "relationship": "Self",
+    "equipment": [
+      "Power chair"
+    ],
+    "equipmentDetail": "Power chair",
+    "sportsEquipment": [],
+    "willAdviseOnEquipment": false,
+    "grants": [],
+    "willHelpWithGrants": false,
+    "languages": [
+      "ASL",
+      "English"
+    ],
+    "interests": [
+      "Film & TV",
+      "Fishing",
+      "Sled hockey",
+      "Podcasts",
+      "Photography"
+    ],
+    "topics": [],
+    "bio": "1 years in and still figuring parts of it out. Mostly here to meet people who ride.",
+    "employment": "Full time",
+    "living": "Lives alone with a dog",
+    "affiliations": [],
+    "verifiedBy": null,
+    "openToMessages": false,
+    "capacity": null,
+    "showInBrowse": true
+  },
+  {
+    "id": "p_038",
+    "type": "peer",
+    "displayName": "Andre M.",
+    "photoUrl": null,
+    "photoAlt": null,
+    "avatarColor": "#3D5A3A",
+    "city": "Tucson",
+    "state": "Arizona",
+    "disability": "SCI - para",
+    "level": "T8",
+    "completeness": "Incomplete",
+    "duration": "1 - 3 years",
+    "durationAnsweredOn": "2026-08-16",
+    "yearsSince": 1,
+    "ageBand": "30-39",
+    "relationship": "Self",
+    "equipment": [
+      "Scooter"
+    ],
+    "equipmentDetail": "Mobility scooter",
+    "sportsEquipment": [
+      "Sport wheelchair"
+    ],
+    "willAdviseOnEquipment": false,
+    "grants": [],
+    "willHelpWithGrants": false,
+    "languages": [
+      "English"
+    ],
+    "interests": [
+      "Hiking with a trail chair",
+      "Travel",
+      "Photography",
+      "Wheelchair basketball"
+    ],
+    "topics": [],
+    "bio": "Not looking for advice so much as people who get it without a long explanation.",
+    "employment": "Student",
+    "living": "Lives alone",
+    "affiliations": [],
+    "verifiedBy": null,
+    "openToMessages": false,
+    "capacity": null,
+    "showInBrowse": true
+  },
+  {
+    "id": "p_039",
+    "type": "peer",
+    "displayName": "Kofi G.",
+    "photoUrl": null,
+    "photoAlt": null,
+    "avatarColor": "#A8341E",
+    "city": "Brooklyn",
+    "state": "New York",
+    "disability": "SCI - quad",
+    "level": "C3",
+    "completeness": "Incomplete",
+    "duration": "3 - 10 years",
+    "durationAnsweredOn": "2026-08-16",
+    "yearsSince": 9,
+    "ageBand": "30-39",
+    "relationship": "Self",
+    "equipment": [
+      "Power chair"
+    ],
+    "equipmentDetail": "Power chair",
+    "sportsEquipment": [],
+    "willAdviseOnEquipment": false,
+    "grants": [],
+    "willHelpWithGrants": false,
+    "languages": [
+      "English",
+      "Spanish"
+    ],
+    "interests": [
+      "Volunteering",
+      "Painting",
+      "Hiking with a trail chair",
+      "Camping",
+      "Woodworking",
+      "Cooking"
+    ],
+    "topics": [],
+    "bio": "9 years post-injury. Power chair. Mostly here for the volunteering crowd.",
+    "employment": "Retired",
+    "living": "Lives alone with a dog",
+    "affiliations": [
+      "norcal-sci"
+    ],
+    "verifiedBy": null,
+    "openToMessages": false,
+    "capacity": null,
+    "showInBrowse": true
+  },
+  {
+    "id": "p_040",
+    "type": "peer",
+    "displayName": "Marcus C.",
+    "photoUrl": null,
+    "photoAlt": null,
+    "avatarColor": "#8A5A2B",
+    "city": "San Francisco",
+    "state": "California",
+    "disability": "SCI - para",
+    "level": "S1",
+    "completeness": "Incomplete",
+    "duration": "10+ years",
+    "durationAnsweredOn": "2026-08-16",
+    "yearsSince": 33,
+    "ageBand": "60-69",
+    "relationship": "Self",
+    "equipment": [
+      "Manual chair"
+    ],
+    "equipmentDetail": "Power-assist manual chair",
+    "sportsEquipment": [
+      "Sport wheelchair"
+    ],
+    "willAdviseOnEquipment": false,
+    "grants": [],
+    "willHelpWithGrants": false,
+    "languages": [
+      "English"
+    ],
+    "interests": [
+      "Board games",
+      "Wheelchair basketball",
+      "Birding",
+      "Baking"
+    ],
+    "topics": [],
+    "bio": "Recently moved to San Francisco. Would love to find the local scene.",
+    "employment": "Retired",
+    "living": "Lives with my partner",
+    "affiliations": [],
+    "verifiedBy": null,
+    "openToMessages": false,
+    "capacity": null,
+    "showInBrowse": true
+  },
+  {
+    "id": "m_001",
+    "type": "mentor",
+    "displayName": "Ilse V.",
+    "photoUrl": null,
+    "photoAlt": null,
+    "avatarColor": "#1B5F4E",
+    "city": "Fort Collins",
+    "state": "Colorado",
+    "disability": "N/A - family member",
+    "level": null,
+    "completeness": null,
+    "duration": "Since birth",
+    "durationAnsweredOn": "2026-08-16",
+    "yearsSince": null,
+    "ageBand": "50-59",
+    "relationship": "Family member (parent)",
+    "equipment": [
+      "Prefer not to say"
+    ],
+    "equipmentDetail": "N/A - not a wheelchair user",
+    "sportsEquipment": [
+      "Sport wheelchair"
+    ],
+    "willAdviseOnEquipment": false,
+    "grants": [],
+    "willHelpWithGrants": false,
+    "languages": [
+      "English",
+      "Spanish"
+    ],
+    "interests": [
+      "Wheelchair rugby",
+      "Live music",
+      "Cooking",
+      "Dogs"
+    ],
+    "topics": [
+      "Hiring & managing caregivers",
+      "Home modifications",
+      "SSI/SSDI & benefits",
+      "Going back to school",
+      "Grants & funding"
+    ],
+    "bio": "My son was injured at 19 and I was his caregiver for four years. I know the caregiver, benefits, and home-renovation side better than the medical side. Happy to talk to families.",
+    "employment": "Student",
+    "living": "Lives with my husband",
+    "affiliations": [
+      "triumph-foundation"
+    ],
+    "verifiedBy": "triumph-foundation",
+    "openToMessages": true,
+    "capacity": "open",
+    "showInBrowse": true
+  },
+  {
+    "id": "m_002",
+    "type": "mentor",
+    "displayName": "Neve K.",
+    "photoUrl": null,
+    "photoAlt": null,
+    "avatarColor": "#3D5A3A",
+    "city": "Colorado Springs",
+    "state": "Colorado",
+    "disability": "Spina Bifida",
+    "level": "L4",
+    "completeness": "Complete",
+    "duration": "10+ years",
+    "durationAnsweredOn": "2026-08-16",
+    "yearsSince": 58,
+    "ageBand": "50-59",
+    "relationship": "Self",
+    "equipment": [
+      "Crutches or walker"
+    ],
+    "equipmentDetail": "Walks short distances with forearm crutches",
+    "sportsEquipment": [
+      "Sport wheelchair"
+    ],
+    "willAdviseOnEquipment": true,
+    "grants": [],
+    "willHelpWithGrants": false,
+    "languages": [
+      "English",
+      "Vietnamese"
+    ],
+    "interests": [
+      "Wheelchair basketball",
+      "Camping",
+      "Live music",
+      "Baking"
+    ],
+    "topics": [
+      "Vehicle modifications",
+      "Pregnancy & parenting",
+      "Dictation & assistive tech",
+      "Dating & intimacy"
+    ],
+    "bio": "Spina Bifida since birth, so my experience is different from someone newly injured — but I've spent 50 years navigating benefits, equipment, and self-advocacy.",
+    "employment": "Full time",
+    "living": "Lives with family",
+    "affiliations": [
+      "ability360"
+    ],
+    "verifiedBy": "ability360",
+    "openToMessages": true,
+    "capacity": "open",
+    "showInBrowse": true
+  },
+  {
+    "id": "m_003",
+    "type": "mentor",
+    "displayName": "Felix F.",
+    "photoUrl": null,
+    "photoAlt": null,
+    "avatarColor": "#C9491B",
+    "city": "Tucson",
+    "state": "Arizona",
+    "disability": "SCI - quad",
+    "level": "C6/7",
+    "completeness": "Do not know",
+    "duration": "10+ years",
+    "durationAnsweredOn": "2026-08-16",
+    "yearsSince": 25,
+    "ageBand": "70-79",
+    "relationship": "Self",
+    "equipment": [
+      "Power chair"
+    ],
+    "equipmentDetail": "Power chair",
+    "sportsEquipment": [
+      "Sport wheelchair"
+    ],
+    "willAdviseOnEquipment": true,
+    "grants": [
+      "Kelly Brush Foundation",
+      "Challenged Athletes Foundation"
+    ],
+    "willHelpWithGrants": true,
+    "languages": [
+      "English",
+      "Mandarin"
+    ],
+    "interests": [
+      "3D printing",
+      "Scuba diving",
+      "Wheelchair rugby"
+    ],
+    "topics": [
+      "Transfers",
+      "SSI/SSDI & benefits",
+      "Choosing a wheelchair",
+      "Vehicle modifications",
+      "Aging with SCI",
+      "Pregnancy & parenting"
+    ],
+    "bio": "At capacity right now, but wave and I'll get back to you when a slot opens.",
+    "employment": "Full time",
+    "living": "Lives with my partner",
+    "affiliations": [
+      "borp"
+    ],
+    "verifiedBy": "borp",
+    "openToMessages": true,
+    "capacity": "at capacity",
+    "showInBrowse": true
+  },
+  {
+    "id": "m_004",
+    "type": "mentor",
+    "displayName": "Arjun N.",
+    "photoUrl": null,
+    "photoAlt": null,
+    "avatarColor": "#4A4E8C",
+    "city": "Boise",
+    "state": "Idaho",
+    "disability": "SCI - para",
+    "level": "L1",
+    "completeness": "Incomplete",
+    "duration": "10+ years",
+    "durationAnsweredOn": "2026-08-16",
+    "yearsSince": 17,
+    "ageBand": "30-39",
+    "relationship": "Self",
+    "equipment": [
+      "Scooter"
+    ],
+    "equipmentDetail": "Mobility scooter",
+    "sportsEquipment": [],
+    "willAdviseOnEquipment": false,
+    "grants": [],
+    "willHelpWithGrants": false,
+    "languages": [
+      "English",
+      "Spanish"
+    ],
+    "interests": [
+      "Board games",
+      "Rock climbing",
+      "Film & TV",
+      "Baking"
+    ],
+    "topics": [
+      "Baclofen pump",
+      "Intermittent catheterization",
+      "Vehicle modifications",
+      "Botox",
+      "Hiring & managing caregivers"
+    ],
+    "bio": "I've been the person answering the phone at 2am for other peers for a long time. I don't mind hard questions.",
+    "employment": "Full time",
+    "living": "Lives alone",
+    "affiliations": [
+      "norcal-sci"
+    ],
+    "verifiedBy": "norcal-sci",
+    "openToMessages": true,
+    "capacity": "open",
+    "showInBrowse": true
+  },
+  {
+    "id": "m_005",
+    "type": "mentor",
+    "displayName": "Andre H.",
+    "photoUrl": null,
+    "photoAlt": null,
+    "avatarColor": "#6B3FA0",
+    "city": "San Jose",
+    "state": "California",
+    "disability": "SCI - quad",
+    "level": "C5/6",
+    "completeness": "Incomplete",
+    "duration": "3 - 10 years",
+    "durationAnsweredOn": "2026-08-16",
+    "yearsSince": 8,
+    "ageBand": "50-59",
+    "relationship": "Self",
+    "equipment": [
+      "Power chair",
+      "Manual chair"
+    ],
+    "equipmentDetail": "Manual chair, power chair for longer days",
+    "sportsEquipment": [
+      "Handcycle",
+      "Sport wheelchair"
+    ],
+    "willAdviseOnEquipment": false,
+    "grants": [],
+    "willHelpWithGrants": false,
+    "languages": [
+      "English"
+    ],
+    "interests": [
+      "Wheelchair basketball",
+      "Kayaking",
+      "Reading",
+      "Handcycling",
+      "Wheelchair rugby"
+    ],
+    "topics": [
+      "Vehicle modifications",
+      "Grants & funding",
+      "Spasticity & tone",
+      "Service animals"
+    ],
+    "bio": "Manual chair, power chair for longer days. I've tried most of the equipment out there and can save you some expensive mistakes.",
+    "employment": "Full time",
+    "living": "Lives alone",
+    "affiliations": [
+      "ability360",
+      "norcal-sci"
+    ],
+    "verifiedBy": "ability360",
+    "openToMessages": true,
+    "capacity": "paused",
+    "showInBrowse": true
+  },
+  {
+    "id": "m_006",
+    "type": "mentor",
+    "displayName": "Roz C.",
+    "photoUrl": null,
+    "photoAlt": null,
+    "avatarColor": "#8A5A2B",
+    "city": "Bellingham",
+    "state": "Washington",
+    "disability": "SCI - quad",
+    "level": "C4",
+    "completeness": "Complete",
+    "duration": "3 - 10 years",
+    "durationAnsweredOn": "2026-08-16",
+    "yearsSince": 9,
+    "ageBand": "20-29",
+    "relationship": "Self",
+    "equipment": [
+      "Manual chair"
+    ],
+    "equipmentDetail": "Manual chair and a trail chair",
+    "sportsEquipment": [
+      "Sport wheelchair"
+    ],
+    "willAdviseOnEquipment": false,
+    "grants": [],
+    "willHelpWithGrants": false,
+    "languages": [
+      "ASL",
+      "English"
+    ],
+    "interests": [
+      "Cooking",
+      "Wheelchair basketball",
+      "Wheelchair rugby",
+      "Dogs",
+      "Camping"
+    ],
+    "topics": [
+      "Baclofen pump",
+      "Mental health",
+      "Getting back on a bike",
+      "SSI/SSDI & benefits"
+    ],
+    "bio": "Manual chair and a trail chair. Big on adaptive sports — cooking changed my life and I'd like it to change someone else's.",
+    "employment": "Full time",
+    "living": "Lives alone with a dog",
+    "affiliations": [
+      "norcal-sci",
+      "craig-hospital"
+    ],
+    "verifiedBy": "norcal-sci",
+    "openToMessages": true,
+    "capacity": "open",
+    "showInBrowse": true
+  },
+  {
+    "id": "m_007",
+    "type": "mentor",
+    "displayName": "Neve C.",
+    "photoUrl": null,
+    "photoAlt": null,
+    "avatarColor": "#4A4E8C",
+    "city": "Provo",
+    "state": "Utah",
+    "disability": "SCI - quad",
+    "level": "C5/6",
+    "completeness": "Do not know",
+    "duration": "10+ years",
+    "durationAnsweredOn": "2026-08-16",
+    "yearsSince": 24,
+    "ageBand": "70-79",
+    "relationship": "Self",
+    "equipment": [
+      "Manual chair"
+    ],
+    "equipmentDetail": "Manual chair and a trail chair",
+    "sportsEquipment": [
+      "Handcycle"
+    ],
+    "willAdviseOnEquipment": false,
+    "grants": [
+      "High Fives",
+      "Swim with Mike"
+    ],
+    "willHelpWithGrants": false,
+    "languages": [
+      "English"
+    ],
+    "interests": [
+      "Handcycling",
+      "Video games",
+      "Fishing",
+      "Woodworking",
+      "Film & TV",
+      "Kayaking"
+    ],
+    "topics": [
+      "Choosing a wheelchair",
+      "Spasticity & tone",
+      "Hiring & managing caregivers",
+      "Aging with SCI"
+    ],
+    "bio": "Manual chair and a trail chair. I've tried most of the equipment out there and can save you some expensive mistakes.",
+    "employment": "Full time",
+    "living": "Lives with my parents while I finish school",
+    "affiliations": [
+      "ability360",
+      "christopher-dana-reeve-foundation"
+    ],
+    "verifiedBy": "ability360",
+    "openToMessages": true,
+    "capacity": "open",
+    "showInBrowse": true
+  },
+  {
+    "id": "m_008",
+    "type": "mentor",
+    "displayName": "Simone A.",
+    "photoUrl": null,
+    "photoAlt": null,
+    "avatarColor": "#0E6B5C",
+    "city": "Pueblo",
+    "state": "Colorado",
+    "disability": "SCI - para",
+    "level": "T1",
+    "completeness": "Incomplete",
+    "duration": "10+ years",
+    "durationAnsweredOn": "2026-08-16",
+    "yearsSince": 13,
+    "ageBand": "30-39",
+    "relationship": "Self",
+    "equipment": [
+      "Manual chair"
+    ],
+    "equipmentDetail": "Power-assist manual chair",
+    "sportsEquipment": [],
+    "willAdviseOnEquipment": true,
+    "grants": [],
+    "willHelpWithGrants": false,
+    "languages": [
+      "English"
+    ],
+    "interests": [
+      "Rock climbing",
+      "Sled hockey",
+      "Photography",
+      "Coffee",
+      "Dogs",
+      "Kayaking"
+    ],
+    "topics": [
+      "Choosing adaptive equipment",
+      "Vehicle modifications",
+      "Dating & intimacy",
+      "Suprapubic catheter",
+      "Pain management",
+      "Intermittent catheterization",
+      "Aging with SCI",
+      "Spasticity & tone"
+    ],
+    "bio": "Injured in 2013. Power-assist manual chair. I spent the first year thinking my life was over and it took another peer to talk me out of it — happy to be that person for someone else.",
+    "employment": "Student",
+    "living": "Lives with my husband",
+    "affiliations": [
+      "borp"
+    ],
+    "verifiedBy": "borp",
+    "openToMessages": true,
+    "capacity": "open",
+    "showInBrowse": true
+  },
+  {
+    "id": "m_009",
+    "type": "mentor",
+    "displayName": "Nadia T.",
+    "photoUrl": null,
+    "photoAlt": null,
+    "avatarColor": "#A8341E",
+    "city": "Coeur d'Alene",
+    "state": "Idaho",
+    "disability": "SCI - quad",
+    "level": "C2",
+    "completeness": "Do not know",
+    "duration": "3 - 10 years",
+    "durationAnsweredOn": "2026-08-16",
+    "yearsSince": 5,
+    "ageBand": "20-29",
+    "relationship": "Self",
+    "equipment": [
+      "Power assist",
+      "Manual chair"
+    ],
+    "equipmentDetail": "Manual chair with SmartDrive",
+    "sportsEquipment": [],
+    "willAdviseOnEquipment": true,
+    "grants": [],
+    "willHelpWithGrants": false,
+    "languages": [
+      "English"
+    ],
+    "interests": [
+      "Photography",
+      "Gym & fitness",
+      "Podcasts",
+      "3D printing",
+      "Reading",
+      "Board games"
+    ],
+    "topics": [
+      "Botox",
+      "Hiring & managing caregivers",
+      "Mental health",
+      "Spasticity & tone",
+      "Moving out & living independently",
+      "Transfers",
+      "Driving & hand controls"
+    ],
+    "bio": "5 years in. I work in physical therapy and I get asked about returning to work more than anything else. Ask me anything, no question is too much.",
+    "employment": "Full time",
+    "living": "Lives with family",
+    "affiliations": [
+      "craig-hospital",
+      "christopher-dana-reeve-foundation"
+    ],
+    "verifiedBy": "craig-hospital",
+    "openToMessages": true,
+    "capacity": "open",
+    "showInBrowse": true
+  },
+  {
+    "id": "m_010",
+    "type": "mentor",
+    "displayName": "Beth M.",
+    "photoUrl": null,
+    "photoAlt": null,
+    "avatarColor": "#A8341E",
+    "city": "Dallas",
+    "state": "Texas",
+    "disability": "SCI - quad",
+    "level": "C4",
+    "completeness": "Incomplete",
+    "duration": "10+ years",
+    "durationAnsweredOn": "2026-08-16",
+    "yearsSince": 15,
+    "ageBand": "50-59",
+    "relationship": "Self",
+    "equipment": [
+      "Manual chair"
+    ],
+    "equipmentDetail": "Manual chair",
+    "sportsEquipment": [],
+    "willAdviseOnEquipment": true,
+    "grants": [
+      "Reeve Foundation Quality of Life"
+    ],
+    "willHelpWithGrants": true,
+    "languages": [
+      "English"
+    ],
+    "interests": [
+      "Woodworking",
+      "Video games",
+      "Baking",
+      "Hiking with a trail chair"
+    ],
+    "topics": [
+      "Aging with SCI",
+      "SSI/SSDI & benefits",
+      "Moving out & living independently",
+      "Returning to work",
+      "Pressure sores"
+    ],
+    "bio": "Injured in 2011. Manual chair. I spent the first year thinking my life was over and it took another peer to talk me out of it — happy to be that person for someone else.",
+    "employment": "Student",
+    "living": "Lives with my parents while I finish school",
+    "affiliations": [
+      "craig-hospital",
+      "triumph-foundation"
+    ],
+    "verifiedBy": "craig-hospital",
+    "openToMessages": true,
+    "capacity": "paused",
+    "showInBrowse": true
+  },
+  {
+    "id": "m_011",
+    "type": "mentor",
+    "displayName": "Simone W.",
+    "photoUrl": null,
+    "photoAlt": null,
+    "avatarColor": "#8A5A2B",
+    "city": "Modesto",
+    "state": "California",
+    "disability": "SCI - para",
+    "level": "S3",
+    "completeness": "Do not know",
+    "duration": "10+ years",
+    "durationAnsweredOn": "2026-08-16",
+    "yearsSince": 29,
+    "ageBand": "50-59",
+    "relationship": "Self",
+    "equipment": [
+      "Scooter"
+    ],
+    "equipmentDetail": "Mobility scooter",
+    "sportsEquipment": [
+      "Sport wheelchair"
+    ],
+    "willAdviseOnEquipment": false,
+    "grants": [],
+    "willHelpWithGrants": false,
+    "languages": [
+      "English"
+    ],
+    "interests": [
+      "Coffee",
+      "Volunteering",
+      "Wheelchair tennis",
+      "Birding",
+      "Travel",
+      "Gym & fitness"
+    ],
+    "topics": [
+      "Pain management",
+      "Travel & flying",
+      "Going back to school",
+      "UTIs",
+      "Spasticity & tone",
+      "Getting back on a bike",
+      "SSI/SSDI & benefits",
+      "Grants & funding"
+    ],
+    "bio": "Mobility scooter. Big on adaptive sports — coffee changed my life and I'd like it to change someone else's.",
+    "employment": "Full time",
+    "living": "Lives alone with a dog",
+    "affiliations": [
+      "christopher-dana-reeve-foundation",
+      "norcal-sci"
+    ],
+    "verifiedBy": "christopher-dana-reeve-foundation",
+    "openToMessages": true,
+    "capacity": "open",
+    "showInBrowse": true
+  },
+  {
+    "id": "m_012",
+    "type": "mentor",
+    "displayName": "Malik T.",
+    "photoUrl": null,
+    "photoAlt": null,
+    "avatarColor": "#0E6B5C",
+    "city": "Concord",
+    "state": "California",
+    "disability": "Cerebral Palsy",
+    "level": null,
+    "completeness": null,
+    "duration": "1 - 3 years",
+    "durationAnsweredOn": "2026-08-16",
+    "yearsSince": 1,
+    "ageBand": "70-79",
+    "relationship": "Self",
+    "equipment": [
+      "Scooter"
+    ],
+    "equipmentDetail": "Mobility scooter",
+    "sportsEquipment": [],
+    "willAdviseOnEquipment": false,
+    "grants": [],
+    "willHelpWithGrants": false,
+    "languages": [
+      "English",
+      "Vietnamese"
+    ],
+    "interests": [
+      "Video games",
+      "Photography",
+      "Camping",
+      "Woodworking"
+    ],
+    "topics": [
+      "Pregnancy & parenting",
+      "Transfers",
+      "Travel & flying",
+      "Getting back on a bike",
+      "Baclofen pump",
+      "Going back to school"
+    ],
+    "bio": "1 years in. I work in construction management and I get asked about returning to work more than anything else. Ask me anything, no question is too much.",
+    "employment": "Full time",
+    "living": "Lives with my wife and two kids",
+    "affiliations": [
+      "norcal-sci"
+    ],
+    "verifiedBy": "norcal-sci",
+    "openToMessages": true,
+    "capacity": "open",
+    "showInBrowse": true
+  },
+  {
+    "id": "m_013",
+    "type": "mentor",
+    "displayName": "Neve V.",
+    "photoUrl": null,
+    "photoAlt": null,
+    "avatarColor": "#3D5A3A",
+    "city": "Lakewood",
+    "state": "Colorado",
+    "disability": "SCI - quad",
+    "level": "C4/5",
+    "completeness": "Incomplete",
+    "duration": "10+ years",
+    "durationAnsweredOn": "2026-08-16",
+    "yearsSince": 11,
+    "ageBand": "40-49",
+    "relationship": "Self",
+    "equipment": [
+      "Power chair",
+      "Manual chair"
+    ],
+    "equipmentDetail": "Manual chair, power chair for longer days",
+    "sportsEquipment": [
+      "Handcycle",
+      "Sport wheelchair"
+    ],
+    "willAdviseOnEquipment": false,
+    "grants": [
+      "High Fives",
+      "State Department of Rehabilitation"
+    ],
+    "willHelpWithGrants": true,
+    "languages": [
+      "English",
+      "Mandarin"
+    ],
+    "interests": [
+      "Wheelchair basketball",
+      "Reading",
+      "Film & TV",
+      "Painting",
+      "Handcycling",
+      "Travel"
+    ],
+    "topics": [
+      "Baclofen pump",
+      "Moving out & living independently",
+      "Pregnancy & parenting",
+      "Home modifications"
+    ],
+    "bio": "Manual chair, power chair for longer days. I've tried most of the equipment out there and can save you some expensive mistakes.",
+    "employment": "Full time",
+    "living": "Lives with my parents while I finish school",
+    "affiliations": [
+      "christopher-dana-reeve-foundation",
+      "ability360"
+    ],
+    "verifiedBy": "christopher-dana-reeve-foundation",
+    "openToMessages": true,
+    "capacity": "open",
+    "showInBrowse": true
+  },
+  {
+    "id": "m_014",
+    "type": "mentor",
+    "displayName": "Marisol G.",
+    "photoUrl": null,
+    "photoAlt": null,
+    "avatarColor": "#8A5A2B",
+    "city": "Tampa",
+    "state": "Florida",
+    "disability": "Spina Bifida",
+    "level": "L1",
+    "completeness": "Complete",
+    "duration": "10+ years",
+    "durationAnsweredOn": "2026-08-16",
+    "yearsSince": 61,
+    "ageBand": "60-69",
+    "relationship": "Self",
+    "equipment": [
+      "Scooter"
+    ],
+    "equipmentDetail": "Mobility scooter",
+    "sportsEquipment": [
+      "Sport wheelchair"
+    ],
+    "willAdviseOnEquipment": true,
+    "grants": [
+      "State Department of Rehabilitation",
+      "Triumph Foundation"
+    ],
+    "willHelpWithGrants": true,
+    "languages": [
+      "English",
+      "Mandarin"
+    ],
+    "interests": [
+      "Reading",
+      "Sailing",
+      "Gardening",
+      "Board games",
+      "Sled hockey",
+      "Wheelchair basketball"
+    ],
+    "topics": [
+      "Pressure sores",
+      "Aging with SCI",
+      "Home modifications",
+      "Dictation & assistive tech"
+    ],
+    "bio": "I run a small support group locally and have been at this 61 years. Bladder and bowel questions don't faze me.",
+    "employment": "Student",
+    "living": "Lives alone with a dog",
+    "affiliations": [
+      "triumph-foundation",
+      "lionheart-community"
+    ],
+    "verifiedBy": "triumph-foundation",
+    "openToMessages": true,
+    "capacity": "at capacity",
+    "showInBrowse": true
+  },
+  {
+    "id": "m_015",
+    "type": "mentor",
+    "displayName": "Dev B.",
+    "photoUrl": null,
+    "photoAlt": null,
+    "avatarColor": "#1B5F4E",
+    "city": "Tempe",
+    "state": "Arizona",
+    "disability": "SCI - para",
+    "level": "T8",
+    "completeness": "Complete",
+    "duration": "3 - 10 years",
+    "durationAnsweredOn": "2026-08-16",
+    "yearsSince": 3,
+    "ageBand": "50-59",
+    "relationship": "Self",
+    "equipment": [
+      "Crutches or walker"
+    ],
+    "equipmentDetail": "Walks short distances with forearm crutches",
+    "sportsEquipment": [],
+    "willAdviseOnEquipment": true,
+    "grants": [],
+    "willHelpWithGrants": false,
+    "languages": [
+      "English"
+    ],
+    "interests": [
+      "Sailing",
+      "Reading",
+      "Swimming",
+      "Gym & fitness",
+      "Volunteering"
+    ],
+    "topics": [
+      "Travel & flying",
+      "Baclofen pump",
+      "Suprapubic catheter",
+      "Pressure sores",
+      "Botox",
+      "Vehicle modifications",
+      "Service animals"
+    ],
+    "bio": "I've been the person answering the phone at 2am for other peers for a long time. I don't mind hard questions.",
+    "employment": "Full time",
+    "living": "Lives with family",
+    "affiliations": [
+      "christopher-dana-reeve-foundation"
+    ],
+    "verifiedBy": "christopher-dana-reeve-foundation",
+    "openToMessages": true,
+    "capacity": "at capacity",
+    "showInBrowse": true
+  },
+  {
+    "id": "m_016",
+    "type": "mentor",
+    "displayName": "Jonah V.",
+    "photoUrl": null,
+    "photoAlt": null,
+    "avatarColor": "#C9491B",
+    "city": "Chico",
+    "state": "California",
+    "disability": "SCI - quad",
+    "level": "C4",
+    "completeness": "Complete",
+    "duration": "3 - 10 years",
+    "durationAnsweredOn": "2026-08-16",
+    "yearsSince": 6,
+    "ageBand": "30-39",
+    "relationship": "Self",
+    "equipment": [
+      "Power assist",
+      "Manual chair"
+    ],
+    "equipmentDetail": "Manual chair with SmartDrive",
+    "sportsEquipment": [
+      "Monoski or sit-ski"
+    ],
+    "willAdviseOnEquipment": true,
+    "grants": [
+      "VA",
+      "Swim with Mike"
+    ],
+    "willHelpWithGrants": false,
+    "languages": [
+      "English",
+      "Spanish"
+    ],
+    "interests": [
+      "Board games",
+      "Sled hockey",
+      "Monoskiing",
+      "Swimming"
+    ],
+    "topics": [
+      "Hiring & managing caregivers",
+      "Aging with SCI",
+      "Choosing a wheelchair",
+      "Vehicle modifications"
+    ],
+    "bio": "Injured in 2020. Manual chair with SmartDrive. I spent the first year thinking my life was over and it took another peer to talk me out of it — happy to be that person for someone else.",
+    "employment": "Full time",
+    "living": "Lives with my wife and two kids",
+    "affiliations": [
+      "lionheart-community"
+    ],
+    "verifiedBy": "lionheart-community",
+    "openToMessages": true,
+    "capacity": "open",
+    "showInBrowse": true
+  },
+  {
+    "id": "m_017",
+    "type": "mentor",
+    "displayName": "Lena A.",
+    "photoUrl": null,
+    "photoAlt": null,
+    "avatarColor": "#2E5C8A",
+    "city": "Redding",
+    "state": "California",
+    "disability": "SCI - quad",
+    "level": "C8",
+    "completeness": "Complete",
+    "duration": "10+ years",
+    "durationAnsweredOn": "2026-08-16",
+    "yearsSince": 10,
+    "ageBand": "30-39",
+    "relationship": "Self",
+    "equipment": [
+      "Manual chair"
+    ],
+    "equipmentDetail": "Power-assist manual chair",
+    "sportsEquipment": [],
+    "willAdviseOnEquipment": true,
+    "grants": [
+      "Triumph Foundation",
+      "Swim with Mike",
+      "State Department of Rehabilitation"
+    ],
+    "willHelpWithGrants": true,
+    "languages": [
+      "English"
+    ],
+    "interests": [
+      "Gym & fitness",
+      "Photography",
+      "Travel",
+      "Reading"
+    ],
+    "topics": [
+      "Aging with SCI",
+      "Colostomy",
+      "Moving out & living independently",
+      "Choosing a wheelchair",
+      "Pain management"
+    ],
+    "bio": "Power-assist manual chair. I've tried most of the equipment out there and can save you some expensive mistakes.",
+    "employment": "Not working",
+    "living": "Lives with family",
+    "affiliations": [
+      "christopher-dana-reeve-foundation"
+    ],
+    "verifiedBy": "christopher-dana-reeve-foundation",
+    "openToMessages": true,
+    "capacity": "open",
+    "showInBrowse": true
+  },
+  {
+    "id": "m_018",
+    "type": "mentor",
+    "displayName": "Dev H.",
+    "photoUrl": null,
+    "photoAlt": null,
+    "avatarColor": "#0E6B5C",
+    "city": "Denver",
+    "state": "Colorado",
+    "disability": "SCI - quad",
+    "level": "C7",
+    "completeness": "Complete",
+    "duration": "10+ years",
+    "durationAnsweredOn": "2026-08-16",
+    "yearsSince": 24,
+    "ageBand": "60-69",
+    "relationship": "Self",
+    "equipment": [
+      "Crutches or walker"
+    ],
+    "equipmentDetail": "Walks short distances with forearm crutches",
+    "sportsEquipment": [
+      "Sport wheelchair"
+    ],
+    "willAdviseOnEquipment": true,
+    "grants": [
+      "Triumph Foundation",
+      "Reeve Foundation Quality of Life"
+    ],
+    "willHelpWithGrants": true,
+    "languages": [
+      "English"
+    ],
+    "interests": [
+      "Swimming",
+      "Gardening",
+      "Wheelchair basketball",
+      "Painting"
+    ],
+    "topics": [
+      "Going back to school",
+      "Vehicle modifications",
+      "Getting back on a bike",
+      "Being injured young",
+      "Bowel program",
+      "Grants & funding"
+    ],
+    "bio": "24 years post-injury, two kids, full-time work. It's doable and I'm glad to walk you through how.",
+    "employment": "Full time",
+    "living": "Lives with my husband",
+    "affiliations": [
+      "ability360"
+    ],
+    "verifiedBy": "ability360",
+    "openToMessages": true,
+    "capacity": "open",
+    "showInBrowse": true
+  },
+  {
+    "id": "m_019",
+    "type": "mentor",
+    "displayName": "Quinn O.",
+    "photoUrl": null,
+    "photoAlt": null,
+    "avatarColor": "#C9491B",
+    "city": "Livermore",
+    "state": "California",
+    "disability": "TBI",
+    "level": null,
+    "completeness": null,
+    "duration": "3 - 10 years",
+    "durationAnsweredOn": "2026-08-16",
+    "yearsSince": 8,
+    "ageBand": "60-69",
+    "relationship": "Self",
+    "equipment": [
+      "Power assist",
+      "Manual chair"
+    ],
+    "equipmentDetail": "Manual chair with SmartDrive",
+    "sportsEquipment": [],
+    "willAdviseOnEquipment": true,
+    "grants": [
+      "Challenged Athletes Foundation"
+    ],
+    "willHelpWithGrants": true,
+    "languages": [
+      "English",
+      "Vietnamese"
+    ],
+    "interests": [
+      "Painting",
+      "Reading",
+      "Baking",
+      "Archery",
+      "Coffee"
+    ],
+    "topics": [
+      "Driving & hand controls",
+      "Transfers",
+      "Suprapubic catheter",
+      "Botox",
+      "Choosing a wheelchair",
+      "Service animals",
+      "Being injured young"
+    ],
+    "bio": "I've been the person answering the phone at 2am for other peers for a long time. I don't mind hard questions.",
+    "employment": "Retired",
+    "living": "Lives alone",
+    "affiliations": [
+      "norcal-sci",
+      "christopher-dana-reeve-foundation"
+    ],
+    "verifiedBy": "norcal-sci",
+    "openToMessages": true,
+    "capacity": "paused",
+    "showInBrowse": true
+  },
+  {
+    "id": "m_020",
+    "type": "mentor",
+    "displayName": "Beth O.",
+    "photoUrl": null,
+    "photoAlt": null,
+    "avatarColor": "#4A4E8C",
+    "city": "Grand Rapids",
+    "state": "Michigan",
+    "disability": "Amputee",
+    "level": null,
+    "completeness": null,
+    "duration": "10+ years",
+    "durationAnsweredOn": "2026-08-16",
+    "yearsSince": 10,
+    "ageBand": "60-69",
+    "relationship": "Self",
+    "equipment": [
+      "Manual chair"
+    ],
+    "equipmentDetail": "Power-assist manual chair",
+    "sportsEquipment": [
+      "Sport wheelchair"
+    ],
+    "willAdviseOnEquipment": true,
+    "grants": [],
+    "willHelpWithGrants": false,
+    "languages": [
+      "English"
+    ],
+    "interests": [
+      "Wheelchair basketball",
+      "Archery",
+      "Cooking",
+      "Gym & fitness",
+      "Woodworking"
+    ],
+    "topics": [
+      "Pain management",
+      "Mental health",
+      "Choosing a wheelchair",
+      "Colostomy",
+      "Returning to work",
+      "Aging with SCI",
+      "Hiring & managing caregivers",
+      "Dating & intimacy"
+    ],
+    "bio": "10 years post-injury, two kids, full-time work. It's doable and I'm glad to walk you through how.",
+    "employment": "Full time",
+    "living": "Lives with family",
+    "affiliations": [
+      "triumph-foundation",
+      "norcal-sci"
+    ],
+    "verifiedBy": "triumph-foundation",
+    "openToMessages": true,
+    "capacity": "open",
+    "showInBrowse": true
+  },
+  {
+    "id": "m_021",
+    "type": "mentor",
+    "displayName": "Fiona R.",
+    "photoUrl": null,
+    "photoAlt": null,
+    "avatarColor": "#8A5A2B",
+    "city": "Eureka",
+    "state": "California",
+    "disability": "TBI",
+    "level": null,
+    "completeness": null,
+    "duration": "3 - 10 years",
+    "durationAnsweredOn": "2026-08-16",
+    "yearsSince": 3,
+    "ageBand": "70-79",
+    "relationship": "Self",
+    "equipment": [
+      "Power chair",
+      "Manual chair"
+    ],
+    "equipmentDetail": "Manual chair, power chair for longer days",
+    "sportsEquipment": [
+      "Sport wheelchair"
+    ],
+    "willAdviseOnEquipment": true,
+    "grants": [
+      "Swim with Mike",
+      "Kelly Brush Foundation"
+    ],
+    "willHelpWithGrants": true,
+    "languages": [
+      "English"
+    ],
+    "interests": [
+      "Swimming",
+      "Scuba diving",
+      "Archery",
+      "Coffee",
+      "Wheelchair rugby"
+    ],
+    "topics": [
+      "Choosing a wheelchair",
+      "Grants & funding",
+      "Dictation & assistive tech",
+      "Pressure sores",
+      "Colostomy",
+      "Service animals"
+    ],
+    "bio": "Injured in 2023. Manual chair, power chair for longer days. I spent the first year thinking my life was over and it took another peer to talk me out of it — happy to be that person for someone else.",
+    "employment": "Full time",
+    "living": "Lives with my wife and two kids",
+    "affiliations": [
+      "christopher-dana-reeve-foundation"
+    ],
+    "verifiedBy": "christopher-dana-reeve-foundation",
+    "openToMessages": true,
+    "capacity": "open",
+    "showInBrowse": true
+  },
+  {
+    "id": "m_022",
+    "type": "mentor",
+    "displayName": "Owen O.",
+    "photoUrl": null,
+    "photoAlt": null,
+    "avatarColor": "#C9491B",
+    "city": "Fremont",
+    "state": "California",
+    "disability": "SCI - para",
+    "level": "S3",
+    "completeness": "Complete",
+    "duration": "10+ years",
+    "durationAnsweredOn": "2026-08-16",
+    "yearsSince": 20,
+    "ageBand": "50-59",
+    "relationship": "Self",
+    "equipment": [
+      "Power assist",
+      "Manual chair"
+    ],
+    "equipmentDetail": "Manual chair with SmartDrive",
+    "sportsEquipment": [
+      "Sport wheelchair"
+    ],
+    "willAdviseOnEquipment": true,
+    "grants": [
+      "Challenged Athletes Foundation",
+      "Reeve Foundation Quality of Life",
+      "High Fives"
+    ],
+    "willHelpWithGrants": true,
+    "languages": [
+      "English"
+    ],
+    "interests": [
+      "Swimming",
+      "Baking",
+      "Gym & fitness",
+      "Painting",
+      "Wheelchair tennis"
+    ],
+    "topics": [
+      "Pregnancy & parenting",
+      "Dating & intimacy",
+      "Bowel program",
+      "UTIs",
+      "Pressure sores",
+      "Grants & funding",
+      "Intermittent catheterization"
+    ],
+    "bio": "20 years in. I work in logistics and I get asked about returning to work more than anything else. Ask me anything, no question is too much.",
+    "employment": "Full time",
+    "living": "Lives alone",
+    "affiliations": [
+      "triumph-foundation",
+      "borp"
+    ],
+    "verifiedBy": "triumph-foundation",
+    "openToMessages": true,
+    "capacity": "at capacity",
+    "showInBrowse": true
+  },
+  {
+    "id": "m_023",
+    "type": "mentor",
+    "displayName": "June Z.",
+    "photoUrl": null,
+    "photoAlt": null,
+    "avatarColor": "#3D5A3A",
+    "city": "Livermore",
+    "state": "California",
+    "disability": "SCI - quad",
+    "level": "C6",
+    "completeness": "Complete",
+    "duration": "3 - 10 years",
+    "durationAnsweredOn": "2026-08-16",
+    "yearsSince": 9,
+    "ageBand": "50-59",
+    "relationship": "Self",
+    "equipment": [
+      "Manual chair"
+    ],
+    "equipmentDetail": "Manual chair",
+    "sportsEquipment": [
+      "Sport wheelchair"
+    ],
+    "willAdviseOnEquipment": true,
+    "grants": [
+      "Reeve Foundation Quality of Life",
+      "VA",
+      "High Fives"
+    ],
+    "willHelpWithGrants": true,
+    "languages": [
+      "English",
+      "Spanish"
+    ],
+    "interests": [
+      "Photography",
+      "Archery",
+      "Wheelchair rugby",
+      "Swimming",
+      "Kayaking"
+    ],
+    "topics": [
+      "Dating & intimacy",
+      "Botox",
+      "Suprapubic catheter",
+      "Intermittent catheterization",
+      "Pressure sores",
+      "Service animals",
+      "SSI/SSDI & benefits"
+    ],
+    "bio": "Injured in 2017. Manual chair. I spent the first year thinking my life was over and it took another peer to talk me out of it — happy to be that person for someone else.",
+    "employment": "Student",
+    "living": "Lives alone",
+    "affiliations": [
+      "triumph-foundation",
+      "ability360"
+    ],
+    "verifiedBy": "triumph-foundation",
+    "openToMessages": true,
+    "capacity": "open",
+    "showInBrowse": true
+  },
+  {
+    "id": "m_024",
+    "type": "mentor",
+    "displayName": "Anika R.",
+    "photoUrl": null,
+    "photoAlt": null,
+    "avatarColor": "#6B3FA0",
+    "city": "Redding",
+    "state": "California",
+    "disability": "SCI - quad",
+    "level": "C6",
+    "completeness": "Do not know",
+    "duration": "10+ years",
+    "durationAnsweredOn": "2026-08-16",
+    "yearsSince": 12,
+    "ageBand": "50-59",
+    "relationship": "Self",
+    "equipment": [
+      "Manual chair"
+    ],
+    "equipmentDetail": "Manual chair",
+    "sportsEquipment": [
+      "Handcycle"
+    ],
+    "willAdviseOnEquipment": true,
+    "grants": [
+      "High Fives",
+      "VA"
+    ],
+    "willHelpWithGrants": false,
+    "languages": [
+      "English",
+      "Vietnamese"
+    ],
+    "interests": [
+      "Cooking",
+      "3D printing",
+      "Sailing",
+      "Handcycling"
+    ],
+    "topics": [
+      "Transfers",
+      "Pressure sores",
+      "SSI/SSDI & benefits",
+      "Botox",
+      "Dating & intimacy",
+      "Pain management"
+    ],
+    "bio": "Injured young, back at school within two years. If you're in that spot right now, message me.",
+    "employment": "Not working",
+    "living": "Lives with family",
+    "affiliations": [
+      "norcal-sci",
+      "craig-hospital"
+    ],
+    "verifiedBy": "norcal-sci",
+    "openToMessages": true,
+    "capacity": "open",
+    "showInBrowse": true
+  },
+  {
+    "id": "m_025",
+    "type": "mentor",
+    "displayName": "Elias C.",
+    "photoUrl": null,
+    "photoAlt": null,
+    "avatarColor": "#3D5A3A",
+    "city": "Charlotte",
+    "state": "North Carolina",
+    "disability": "SCI - quad",
+    "level": "C6/7",
+    "completeness": "Incomplete",
+    "duration": "3 - 10 years",
+    "durationAnsweredOn": "2026-08-16",
+    "yearsSince": 3,
+    "ageBand": "60-69",
+    "relationship": "Self",
+    "equipment": [
+      "Power chair"
+    ],
+    "equipmentDetail": "Power chair",
+    "sportsEquipment": [],
+    "willAdviseOnEquipment": true,
+    "grants": [
+      "Challenged Athletes Foundation"
+    ],
+    "willHelpWithGrants": true,
+    "languages": [
+      "English",
+      "Mandarin"
+    ],
+    "interests": [
+      "Gardening",
+      "3D printing",
+      "Camping",
+      "Live music"
+    ],
+    "topics": [
+      "Intermittent catheterization",
+      "Getting back on a bike",
+      "Pain management",
+      "Vehicle modifications",
+      "Being injured young",
+      "Dictation & assistive tech",
+      "Grants & funding",
+      "Pressure sores"
+    ],
+    "bio": "3 years post-injury, two kids, full-time work. It's doable and I'm glad to walk you through how.",
+    "employment": "Full time",
+    "living": "Lives with my parents while I finish school",
+    "affiliations": [
+      "lionheart-community"
+    ],
+    "verifiedBy": "lionheart-community",
+    "openToMessages": true,
+    "capacity": "at capacity",
+    "showInBrowse": true
+  }
+] as Member[];
 
-export const coordinators: Coordinator[] = [
+export const EVENTS: EventItem[] = [
   {
-    id: 'coord-1',
-    displayName: 'Priya Chandrasekaran',
-    organizationId: 'org-craig',
-    email: 'priya.chandrasekaran@example.com',
+    "id": "e-borp-handcycle",
+    "title": "Adaptive handcycle ride",
+    "orgId": "borp",
+    "mode": "in-person",
+    "city": "Berkeley",
+    "state": "California",
+    "startsAt": "2026-08-22T09:00:00-07:00",
+    "timeLabel": "9:00 AM",
+    "recurring": false,
+    "recurrenceLabel": null,
+    "activity": "Handcycling",
+    "description": "Rolling 12 miles along the Bay Trail. Loaner handcycles available, all levels welcome.",
+    "accessNotes": "Accessible parking and accessible restrooms on site.",
+    "goingCount": 6,
+    "joinUrl": null,
+    "rosterVisibility": "attendees"
   },
   {
-    id: 'coord-2',
-    displayName: 'Marcus Whitfield',
-    organizationId: 'org-norcal',
-    email: 'marcus.whitfield@example.com',
+    "id": "e-scvmc-support",
+    "title": "SCI peer support group",
+    "orgId": "scvmc",
+    "mode": "in-person",
+    "city": "San Jose",
+    "state": "California",
+    "startsAt": "2026-08-24T16:00:00-07:00",
+    "timeLabel": "4:00 PM",
+    "recurring": true,
+    "recurrenceLabel": "Weekly, Mondays",
+    "activity": "Support group",
+    "description": "Weekly drop-in peer support group, running for over twenty years. No need to book.",
+    "accessNotes": "Ground floor, step-free access.",
+    "goingCount": 12,
+    "joinUrl": null,
+    "rosterVisibility": "first-names"
   },
-];
+  {
+    "id": "e-ablebodied-monthly",
+    "title": "AbleBodied monthly",
+    "orgId": "ablebodied",
+    "mode": "virtual",
+    "city": "Online",
+    "state": "Virtual",
+    "startsAt": "2026-08-27T19:00:00-07:00",
+    "timeLabel": "7:00 PM PT",
+    "recurring": true,
+    "recurrenceLabel": "Monthly",
+    "activity": "Support group",
+    "description": "Our monthly get-together. Open format, a mix of new folks and old hands.",
+    "accessNotes": "Live captions on. Link sent when you RSVP.",
+    "goingCount": 18,
+    "joinUrl": "https://meet.example.org/ablebodied-monthly",
+    "rosterVisibility": "attendees"
+  },
+  {
+    "id": "e-norcal-mens",
+    "title": "Men's SCI group",
+    "orgId": "norcal-sci",
+    "mode": "virtual",
+    "city": "Online",
+    "state": "Virtual",
+    "startsAt": "2026-08-25T18:30:00-07:00",
+    "timeLabel": "6:30 PM PT",
+    "recurring": true,
+    "recurrenceLabel": "Monthly",
+    "activity": "Support group",
+    "description": "Monthly group for men living with SCI. Bowel, bladder, relationships, work.",
+    "accessNotes": "Link sent when you RSVP. Roster is first names only.",
+    "goingCount": 9,
+    "joinUrl": "https://meet.example.org/norcal-mens",
+    "rosterVisibility": "first-names"
+  },
+  {
+    "id": "e-achieve-sitski",
+    "title": "Sit-ski open day",
+    "orgId": "achieve-tahoe",
+    "mode": "in-person",
+    "city": "Alpine Meadows",
+    "state": "California",
+    "startsAt": "2026-08-31T08:30:00-07:00",
+    "timeLabel": "8:30 AM",
+    "recurring": false,
+    "recurrenceLabel": null,
+    "activity": "Monoskiing",
+    "description": "Beginners welcome. Equipment and instruction provided, no experience needed.",
+    "accessNotes": "Accessible lodge and transfer bench at the lift.",
+    "goingCount": 3,
+    "joinUrl": null,
+    "rosterVisibility": "attendees"
+  },
+  {
+    "id": "e-borp-rugby",
+    "title": "Wheelchair rugby open gym",
+    "orgId": "borp",
+    "mode": "in-person",
+    "city": "Berkeley",
+    "state": "California",
+    "startsAt": "2026-09-03T18:00:00-07:00",
+    "timeLabel": "6:00 PM",
+    "recurring": true,
+    "recurrenceLabel": "Weekly, Wednesdays",
+    "activity": "Wheelchair rugby",
+    "description": "Come try it. Loaner chairs for the night, no commitment.",
+    "accessNotes": "Accessible entrance, changing room with hoist.",
+    "goingCount": 8,
+    "joinUrl": null,
+    "rosterVisibility": "attendees"
+  },
+  {
+    "id": "e-craig-caregiver",
+    "title": "Caregiver Q&A",
+    "orgId": "craig-hospital",
+    "mode": "virtual",
+    "city": "Online",
+    "state": "Virtual",
+    "startsAt": "2026-09-08T17:00:00-06:00",
+    "timeLabel": "5:00 PM MT",
+    "recurring": true,
+    "recurrenceLabel": "Monthly",
+    "activity": "Caregiving",
+    "description": "For family members and caregivers. Hiring, managing, funding and burnout.",
+    "accessNotes": "Live captions on.",
+    "goingCount": 11,
+    "joinUrl": "https://meet.example.org/craig-caregiver",
+    "rosterVisibility": "first-names"
+  },
+  {
+    "id": "e-ability360-climb",
+    "title": "Adaptive climbing night",
+    "orgId": "ability360",
+    "mode": "in-person",
+    "city": "Phoenix",
+    "state": "Arizona",
+    "startsAt": "2026-09-05T19:00:00-07:00",
+    "timeLabel": "7:00 PM",
+    "recurring": true,
+    "recurrenceLabel": "Monthly",
+    "activity": "Rock climbing",
+    "description": "Monthly climb with trained adaptive belayers. All levels.",
+    "accessNotes": "Accessible restrooms, transfer mats at the wall.",
+    "goingCount": 5,
+    "joinUrl": null,
+    "rosterVisibility": "attendees"
+  },
+  {
+    "id": "e-kbf-ride",
+    "title": "Handcycle 40-mile ride",
+    "orgId": "kelly-brush-foundation",
+    "mode": "in-person",
+    "city": "Burlington",
+    "state": "Vermont",
+    "startsAt": "2026-09-12T08:00:00-04:00",
+    "timeLabel": "8:00 AM",
+    "recurring": false,
+    "recurrenceLabel": null,
+    "activity": "Handcycling",
+    "description": "The long one. Support vehicles the whole route.",
+    "accessNotes": "Accessible start village and portable accessible restrooms.",
+    "goingCount": 22,
+    "joinUrl": null,
+    "rosterVisibility": "attendees"
+  },
+  {
+    "id": "e-triumph-work",
+    "title": "Back to work clinic",
+    "orgId": "triumph-foundation",
+    "mode": "virtual",
+    "city": "Online",
+    "state": "Virtual",
+    "startsAt": "2026-09-15T12:00:00-07:00",
+    "timeLabel": "12:00 PM PT",
+    "recurring": false,
+    "recurrenceLabel": null,
+    "activity": "Returning to work",
+    "description": "Vocational rehab, accommodations, and how people actually got hired.",
+    "accessNotes": "Live captions on. Recording shared with attendees.",
+    "goingCount": 14,
+    "joinUrl": "https://meet.example.org/triumph-work",
+    "rosterVisibility": "attendees"
+  }
+] as EventItem[];
 
-// -- Mentors ----------------------------------------------------------------
+export const PEERS = MEMBERS.filter((m) => m.type === "peer");
+export const MENTORS = MEMBERS.filter((m) => m.type === "mentor");
 
-export const mentors: Mentor[] = [
-  {
-    id: 'mentor-1',
-    role: 'mentor',
-    displayName: 'Jordan Rivera',
-    pronouns: 'they/them',
-    injuryType: 'SCI',
-    injuryLevel: 'C5',
-    completeness: 'incomplete',
-    yearsPostInjury: 9,
-    equipment: ['power chair'],
-    location: denver,
-    languages: ['English', 'Spanish'],
-    interests: ['hand cycling', 'adaptive skiing', 'cooking'],
-    bio: 'Injured in a diving accident in 2017. Loves helping newly injured folks figure out adaptive sports early.',
-    menteeCapacity: 3,
-    topics: ['hand cycling', 'adaptive skiing', 'returning to work'],
-    affiliations: ['Craig Hospital'],
-  },
-  {
-    id: 'mentor-2',
-    role: 'mentor',
-    displayName: 'Alex Kim',
-    pronouns: 'she/her',
-    injuryType: 'SCI',
-    injuryLevel: 'T4',
-    completeness: 'complete',
-    yearsPostInjury: 14,
-    equipment: ['manual chair'],
-    location: sanJose,
-    languages: ['English', 'Korean'],
-    interests: ['wheelchair basketball', 'travel'],
-    bio: 'Paraplegic since a car accident in 2011. Two-time adaptive travel blogger, happy to talk logistics.',
-    menteeCapacity: 4,
-    topics: ['travel logistics', 'wheelchair basketball', 'dating after injury'],
-    affiliations: ['NorCal SCI Network'],
-  },
-  {
-    id: 'mentor-3',
-    role: 'mentor',
-    displayName: 'Morgan Blake',
-    pronouns: 'he/him',
-    injuryType: 'SCI',
-    injuryLevel: 'L1',
-    completeness: 'incomplete',
-    yearsPostInjury: 5,
-    equipment: ['walker', 'manual chair'],
-    location: atlanta,
-    languages: ['English'],
-    interests: ['woodworking', 'parenting'],
-    bio: 'Incomplete SCI from a workplace fall. Dad of two, focused on parenting-after-injury peer support.',
-    menteeCapacity: 2,
-    topics: ['parenting after injury', 'home accessibility'],
-    affiliations: ['Craig Hospital'],
-  },
-  {
-    id: 'mentor-4',
-    role: 'mentor',
-    displayName: 'Taylor Reyes',
-    pronouns: 'she/her',
-    injuryType: 'SCI',
-    injuryLevel: 'C7',
-    completeness: 'complete',
-    yearsPostInjury: 21,
-    equipment: ['manual chair'],
-    location: chicago,
-    languages: ['English', 'Spanish'],
-    interests: ['tendon transfer surgery', 'public speaking'],
-    bio: 'Long-time peer mentor and disability advocate. Has been through two tendon transfer surgeries and speaks widely about the recovery process.',
-    menteeCapacity: 5,
-    topics: ['tendon transfer', 'advocacy', 'returning to work'],
-    affiliations: ['Craig Hospital', 'NorCal SCI Network'],
-  },
-  {
-    id: 'mentor-5',
-    role: 'mentor',
-    displayName: 'Sam Whitfield',
-    pronouns: 'they/them',
-    injuryType: 'SCI+TBI',
-    injuryLevel: 'C4',
-    completeness: 'incomplete',
-    yearsPostInjury: 3,
-    equipment: ['power chair'],
-    location: austin,
-    languages: ['English'],
-    interests: ['gaming', 'cognitive rehab', 'music'],
-    bio: 'Motorcycle accident survivor navigating both SCI and TBI recovery. New mentor, especially interested in supporting other dual-diagnosis peers.',
-    menteeCapacity: 2,
-    topics: ['dual diagnosis support', 'adaptive gaming'],
-    affiliations: ['NorCal SCI Network'],
-  },
-  {
-    id: 'mentor-6',
-    role: 'mentor',
-    displayName: 'Casey Nakamura',
-    pronouns: 'he/him',
-    injuryType: 'SCI',
-    injuryLevel: 'T10',
-    completeness: 'complete',
-    yearsPostInjury: 8,
-    equipment: ['manual chair'],
-    location: seattle,
-    languages: ['English', 'Japanese'],
-    interests: ['hand cycling', 'rock climbing'],
-    bio: 'Former competitive cyclist, now competes in adaptive hand cycling. Enjoys mentoring athletes returning to sport.',
-    menteeCapacity: 3,
-    topics: ['hand cycling', 'returning to sport'],
-    affiliations: ['Craig Hospital'],
-  },
-  {
-    id: 'mentor-7',
-    role: 'mentor',
-    displayName: 'Riley Okafor',
-    pronouns: 'she/they',
-    injuryType: 'SCI',
-    injuryLevel: 'C6',
-    completeness: 'incomplete',
-    yearsPostInjury: 12,
-    equipment: ['power chair', 'walker'],
-    location: miami,
-    languages: ['English', 'French'],
-    interests: ['fashion', 'travel', 'mentoring students'],
-    bio: 'Works in adaptive fashion design. Mentors college-age peers balancing school and rehab.',
-    menteeCapacity: 3,
-    topics: ['college and school', 'adaptive fashion', 'travel logistics'],
-    affiliations: ['NorCal SCI Network'],
-  },
-  {
-    id: 'mentor-8',
-    role: 'mentor',
-    displayName: 'Jamie Delgado',
-    pronouns: 'he/him',
-    injuryType: 'SCI',
-    injuryLevel: 'L4',
-    completeness: 'complete',
-    yearsPostInjury: 6,
-    equipment: ['walker', 'none'],
-    location: minneapolis,
-    languages: ['English'],
-    interests: ['running', 'nutrition'],
-    bio: 'Ambulatory after an incomplete-turned-recovered lower level injury. Focuses on nutrition and fitness peer support.',
-    menteeCapacity: 4,
-    topics: ['fitness and nutrition', 'ambulatory recovery'],
-    affiliations: ['Craig Hospital'],
-  },
-];
+export const orgById = (id: string): Org | undefined => ORGS.find((o) => o.id === id);
+export const memberById = (id: string): Member | undefined => MEMBERS.find((m) => m.id === id);
+export const eventById = (id: string): EventItem | undefined => EVENTS.find((e) => e.id === id);
