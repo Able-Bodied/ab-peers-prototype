@@ -10,25 +10,35 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { NorCalSCIEventsJsonWithImagesScraper } from './scrapers/norcalsci-events-json-with-images.js';
 
-// Load .env.local from project root (parent of parent directory)
+// Load environment configuration in priority order:
+// 1. Local .env in event-ingest directory (highest priority)
+// 2. .env.local from project root
+// 3. .env from project root (lowest priority)
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const projectRoot = path.join(__dirname, '..', '..');
+const jobEnvPath = path.join(__dirname, '.env');
 const envLocalPath = path.join(projectRoot, '.env.local');
 const envPath = path.join(projectRoot, '.env');
 
-dotenv.config({ path: envLocalPath });
+// Load in reverse priority order (earlier loads are overridden by later ones)
 dotenv.config({ path: envPath });
+dotenv.config({ path: envLocalPath });
+dotenv.config({ path: jobEnvPath }); // Load job-specific .env last (highest priority)
 
 // Validate environment configuration
 function validateEnvironment() {
   // Support both SUPABASE_* and VITE_SUPABASE_* variable names
+  // Use service_role key to bypass RLS policies (required for inserting events)
   const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
-  const supabaseKey = process.env.SUPABASE_KEY || process.env.VITE_SUPABASE_ANON_KEY;
+  const supabaseKey =
+    process.env.SUPABASE_KEY ||
+    process.env.VITE_SUPABASE_SERVICE_ROLE_KEY ||
+    process.env.VITE_SUPABASE_ANON_KEY;
 
   const missing = [];
   if (!supabaseUrl) missing.push('SUPABASE_URL (or VITE_SUPABASE_URL)');
-  if (!supabaseKey) missing.push('SUPABASE_KEY (or VITE_SUPABASE_ANON_KEY)');
+  if (!supabaseKey) missing.push('SUPABASE_KEY (or VITE_SUPABASE_SERVICE_ROLE_KEY)');
 
   if (missing.length > 0) {
     console.error('Failed to validate environment:');
@@ -37,7 +47,8 @@ function validateEnvironment() {
     });
     console.error('\nPlease set these in your .env file:');
     console.error('  SUPABASE_URL=https://your-project.supabase.co');
-    console.error('  SUPABASE_KEY=your-anon-or-service-key');
+    console.error('  SUPABASE_KEY=your-service-role-key (required to bypass RLS)');
+    console.error('  Or set VITE_SUPABASE_SERVICE_ROLE_KEY in .env.local');
     process.exit(1);
   }
 
@@ -189,6 +200,7 @@ class EventIngestionWorker {
           url: event.url || '',
           registration_url: event.registration_url || null,
           category: event.category || null,
+          image_url: event.image_url || null,
           updated_at: event.updated_at || new Date().toISOString(),
         }));
 
