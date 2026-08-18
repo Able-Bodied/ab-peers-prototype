@@ -1,0 +1,1250 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>PeerConnect — demo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=Public+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<!--
+  PeerConnect demo — PRD v9.
+  All 12 people, 8 events and 6 organizations below are INVENTED. No real person's
+  name, photo or contact details appear anywhere in this file, so it is safe to
+  commit and safe to demo. To show the NorCal seed instead, replace DATA.people.
+-->
+<style>
+:root{
+  --canvas:#EFF2EE; --paper:#fff; --ink:#111A16; --ink2:#46524C;
+  --pine:#14483C; --pine-hi:#1B5F4E; --tint:#DDE9E3; --clay:#C9491B; --clay-t:#FBE7DE;
+  --line:#C9D2CC; --grey:#8A968F;
+  --head:Archivo,"Helvetica Neue",Arial,sans-serif;
+  --body:"Public Sans",-apple-system,BlinkMacSystemFont,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;height:100%;overscroll-behavior:none}
+body{background:#DCE2DB;font-family:var(--body);color:var(--ink);
+  display:flex;align-items:center;justify-content:center}
+#phone{width:100%;max-width:430px;height:100dvh;max-height:900px;background:var(--canvas);
+  display:flex;flex-direction:column;overflow:hidden;position:relative;box-shadow:0 24px 60px rgba(17,26,22,.25)}
+@media(min-width:520px){#phone{border-radius:30px;height:min(900px,calc(100dvh - 40px))}}
+#root{flex:1;min-height:0;display:flex;flex-direction:column}
+.screen{flex:1;min-height:0;display:flex;flex-direction:column}
+button{font:inherit;cursor:pointer}
+:focus-visible{outline:3px solid var(--clay);outline-offset:2px;border-radius:8px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+
+/* top bar */
+.top{flex:none;display:flex;gap:9px;align-items:center;padding:14px 18px 8px}
+.top h2{font-family:var(--head);font-weight:800;font-size:24px;margin:0;flex:1}
+.seg{min-height:44px;padding:0 20px;border-radius:22px;border:2px solid var(--line);background:var(--paper);
+  font-family:var(--head);font-weight:700;font-size:15.5px;color:var(--ink)}
+.seg[aria-selected="true"]{background:var(--pine);border-color:var(--pine);color:#fff}
+.icb{width:44px;height:44px;border-radius:50%;border:2px solid var(--line);background:var(--paper);
+  display:grid;place-items:center;flex:none;margin-left:auto}
+.fbar{flex:none;display:flex;gap:8px;padding:0 18px 10px;overflow-x:auto;scrollbar-width:none}
+.fbar::-webkit-scrollbar{display:none}
+.fchip{flex:none;min-height:36px;padding:0 14px;border-radius:18px;border:2px solid var(--line);
+  background:var(--paper);color:var(--ink);font-size:13px;font-weight:700;display:inline-flex;align-items:center;gap:6px}
+.fchip.on{border-color:var(--pine);background:var(--tint);color:var(--pine)}
+
+/* deck + cards */
+.deck{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:0 16px 12px}
+.deck.snap{scroll-snap-type:y mandatory}
+.card{position:relative;width:100%;height:calc(100% - 8px);min-height:430px;border-radius:26px;overflow:hidden;
+  scroll-snap-align:center;margin-bottom:14px;display:block;text-align:left;border:0;padding:0;color:#fff}
+.card .init{position:absolute;inset:0;display:grid;place-items:center;font-family:var(--head);font-weight:800;
+  font-size:118px;color:rgba(255,255,255,.28)}
+.card .scrim{position:absolute;left:0;right:0;bottom:0;height:58%;
+  background:linear-gradient(to top,rgba(8,14,11,.93) 12%,rgba(8,14,11,.55) 44%,transparent)}
+.card .scrim-top{position:absolute;left:0;right:0;top:0;height:34%;
+  background:linear-gradient(to bottom,rgba(8,14,11,.55),transparent)}
+.card .head{position:absolute;top:20px;left:22px;right:22px}
+.card .head h3{font-family:var(--head);font-size:29px;margin:0 0 7px;letter-spacing:-.02em}
+.card .head .l{font-size:14px;color:#e6ece8;margin-bottom:3px}
+.pillw{display:inline-block;background:#fff;color:var(--pine);font-size:11.5px;font-weight:700;
+  padding:6px 12px;border-radius:14px;margin-top:8px}
+.card .foot{position:absolute;left:22px;right:22px;bottom:20px}
+.card .bio{font-size:14px;line-height:1.42;max-width:64%;margin:0 0 13px;
+  display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.chipstrip{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
+.chipstrip::-webkit-scrollbar{display:none}
+.chipstrip span{flex:none;background:#fff;color:var(--ink);font-size:12.5px;font-weight:700;
+  padding:9px 14px;border-radius:19px}
+.wave{position:absolute;right:18px;bottom:70px;width:72px;height:72px;border-radius:50%;border:0;
+  background:var(--clay);display:grid;place-items:center;box-shadow:0 8px 24px rgba(0,0,0,.3)}
+.wave.done{background:var(--pine)}
+.wave svg{width:36px;height:36px}
+
+/* events */
+.ev{width:100%;text-align:left;background:var(--paper);border:1.6px solid var(--line);border-radius:16px;
+  padding:14px 15px 13px;margin-bottom:12px;display:flex;gap:13px;position:relative}
+.date{width:58px;height:58px;border-radius:13px;background:var(--tint);flex:none;display:flex;
+  flex-direction:column;align-items:center;justify-content:center;color:var(--pine)}
+.date b{font-family:var(--head);font-size:20px;line-height:1}
+.date i{font-style:normal;font-size:10.5px;font-weight:700;letter-spacing:.06em}
+.evb{flex:1;min-width:0}
+.tt{font-family:var(--head);font-weight:700;font-size:16px;line-height:1.2;padding-right:22px}
+.badges{display:flex;gap:6px;margin-top:5px;flex-wrap:wrap}
+.badge{display:inline-block;font-size:10px;font-weight:700;padding:3px 9px;border-radius:9px;white-space:nowrap}
+.badge.v{background:var(--clay);color:#fff}
+.badge.r{background:var(--tint);color:var(--pine)}
+.meta{font-size:13px;color:var(--ink2);line-height:1.42;margin-top:3px}
+.counts{font-size:12.5px;font-weight:700;color:var(--pine);margin-top:7px}
+.counts em{font-style:normal;color:var(--ink2);font-weight:600}
+.match{font-size:12.5px;font-weight:700;color:var(--clay);margin-top:2px}
+.acts{display:flex;gap:8px;margin-top:10px}
+.mini{min-height:36px;padding:0 15px;border-radius:12px;font-family:var(--head);font-size:13.5px;font-weight:700;
+  border:2px solid var(--pine);background:transparent;color:var(--pine);display:inline-flex;align-items:center;gap:5px}
+.mini.solid{background:var(--pine);color:#fff}
+.mini.done{background:var(--tint);border-color:var(--tint);color:var(--pine)}
+.x{position:absolute;top:10px;right:10px;width:28px;height:28px;border-radius:50%;border:0;background:none;
+  display:grid;place-items:center;color:var(--grey)}
+
+/* generic page */
+.page{position:absolute;inset:0;background:var(--canvas);display:flex;flex-direction:column;z-index:10}
+.scroll{flex:1;min-height:0;overflow-y:auto;padding:0 20px 18px}
+.back{background:none;border:0;color:var(--pine);font-weight:700;font-size:15px;padding:14px 0 4px}
+h1{font-family:var(--head);font-size:26px;margin:6px 0 6px;letter-spacing:-.02em;line-height:1.18}
+h1.sm{font-size:23px}
+p.sub{font-size:14.5px;line-height:1.45;color:var(--ink2);margin:0 0 14px}
+p.txt{font-size:14.5px;line-height:1.5;margin:10px 0 0}
+h3.sec{font-family:var(--head);font-size:11.5px;text-transform:uppercase;letter-spacing:.09em;
+  color:var(--ink2);margin:18px 0 8px}
+.hint{font-size:12.5px;color:var(--ink2);margin:-2px 0 9px;line-height:1.4}
+.when{font-weight:700;color:var(--pine);font-size:14.5px;margin-bottom:2px}
+.chips{display:flex;flex-wrap:wrap;gap:7px}
+.chip{min-height:36px;padding:0 13px;border-radius:18px;border:2px solid var(--line);background:var(--paper);
+  font-size:12.5px;font-weight:600;display:inline-flex;align-items:center;color:var(--ink);gap:5px}
+.chip.on{border-color:var(--pine);background:var(--tint);color:var(--pine)}
+.chip.dash{border-style:dashed}
+.note{background:var(--tint);border-radius:13px;padding:12px 14px;font-size:13px;line-height:1.45;margin:14px 0 0}
+.note.warn{background:var(--clay-t);color:#5C2410}
+.row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 0;
+  border-bottom:1px solid var(--line);width:100%;background:none;border-left:0;border-right:0;border-top:0;text-align:left}
+.row .nm{font-family:var(--head);font-size:15px;font-weight:700;display:block}
+.row .s{font-size:12.5px;color:var(--ink2);margin-top:2px;display:block}
+.pill{font-size:11px;font-weight:700;padding:4px 10px;border-radius:11px;background:var(--tint);color:var(--pine);white-space:nowrap}
+.pill.todo{background:#E7EAE6;color:var(--ink2)}
+.pill.new{background:var(--clay);color:#fff}
+.sw{width:48px;height:28px;border-radius:16px;background:var(--line);position:relative;flex:none;border:0;padding:0}
+.sw i{position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:#fff;
+  box-shadow:0 1px 3px rgba(0,0,0,.25);transition:left .16s}
+.sw.on{background:var(--pine)}
+.sw.on i{left:23px}
+.fld{width:100%;min-height:50px;border-radius:12px;border:2px solid var(--line);background:#fff;
+  padding:13px 15px;font:inherit;font-size:15px;color:var(--ink);font-family:var(--body)}
+.area{min-height:110px;line-height:1.45;resize:none}
+.count{font-size:12px;color:var(--ink2);font-weight:600;margin-top:7px;text-align:right}
+
+/* org row + faces */
+.orgrow{display:flex;align-items:center;gap:11px;background:var(--paper);border:1.6px solid var(--line);
+  border-radius:15px;padding:11px 12px;margin-top:13px;width:100%;text-align:left}
+.logo{width:42px;height:42px;border-radius:12px;background:var(--pine);color:#fff;flex:none;
+  display:grid;place-items:center;font-family:var(--head);font-weight:800;font-size:15px}
+.orgrow .nm{font-family:var(--head);font-weight:700;font-size:15px;display:flex;align-items:center;gap:5px}
+.orgrow .s{font-size:12.5px;color:var(--ink2);margin-top:1px;display:block}
+.tick{width:15px;height:15px;border-radius:50%;background:var(--pine);color:#fff;display:grid;place-items:center;font-size:9px}
+.follow{min-height:36px;padding:0 14px;border-radius:12px;border:2px solid var(--pine);background:transparent;
+  color:var(--pine);font-family:var(--head);font-size:13.5px;font-weight:700;margin-left:auto;flex:none}
+.follow.on{background:var(--tint);border-color:var(--tint)}
+.faces{display:flex;margin:9px 0 0}
+.face{width:44px;height:44px;border-radius:50%;border:2.5px solid var(--canvas);margin-left:-11px;
+  display:grid;place-items:center;color:#fff;font-family:var(--head);font-weight:800;font-size:15px}
+.face:first-child{margin-left:0}
+.face.more{background:var(--tint);color:var(--pine)}
+.youknow{background:var(--tint);border-radius:13px;padding:11px 13px;font-size:13.5px;line-height:1.45;margin-top:11px}
+.youknow b{color:var(--pine)}
+.privnote{font-size:12.5px;color:var(--ink2);margin-top:10px;line-height:1.45}
+.accline{font-size:13.5px;color:var(--ink2);font-weight:600;margin-top:13px}
+.accwarn{font-size:13.5px;color:var(--clay);font-weight:700;margin-top:4px}
+.hero{display:flex;flex-direction:column;align-items:center;text-align:center;padding:6px 0 2px}
+.hero .logo{width:74px;height:74px;border-radius:22px;font-size:24px}
+.hero h1{margin:12px 0 2px;font-size:25px}
+.wide{width:100%;min-height:50px;border-radius:14px;border:0;background:var(--pine);color:#fff;
+  font-family:var(--head);font-size:16px;font-weight:700;margin-top:14px}
+.wide.on{background:var(--tint);color:var(--pine)}
+.evrow{display:flex;gap:12px;align-items:center;padding:11px 0;border-bottom:1px solid var(--line);
+  width:100%;background:none;border-left:0;border-right:0;border-top:0;text-align:left}
+.evrow .t{font-family:var(--head);font-weight:700;font-size:14.5px;display:block}
+.evrow .s{font-size:12.5px;color:var(--ink2);margin-top:1px;display:block}
+.evrow .date{width:48px;height:48px}
+.evrow .date b{font-size:17px}
+
+/* tips, photos, video */
+.tip{background:var(--paper);border:1.6px solid var(--line);border-radius:16px;padding:14px;margin-top:11px}
+.tip .tag{display:inline-block;font-size:11px;font-weight:700;padding:4px 10px;border-radius:11px;
+  background:var(--tint);color:var(--pine);margin-bottom:8px}
+.tip p{margin:0;font-size:14px;line-height:1.45}
+.vid{display:flex;gap:11px;align-items:center;background:var(--paper);border:1.6px solid var(--line);
+  border-radius:14px;padding:9px;margin-top:10px}
+.vid .thumb{width:92px;height:58px;border-radius:10px;flex:none;display:grid;place-items:center;background:#274B66}
+.vid .play{width:26px;height:26px;border-radius:50%;background:rgba(255,255,255,.92);display:grid;place-items:center;
+  color:var(--pine);font-size:11px}
+.vid .t{font-family:var(--head);font-size:13.5px;font-weight:700;line-height:1.25;display:block}
+.vid .s{font-size:11.5px;color:var(--ink2);margin-top:3px;display:block}
+.addlink{width:100%;min-height:46px;border-radius:12px;border:2px dashed var(--pine);background:transparent;
+  color:var(--pine);font-family:var(--head);font-size:13.5px;font-weight:700;margin-top:10px}
+.pgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-top:10px}
+.pgrid .lead{grid-column:span 2;grid-row:span 2;border-radius:16px;position:relative;overflow:hidden;
+  display:grid;place-items:end start;color:#fff;padding:11px;font-size:12px;font-weight:700;min-height:170px}
+.pgrid .cell{border-radius:14px;min-height:80px;display:grid;place-items:end start;color:#fff;padding:9px;
+  font-size:11px;font-weight:700;position:relative}
+.pgrid .add{border-radius:14px;min-height:80px;border:2.5px dashed var(--pine);display:grid;place-items:center;
+  color:var(--pine);background:none}
+.lead .tagp{position:absolute;top:10px;left:10px;background:rgba(255,255,255,.94);color:var(--pine);
+  font-size:10.5px;font-weight:700;padding:4px 9px;border-radius:10px}
+.mini-card{position:relative;height:180px;border-radius:18px;overflow:hidden;background:#274B66;margin-top:10px}
+.mini-card .scrim{position:absolute;left:0;right:0;bottom:0;height:74%;
+  background:linear-gradient(to top,rgba(8,14,11,.94) 14%,rgba(8,14,11,.5) 48%,transparent)}
+.mini-card .who{position:absolute;top:14px;left:16px;color:#fff}
+.mini-card .who b{font-family:var(--head);font-size:19px;display:block}
+.mini-card .who span{font-size:11.5px;color:#e2e9e5}
+.mini-card .bio{position:absolute;left:16px;right:16px;bottom:14px;color:#fff;font-size:12.5px;line-height:1.4;
+  display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.ring{width:64px;height:64px;border-radius:50%;flex:none;display:grid;place-items:center;
+  font-family:var(--head);font-weight:800;font-size:15px;color:var(--pine)}
+.ring i{width:50px;height:50px;border-radius:50%;background:var(--paper);display:grid;place-items:center;font-style:normal}
+.cardbox{background:var(--paper);border:1.6px solid var(--line);border-radius:18px;padding:16px;margin-top:14px}
+.avatar{width:74px;height:74px;border-radius:24px;background:var(--pine);color:#fff;display:grid;place-items:center;
+  font-family:var(--head);font-weight:800;font-size:25px}
+
+/* progress */
+.prog{flex:none;padding:12px 20px 0}
+.prog .r{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px}
+.prog .nm{font-family:var(--head);font-size:13px;font-weight:700;color:var(--pine)}
+.prog .ct{font-size:12.5px;font-weight:600;color:var(--ink2)}
+.track{height:5px;background:var(--line);border-radius:3px;overflow:hidden}
+.track i{display:block;height:100%;background:var(--pine);border-radius:3px;transition:width .3s}
+
+/* footer + nav + sheet + toast */
+footer.cta{flex:none;padding:10px 20px max(14px,env(safe-area-inset-bottom));
+  background:linear-gradient(to top,var(--canvas) 74%,rgba(239,242,238,0));display:flex;gap:9px}
+.btn{flex:1;min-height:54px;border-radius:14px;border:2px solid var(--pine);background:transparent;color:var(--pine);
+  font-family:var(--head);font-size:16.5px;font-weight:700}
+.btn.solid{background:var(--pine);color:#fff}
+.btn.link{background:none;border:0;color:var(--ink2);min-height:44px;font-family:var(--body);font-size:14.5px}
+nav{flex:none;margin:0 16px max(12px,env(safe-area-inset-bottom));background:var(--paper);
+  border:1.6px solid var(--line);border-radius:24px;display:flex;padding:9px 0}
+nav button{flex:1;background:none;border:0;display:flex;flex-direction:column;align-items:center;gap:4px;
+  font-size:10.5px;font-weight:700;color:var(--grey);padding:2px 0}
+nav button[aria-current="page"]{color:var(--pine)}
+nav .ic{width:22px;height:22px;position:relative}
+nav .av{width:22px;height:22px;border-radius:50%;background:var(--pine);color:#fff;display:grid;place-items:center;
+  font-size:10px;font-weight:800;font-family:var(--head)}
+.badge-n{position:absolute;transform:translate(12px,-6px);background:var(--clay);color:#fff;
+  border-radius:9px;font-size:10px;padding:1px 5px;font-weight:700}
+.veil{position:absolute;inset:0;background:rgba(8,14,11,.42);z-index:20}
+.sheet{position:absolute;left:0;right:0;bottom:0;background:var(--canvas);border-radius:24px 24px 0 0;z-index:21;
+  max-height:88%;display:flex;flex-direction:column;padding-bottom:6px}
+.sheet .shead{flex:none;display:flex;align-items:center;gap:12px;padding:16px 20px 10px}
+.sheet .shead h2{font-family:var(--head);font-size:22px;margin:0;flex:1}
+.txtbtn{background:none;border:0;font-size:14px;font-weight:700;color:var(--pine)}
+.xbtn{width:36px;height:36px;border-radius:50%;border:2px solid var(--line);background:var(--paper);
+  display:grid;place-items:center;flex:none}
+.genre{display:flex;align-items:center;justify-content:space-between;margin:16px 0 8px}
+.genre b{font-family:var(--head);font-size:15px}
+.genre .cnt{font-size:12px;color:var(--ink2);font-weight:600;margin-left:7px}
+.state{font-size:12px;font-weight:700;padding:5px 11px;border-radius:12px;background:var(--tint);color:var(--pine);border:0}
+.state.n{background:#E7EAE6;color:var(--ink2)}
+.state.m{background:var(--clay-t);color:#8A3413}
+.restore{min-height:32px;padding:0 13px;border-radius:11px;border:2px solid var(--pine);background:transparent;
+  color:var(--pine);font-family:var(--head);font-size:12.5px;font-weight:700}
+.toast{position:absolute;left:18px;right:18px;bottom:98px;background:var(--pine);color:#fff;border-radius:14px;
+  padding:13px 16px;font-size:13.5px;font-weight:600;z-index:30;box-shadow:0 10px 30px rgba(0,0,0,.28);
+  display:flex;align-items:center;gap:12px}
+.toast button{background:none;border:0;color:#fff;font-weight:800;text-decoration:underline;margin-left:auto;font-size:13.5px}
+.empty{text-align:center;padding:52px 20px;color:var(--ink2)}
+.empty b{display:block;font-family:var(--head);font-size:19px;color:var(--ink);margin-bottom:6px}
+@media(prefers-reduced-motion:reduce){*{transition:none!important}}
+</style></head>
+<body><div id="phone"><div id="root"></div></div>
+<script>
+/* ------------------------------------------------------------------ data
+   Everything here is invented. See the comment at the top of the file. */
+const DATA = {
+  orgs: [
+    {id:"borp", name:"BORP", full:"Bay Area Outreach & Recreation Program", city:"Berkeley, CA",
+     region:"Serving the Bay Area", letter:"B", verified:true, claimed:true, peers:9,
+     about:"Adaptive sports and recreation since 1976 — handcycling, wheelchair basketball, rugby and outdoor trips. Loaner equipment for every programme, and no experience needed for anything marked beginner-friendly.",
+     tags:["Sports & recreation","Handcycling","Wheelchair rugby"]},
+    {id:"scvmc", name:"Valley Medical", full:"Valley Medical Center, rehabilitation services", city:"San Jose, CA",
+     region:"Santa Clara County", letter:"V", verified:true, claimed:true, peers:6,
+     about:"Inpatient and outpatient SCI rehabilitation, plus a weekly drop-in peer support group that has been running for over twenty years.",
+     tags:["Support & groups","Peer support group"]},
+    {id:"ablebodied", name:"AbleBodied", full:"AbleBodied", city:"Online", region:"Everywhere",
+     letter:"A", verified:true, claimed:true, peers:14,
+     about:"A monthly virtual get-together, open format, a mix of new folks and old hands. Captions always on.",
+     tags:["Support & groups","Social & travel"]},
+    {id:"tahoe", name:"Achieve Tahoe", full:"Achieve Tahoe adaptive sports", city:"Alpine Meadows, CA",
+     region:"Sierra Nevada", letter:"T", verified:true, claimed:false, peers:4,
+     about:"Winter and summer adaptive sports in the Sierra — sit-ski, monoski, and a summer paddling programme.",
+     tags:["Sports & recreation","Monoskiing"]},
+    {id:"ability360", name:"Ability360", full:"Ability360", city:"Phoenix, AZ", region:"Arizona",
+     letter:"A", verified:true, claimed:false, peers:2,
+     about:"Independent living centre with a large adaptive sports programme, including monthly adaptive climbing.",
+     tags:["Sports & recreation","Adaptive climbing"]},
+    {id:"norcalsci", name:"NorCal SCI", full:"NorCal Spinal Cord Injury Foundation", city:"San Jose, CA",
+     region:"Northern California", letter:"N", verified:true, claimed:true, peers:11,
+     about:"Peer mentoring, equipment grants and a monthly men's group for people living with spinal cord injury in northern California.",
+     tags:["Support & groups","Advocacy"]}
+  ],
+  events: [
+    {id:"e1", title:"Adaptive handcycle ride", org:"borp", mode:"in-person", genre:"Sports & recreation",
+     activity:"Handcycling", city:"Berkeley, CA", place:"Berkeley Aquatic Park", state:"California",
+     day:"SAT", num:"22", dateLabel:"Sat 22 August", time:"9:00 AM – 12:00 PM", short:"9:00 AM · All levels",
+     going:6, interested:22, recurring:false, beginner:true, matchLine:"2 going have SCI - para",
+     desc:"Rolling 12 miles along the Bay Trail at a conversational pace, with a coffee stop halfway. Loaner handcycles in four sizes — say which you need when you RSVP. Volunteers ride sweep, so nobody finishes alone.",
+     access:"Accessible parking, 6 spaces · Loaner handcycles in 4 sizes", accessWarn:"Last 200 m of the trail is gravel",
+     attendees:["p2","p4","p6","p9"]},
+    {id:"e2", title:"AbleBodied monthly", org:"ablebodied", mode:"virtual", genre:"Support & groups",
+     activity:"Peer support group", city:"Online", place:"Online", state:"Virtual",
+     day:"THU", num:"27", dateLabel:"Thu 27 August", time:"7:00 PM PT", short:"7:00 PM PT · Live captions on",
+     going:18, interested:31, recurring:true, beginner:true, matchLine:"5 going are in their first year",
+     desc:"Our monthly get-together. Open format, a mix of new folks and old hands. Turn your camera off if you would rather just listen — plenty of people do.",
+     access:"Live captions on", accessWarn:"", attendees:["p3","p5","p7","p10","p11"]},
+    {id:"e3", title:"SCI peer support group", org:"scvmc", mode:"in-person", genre:"Support & groups",
+     activity:"Peer support group", city:"San Jose, CA", place:"Valley Medical, building C", state:"California",
+     day:"MON", num:"24", dateLabel:"Mon 24 August", time:"4:00 PM", short:"4:00 PM · Weekly, drop in",
+     going:12, interested:9, recurring:true, beginner:true, standing:true, matchLine:"",
+     desc:"Weekly drop-in peer support group, running for over twenty years. No need to book, no need to speak.",
+     access:"Ground floor, step-free access", accessWarn:"", attendees:[], roster:"off"},
+    {id:"e4", title:"Wheelchair rugby open gym", org:"borp", mode:"in-person", genre:"Sports & recreation",
+     activity:"Wheelchair rugby", city:"Berkeley, CA", place:"BORP gym", state:"California",
+     day:"WED", num:"3", dateLabel:"Wed 3 September", time:"6:00 PM", short:"6:00 PM · Loaner chairs",
+     going:8, interested:14, recurring:true, beginner:true, matchLine:"3 going have SCI - quad",
+     desc:"Come and try it. Loaner chairs for the night, no commitment, and nobody expects you to be any good on your first evening.",
+     access:"Accessible entrance, changing room with hoist", accessWarn:"", attendees:["p2","p8"]},
+    {id:"e5", title:"Men's SCI group", org:"norcalsci", mode:"virtual", genre:"Support & groups",
+     activity:"Peer support group", city:"Online", place:"Online", state:"Virtual",
+     day:"TUE", num:"25", dateLabel:"Tue 25 August", time:"6:30 PM PT", short:"6:30 PM PT · Monthly",
+     going:9, interested:7, recurring:true, beginner:false, matchLine:"",
+     desc:"Monthly group for men living with SCI. Bowel, bladder, relationships, work — the conversations that are hard to start anywhere else.",
+     access:"Roster is first names only", accessWarn:"", attendees:[], roster:"off"},
+    {id:"e6", title:"Sit-ski open day", org:"tahoe", mode:"in-person", genre:"Sports & recreation",
+     activity:"Monoskiing", city:"Alpine Meadows, CA", place:"Alpine Meadows", state:"California",
+     day:"SUN", num:"31", dateLabel:"Sun 31 August", time:"8:30 AM", short:"8:30 AM · Beginners welcome",
+     going:3, interested:19, recurring:false, beginner:true, matchLine:"1 going has SCI - para",
+     desc:"First time on snow? This is the day for it. Instructors, equipment and a very patient team.",
+     access:"Accessible lodge and restrooms", accessWarn:"Transfer to the sit-ski happens outdoors — dress warm",
+     attendees:["p6"]},
+    {id:"e7", title:"Adaptive climbing night", org:"ability360", mode:"in-person", genre:"Sports & recreation",
+     activity:"Adaptive climbing", city:"Phoenix, AZ", place:"Ability360 Sports Center", state:"Arizona",
+     day:"FRI", num:"5", dateLabel:"Fri 5 September", time:"7:00 PM", short:"7:00 PM · All levels",
+     going:5, interested:11, recurring:true, beginner:true, matchLine:"",
+     desc:"Monthly climb with trained adaptive belayers. All levels, all set-ups.",
+     access:"Accessible restrooms, transfer mats at the wall", accessWarn:"", attendees:["p12"]},
+    {id:"e8", title:"Accessible travel meetup", org:"ablebodied", mode:"virtual", genre:"Social & travel",
+     activity:"Travel", city:"Online", place:"Online", state:"Virtual",
+     day:"WED", num:"10", dateLabel:"Wed 10 September", time:"5:00 PM PT", short:"5:00 PM PT · Online",
+     going:7, interested:24, recurring:false, beginner:true, matchLine:"",
+     desc:"Swapping notes on airlines, aisle chairs, hotel bathrooms and which cities are worth the trouble.",
+     access:"Live captions on", accessWarn:"", attendees:["p5","p9"]}
+  ],
+  people: [
+    {id:"p1", name:"Alex R.", init:"AR", color:"#274B66", injury:"SCI - para", level:"T6", chair:"Manual chair",
+     age:37, city:"San Jose, CA", duration:"3 years post-injury", isMentor:false, org:null,
+     bio:"Bay Area native, three years post. Handcycle most weekends, work in software, dad to two. Happy to talk gear, transfers, and going back to work.",
+     interests:["Handcycling","Travel","Gardening"], topics:["Back to work","Driving & vehicle mods"], you:true},
+    {id:"p2", name:"Marcus R.", init:"MR", color:"#14483C", injury:"SCI - para", level:"T4", chair:"Manual chair",
+     age:41, city:"Oakland, CA", duration:"9 years post-injury", isMentor:true, org:"borp", capacity:"Open",
+     bio:"Nine years in, rugby three nights a week and a very opinionated view on cushions. Ask me anything about getting back on the water.",
+     interests:["Wheelchair rugby","Handcycling","Kayaking"], topics:["Skin & pressure","Adaptive sports","Bladder"]},
+    {id:"p3", name:"Jess T.", init:"JT", color:"#C9491B", injury:"SCI - quad", level:"C6", chair:"Power assist",
+     age:29, city:"Sacramento, CA", duration:"2 years post-injury", isMentor:true, org:"norcalsci", capacity:"Open",
+     bio:"Two years post, back at work as a teacher. I spent my first year convinced nothing would ever be normal again, so ask me about that part.",
+     interests:["Reading & writing","Cooking & food"], topics:["Back to work","Mental health","Dating"]},
+    {id:"p4", name:"Ana L.", init:"AL", color:"#2F6B58", injury:"SCI - para", level:"T10", chair:"Manual chair",
+     age:34, city:"Berkeley, CA", duration:"6 years post-injury", isMentor:false, org:null,
+     bio:"Handcycle, garden, argue about coffee. Six years in and still finding better ways to load the chair.",
+     interests:["Handcycling","Gardening","Cooking & food"], topics:["Driving & vehicle mods"]},
+    {id:"p5", name:"Danny K.", init:"DK", color:"#3B5C86", injury:"SCI - quad", level:"C5", chair:"Power chair",
+     age:52, city:"Fremont, CA", duration:"14 years post-injury", isMentor:true, org:"norcalsci", capacity:"At capacity",
+     bio:"Fourteen years, power chair, travelled to eleven countries since. Happy to talk logistics with anyone who thinks travel is off the table.",
+     interests:["Travel","Music & concerts"], topics:["Travel","Caregivers & PCAs","Home mods"]},
+    {id:"p6", name:"Priya S.", init:"PS", color:"#7A5C2E", injury:"SCI - para", level:"T12", chair:"Manual chair",
+     age:31, city:"San Francisco, CA", duration:"1 year post-injury", isMentor:false, org:null,
+     bio:"One year in. Just started monoskiing, mostly falling over, enjoying it anyway.",
+     interests:["Monoskiing","Travel"], topics:[]},
+    {id:"p7", name:"Tom N.", init:"TN", color:"#1F5E4B", injury:"SCI - quad", level:"C7", chair:"Manual chair",
+     age:45, city:"San Jose, CA", duration:"11 years post-injury", isMentor:true, org:"scvmc", capacity:"Open",
+     bio:"Eleven years post. I run the Monday group at Valley Medical. If you are three months in and reading this, that group is for you.",
+     interests:["Volunteering","Family & pets"], topics:["Bladder","Bowel","Skin & pressure","Mental health"]},
+    {id:"p8", name:"Ruth G.", init:"RG", color:"#8A3413", injury:"Family member", level:null, chair:null,
+     age:58, city:"Oakland, CA", duration:"Parent", isMentor:true, org:"borp", capacity:"Open",
+     bio:"My son was injured at 19, nine years ago. I mentor parents and partners, because that first year is its own thing and nobody hands you a manual.",
+     interests:["Family & pets","Cooking & food"], topics:["Caregivers & PCAs","Mental health"]},
+    {id:"p9", name:"Chris W.", init:"CW", color:"#2A4D3F", injury:"SCI - para", level:"T8", chair:"Manual chair",
+     age:39, city:"Berkeley, CA", duration:"4 years post-injury", isMentor:false, org:null,
+     bio:"Rides, travels, terrible at cooking. Four years in.",
+     interests:["Handcycling","Travel"], topics:[]},
+    {id:"p10", name:"Sam O.", init:"SO", color:"#4A3B6B", injury:"MS", level:null, chair:"Power assist",
+     age:47, city:"Modesto, CA", duration:"8 years since diagnosis", isMentor:false, org:null,
+     bio:"MS, eight years. Different road to most people here but the day-to-day overlaps more than you would think.",
+     interests:["Reading & writing","Gardening"], topics:[]},
+    {id:"p11", name:"Nina B.", init:"NB", color:"#155F63", injury:"SCI - quad", level:"C6", chair:"Power assist",
+     age:26, city:"Boise, ID", duration:"8 months post-injury", isMentor:false, org:null,
+     bio:"Eight months in, nothing local within two hours, so mostly here for the online stuff. Say hi.",
+     interests:["Music & concerts","Reading & writing"], topics:[]},
+    {id:"p12", name:"Hector M.", init:"HM", color:"#6B4226", injury:"SCI - para", level:"T5", chair:"Manual chair",
+     age:36, city:"Phoenix, AZ", duration:"7 years post-injury", isMentor:true, org:"ability360", capacity:"Open",
+     bio:"Climbing, mostly. Seven years post and still surprised by what the wall lets me do.",
+     interests:["Adaptive climbing","Wheelchair sports"], topics:["Adaptive sports","Skin & pressure"]}
+  ],
+  genres: ["Sports & recreation","Support & groups","Skills & services","Social & travel","Advocacy"],
+  activitiesByGenre: {
+    "Sports & recreation":["Handcycling","Wheelchair rugby","Monoskiing","Adaptive climbing","Kayaking","Hiking & trails"],
+    "Support & groups":["Peer support group","Men's group","Caregiver group","Newly injured"],
+    "Skills & services":["Driving lessons","Equipment clinics","Benefits advice"],
+    "Social & travel":["Travel","Social meetup","Food & drink"],
+    "Advocacy":["Policy & access","Fundraising"]
+  },
+  topicPool: ["Bladder","Bowel","Skin & pressure","Pain","Spasticity","Sexuality","Dating","Mental health",
+    "Back to work","School","Driving & vehicle mods","Home mods","Insurance","Travel","Parenting",
+    "Caregivers & PCAs","Adaptive sports"],
+  devicePool: ["Suprapubic catheter","Intermittent cath","Bowel program","Wound care","Baclofen pump","FES",
+    "Wheelchair assist devices"],
+  interestPool: ["Handcycling","Wheelchair rugby","Monoskiing","Adaptive climbing","Kayaking","Hiking & trails",
+    "Travel","Gardening","Cooking & food","Music & concerts","Reading & writing","Family & pets","Volunteering",
+    "Board games","Photography","Art & making","Fishing","Wheelchair sports","Video games","Cars"],
+  tipTopics: ["Transfers","Driving","Travel","Bladder","Skin","Kitchen","Equipment","Work"]
+};
+
+/* ----------------------------------------------------------------- state */
+const S = {
+  tab: "discover", seg: "peers", view: null, sel: null, sheet: null,
+  waves: {}, connections: ["p2","p4","p7"],        // seeded: you have said hi to a few people
+  rsvps: { e2: "interested" },                     // seeded so Mine is not empty
+  follows: { borp: false, ablebodied: true, norcalsci: true },
+  mutes: { orgs: ["ability360"], activities: ["Monoskiing"], genres: [], events: [] },
+  feed: "foryou", when: "month", place: "California", includeOnline: true,
+  formats: { "In person": true, "Online": true, "Recurring": true, "Beginner-friendly": false },
+  activities: (function(){ const o = {}; Object.values(DATA.activitiesByGenre).flat().forEach(a => o[a] = true); return o; })(),
+  toast: null, undo: null,
+  flow: null, flowStep: 0,
+  me: {
+    bio: "", photos: [{tag:"Handcycling", label:"Handcycling, Bay Trail", color:"linear-gradient(160deg,#2F6B58,#14483C)"},
+                      {tag:"Travel", label:"Lisbon", color:"#274B66"},
+                      {tag:"Gardening", label:"Garden", color:"#7A5C2E"}],
+    mentor: null, injuryDone: false, lifeDone: false,
+    topics: ["Back to work","Driving & vehicle mods"], devices: [],
+    tips: [{topic:"Driving", text:"Minivan with a power sliding door — I load the chair without taking it apart. Under 30 seconds into the car.", video:"Loading the chair, start to finish"}],
+    equipment: "", wish: ""
+  }
+};
+
+const $ = s => document.querySelector(s);
+const esc = s => String(s == null ? "" : s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const org = id => DATA.orgs.find(o => o.id === id);
+const person = id => DATA.people.find(p => p.id === id);
+const me = () => person("p1");
+
+function toast(msg, undoFn){
+  S.toast = msg; S.undo = undoFn || null; render();
+  clearTimeout(window._t);
+  window._t = setTimeout(() => { S.toast = null; S.undo = null; render(); }, 4200);
+}
+
+/* --------------------------------------------------------- profile score */
+function completeness(){
+  const m = S.me, bits = [
+    !!m.bio, m.photos.length >= 3, true /* interests from signup */,
+    m.mentor !== null, m.injuryDone, m.lifeDone,
+    m.topics.length > 0, m.tips.length > 0, !!m.equipment, !!m.wish
+  ];
+  return Math.round(bits.filter(Boolean).length / bits.length * 100);
+}
+
+/* ------------------------------------------------------------ event maths */
+function eventVisible(e){
+  if (S.mutes.events.includes(e.id)) return false;
+  if (S.mutes.orgs.includes(e.org)) return false;
+  if (S.mutes.activities.includes(e.activity)) return false;
+  if (S.mutes.genres.includes(e.genre)) return false;
+  const online = e.mode === "virtual";
+  if (online && !S.includeOnline) return false;
+  if (!online && e.state !== S.place) return false;
+  if (online && !S.formats["Online"]) return false;
+  if (!online && !S.formats["In person"]) return false;
+  if (e.recurring && !S.formats["Recurring"]) return false;
+  if (S.formats["Beginner-friendly"] && !e.beginner) return false;
+  if (S.feed === "foryou" && !S.activities[e.activity]) return false;
+  if (S.when === "week" && Number(e.num) > 27) return false;
+  return true;
+}
+const visibleEvents = () => DATA.events.filter(eventVisible);
+const mineEvents = () => DATA.events.filter(e => S.rsvps[e.id]);
+const connectionsGoing = e => (e.attendees || []).filter(id => S.connections.includes(id)).map(person);
+/* ------------------------------------------------------------- discover */
+const HAND = `<svg viewBox="0 0 40 40" fill="none" aria-hidden="true">
+ <rect x="12" y="4" width="5" height="19" rx="2.5" fill="#fff"/>
+ <rect x="18" y="2" width="5" height="21" rx="2.5" fill="#fff"/>
+ <rect x="24" y="4" width="5" height="19" rx="2.5" fill="#fff"/>
+ <rect x="6" y="12" width="5" height="13" rx="2.5" fill="#fff" transform="rotate(-18 8 18)"/>
+ <rect x="9" y="17" width="22" height="17" rx="8" fill="#fff"/>
+ <path d="M33 12a9 9 0 0 1 0 12M36.5 9a13 13 0 0 1 0 18" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/></svg>`;
+const FILTERICON = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#111A16" stroke-width="2" stroke-linecap="round">
+  <path d="M3 7h18M3 12h18M3 17h18"/><circle cx="9" cy="7" r="2.4" fill="#fff"/>
+  <circle cx="15" cy="12" r="2.4" fill="#fff"/><circle cx="8" cy="17" r="2.4" fill="#fff"/></svg>`;
+const PLUS = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 6v12M6 12h12"/></svg>`;
+
+function discover(){
+  let list = DATA.people.filter(p => !p.you);
+  if (S.seg === "mentors") list = list.filter(p => p.isMentor);
+  const cards = list.map(p => {
+    const waved = S.waves[p.id] || S.connections.includes(p.id);
+    const bits = [p.injury, p.level, p.chair].filter(Boolean).join("  ·  ");
+    return `<button class="card" data-open="${p.id}" style="background:${p.color}">
+      <div class="init">${p.init}</div>
+      <div class="scrim-top"></div><div class="scrim"></div>
+      <div class="head">
+        <h3>${esc(p.name)}</h3>
+        <div class="l">${esc(bits)}</div>
+        <div class="l">${p.age} · ${esc(p.city)}</div>
+        <span class="pillw">${esc(p.duration)}</span>
+        ${p.isMentor ? `<span class="pillw" style="margin-left:6px">${esc(org(p.org).name)} mentor</span>` : ""}
+      </div>
+      <div class="foot">
+        <p class="bio">${esc(p.bio)}</p>
+        <div class="chipstrip">${p.interests.map(i => `<span>${esc(i)}</span>`).join("")}</div>
+      </div>
+      <span class="wave ${waved ? "done" : ""}" data-wave="${p.id}" role="button" tabindex="0"
+        aria-label="Say hi to ${esc(p.name)}">${HAND}</span>
+    </button>`;
+  }).join("");
+  return `<div class="top">
+      <button class="seg" role="tab" aria-selected="${S.seg === "peers"}" data-seg="peers">Peers</button>
+      <button class="seg" role="tab" aria-selected="${S.seg === "mentors"}" data-seg="mentors">Mentors</button>
+      <button class="icb" data-act="peerfilters" aria-label="Filters">${FILTERICON}</button>
+    </div>
+    <div class="deck snap">${cards}</div>`;
+}
+
+/* --------------------------------------------------------------- events */
+function eventCard(e){
+  const o = org(e.org), st = S.rsvps[e.id], conns = connectionsGoing(e);
+  const badges = [];
+  if (e.mode === "virtual") badges.push(`<span class="badge v">Online</span>`);
+  if (e.recurring) badges.push(`<span class="badge r">Recurring</span>`);
+  const counts = e.standing
+    ? `Standing group <em>·</em> ${e.going} regulars`
+    : `${e.going + (st === "going" ? 1 : 0)} going <em>·</em> ${e.interested + (st === "interested" ? 1 : 0)} interested`;
+  const line = conns.length
+    ? `<div class="match" style="color:var(--pine)">${esc(conns[0].name)}${conns.length > 1 ? ` and ${conns.length - 1} other connection${conns.length > 2 ? "s" : ""} are` : " is"} going</div>`
+    : (e.matchLine ? `<div class="match">${esc(e.matchLine)}</div>` : "");
+  return `<div class="ev">
+    <button class="x" data-notint="${e.id}" aria-label="Not interested">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M5 5l14 14M19 5 5 19"/></svg>
+    </button>
+    <button class="date" data-ev="${e.id}" style="border:0"><i>${e.day}</i><b>${e.num}</b></button>
+    <div class="evb">
+      <button style="background:none;border:0;padding:0;text-align:left;width:100%" data-ev="${e.id}">
+        <div class="tt">${esc(e.title)}</div>
+        ${badges.length ? `<div class="badges">${badges.join("")}</div>` : ""}
+        <div class="meta">${esc(o.name)} · ${esc(e.city)}<br>${esc(e.short)}</div>
+        <div class="counts">${counts}</div>
+        ${line}
+      </button>
+      <div class="acts">
+        <button class="mini ${st === "interested" ? "done" : ""}" data-rsvp="${e.id}|interested">Interested${st === "interested" ? " ✓" : ""}</button>
+        <button class="mini ${st === "going" ? "done" : "solid"}" data-rsvp="${e.id}|going">Going${st === "going" ? " ✓" : ""}</button>
+      </div>
+    </div></div>`;
+}
+
+function events(){
+  const mine = S.evSeg === "mine";
+  const list = mine ? mineEvents() : visibleEvents();
+  const chips = `<div class="fbar">
+      <button class="fchip ${S.feed === "foryou" ? "on" : ""}" data-act="filters">
+        ${S.feed === "foryou" ? "For you" : "Everything"}
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round"><path d="m5 9 7 7 7-7"/></svg>
+      </button>
+      <button class="fchip" data-act="filters">${esc(S.place)}</button>
+      <button class="fchip" data-act="filters">${S.when === "week" ? "This week" : S.when === "month" ? "This month" : "Anything"}</button>
+    </div>`;
+  const body = list.length
+    ? list.map(eventCard).join("")
+    : `<div class="empty"><b>${mine ? "Nothing saved yet" : "Nothing matches"}</b>
+        ${mine ? "Mark an event Interested or Going and it lands here."
+               : `You have hidden ${DATA.events.length - visibleEvents().length} events. Open filters to bring some back.`}
+        <div style="margin-top:16px"><button class="btn solid" style="max-width:220px;margin:0 auto" data-act="${mine ? "goall" : "filters"}">${mine ? "Browse events" : "Open filters"}</button></div></div>`;
+  return `<div class="top">
+      <button class="seg" role="tab" aria-selected="${!mine}" data-evseg="all">All</button>
+      <button class="seg" role="tab" aria-selected="${mine}" data-evseg="mine">Mine</button>
+      <button class="icb" data-act="filters" aria-label="Filters">${FILTERICON}</button>
+    </div>
+    ${mine ? "" : chips}
+    <div class="deck">${body}</div>`;
+}
+
+/* ----------------------------------------------------------- event page */
+function eventPage(){
+  const e = DATA.events.find(x => x.id === S.sel), o = org(e.org), st = S.rsvps[e.id];
+  const conns = connectionsGoing(e);
+  const going = (e.attendees || []).map(person);
+  const rosterOff = e.roster === "off";
+  const badges = [];
+  if (e.mode === "virtual") badges.push(`<span class="badge v">Online</span>`);
+  if (e.recurring) badges.push(`<span class="badge r">Recurring</span>`);
+  return `<div class="page"><div class="scroll">
+    <button class="back" data-act="close">← Events</button>
+    <h1>${esc(e.title)}</h1>
+    ${badges.length ? `<div class="badges" style="margin-bottom:6px">${badges.join("")}</div>` : ""}
+    <div class="when">${esc(e.dateLabel)} · ${esc(e.time)}</div>
+    <div class="meta">${esc(e.place)}${e.mode === "virtual" ? "" : " · " + esc(e.city)}</div>
+
+    <button class="orgrow" data-org="${o.id}">
+      <span class="logo">${o.letter}</span>
+      <span style="flex:1">
+        <span class="nm">${esc(o.name)} ${o.verified ? `<span class="tick">✓</span>` : ""}</span>
+        <span class="s">Hosting · ${o.peers} peers you could meet</span>
+      </span>
+      <span class="follow ${S.follows[o.id] ? "on" : ""}" data-follow="${o.id}" role="button" tabindex="0">${S.follows[o.id] ? "Following" : "Follow"}</span>
+    </button>
+
+    <div class="chips" style="margin-top:13px">
+      <span class="chip on">${esc(e.genre)}</span>
+      <span class="chip on">${esc(e.activity)}</span>
+      <span class="chip dash">${e.mode === "virtual" ? "Online" : "In person"}</span>
+      ${e.beginner ? `<span class="chip dash">Beginner-friendly</span>` : ""}
+    </div>
+
+    <p class="txt">${esc(e.desc)}</p>
+    ${e.access ? `<div class="accline">${esc(e.access)}</div>` : ""}
+    ${e.accessWarn ? `<div class="accwarn">${esc(e.accessWarn)}</div>` : ""}
+
+    <h3 class="sec">Who's going</h3>
+    <div class="counts" style="font-size:16px">${e.going + (st === "going" ? 1 : 0)} going <em>· ${e.interested + (st === "interested" ? 1 : 0)} interested</em></div>
+    ${rosterOff
+      ? `<p class="privnote">This is a support group — the host has turned names off. Counts only.</p>`
+      : `<div class="faces">${going.slice(0,4).map(p => `<span class="face" style="background:${p.color}">${p.init}</span>`).join("")}
+          ${going.length > 4 ? `<span class="face more">+${going.length - 4}</span>` : ""}</div>
+         ${conns.length ? `<div class="youknow"><b>${esc(conns[0].name)}${conns.length > 1 ? ` and ${conns.length - 1} other connection${conns.length > 2 ? "s" : ""}` : ""}</b> ${conns.length > 1 ? "are" : "is"} going.</div>` : ""}
+         ${e.matchLine ? `<div class="match">${esc(e.matchLine)}</div>` : ""}
+         <p class="privnote">Interested is private — only the number is shown, never who.</p>`}
+
+    ${e.mode === "virtual" ? (st === "going"
+      ? `<div class="note"><b>Your link:</b> meet.peerconnect.app/${e.id}-8842</div>`
+      : `<div class="note warn">The join link appears once you are Going. Links are never public — it keeps groups from being crashed.</div>`) : ""}
+
+    <h3 class="sec">More from ${esc(o.name)}</h3>
+    ${DATA.events.filter(x => x.org === o.id && x.id !== e.id).slice(0,2).map(x => `
+      <button class="evrow" data-ev="${x.id}">
+        <span class="date"><i>${x.day}</i><b>${x.num}</b></span>
+        <span style="flex:1"><span class="t">${esc(x.title)}</span><span class="s">${esc(x.city)} · ${esc(x.short)}</span></span>
+      </button>`).join("") || `<p class="hint">Nothing else on the calendar right now.</p>`}
+
+    <button class="btn link" data-act="logistics" style="width:100%;margin-top:14px">Too far, or wrong time?</button>
+    <div style="height:6px"></div>
+  </div>
+  <footer class="cta">
+    <button class="btn ${st === "interested" ? "solid" : ""}" data-rsvp="${e.id}|interested">Interested${st === "interested" ? " ✓" : ""}</button>
+    <button class="btn ${st === "going" ? "solid" : "solid"}" data-rsvp="${e.id}|going" ${st === "going" ? 'style="opacity:.85"' : ""}>${st === "going" ? "Going ✓" : "Going"}</button>
+  </footer></div>`;
+}
+
+/* ------------------------------------------------------------- org page */
+function orgPage(){
+  const o = org(S.sel);
+  const evs = DATA.events.filter(e => e.org === o.id);
+  const mentors = DATA.people.filter(p => p.org === o.id);
+  return `<div class="page"><div class="scroll">
+    <button class="back" data-act="close">← Back</button>
+    <div class="hero">
+      <span class="logo">${o.letter}</span>
+      <h1>${esc(o.name)}</h1>
+      <div class="meta">${esc(o.full)}</div>
+      <div class="meta" style="margin-top:2px">${esc(o.city)} · ${esc(o.region)}</div>
+      <div class="meta" style="margin-top:6px"><b>${o.peers} peers you could meet</b> follow ${esc(o.name)}</div>
+    </div>
+    <button class="wide ${S.follows[o.id] ? "on" : ""}" data-follow="${o.id}">${S.follows[o.id] ? "Following" : "Follow"}</button>
+    <p class="txt">${esc(o.about)}</p>
+    <div class="chips" style="margin-top:13px">${o.tags.map(t => `<span class="chip on">${esc(t)}</span>`).join("")}</div>
+
+    <h3 class="sec">Upcoming</h3>
+    ${evs.map(x => `<button class="evrow" data-ev="${x.id}">
+        <span class="date"><i>${x.day}</i><b>${x.num}</b></span>
+        <span style="flex:1"><span class="t">${esc(x.title)}</span>
+          <span class="s">${esc(x.city)} · ${esc(x.short)}</span></span></button>`).join("")}
+
+    ${mentors.length ? `<h3 class="sec">Mentors here</h3>
+      <div class="faces">${mentors.slice(0,4).map(p => `<span class="face" style="background:${p.color}">${p.init}</span>`).join("")}</div>
+      <p class="privnote">${mentors.length} trained mentor${mentors.length > 1 ? "s" : ""} list ${esc(o.name)} as their organization.</p>` : ""}
+
+    ${o.claimed ? "" : `<div class="note warn"><b>Built from public listings.</b> ${esc(o.name)} has not claimed this page yet — events come from their public calendar. <b>Is this your organization?</b></div>`}
+    <div style="height:8px"></div>
+  </div>
+  <footer class="cta"><button class="btn solid" data-follow="${o.id}">${S.follows[o.id] ? "Following ✓" : "Follow " + esc(o.name)}</button></footer></div>`;
+}
+
+/* --------------------------------------------------------- person page */
+function personPage(){
+  const p = person(S.sel);
+  const connected = S.connections.includes(p.id);
+  return `<div class="page"><div class="scroll">
+    <button class="back" data-act="close">← Back</button>
+    <div style="height:200px;border-radius:22px;background:${p.color};display:grid;place-items:center;margin-top:6px">
+      <span style="font-family:var(--head);font-weight:800;font-size:64px;color:rgba(255,255,255,.4)">${p.init}</span></div>
+    <h1 style="margin-top:14px">${esc(p.name)}</h1>
+    <div class="meta">${[p.injury, p.level, p.chair].filter(Boolean).join("  ·  ")}</div>
+    <div class="meta">${p.age} · ${esc(p.city)} · ${esc(p.duration)}</div>
+    ${p.isMentor ? `<div class="chips" style="margin-top:12px"><span class="chip on">${esc(org(p.org).name)} mentor · ${esc(p.capacity)}</span></div>` : ""}
+    ${connected ? `<div class="note"><b>Connected.</b> You have said hi to each other.</div>` : ""}
+    <p class="txt">${esc(p.bio)}</p>
+    ${p.topics.length ? `<h3 class="sec">Ask me about</h3>
+      <p class="hint">Tap one to find everyone who talks about it.</p>
+      <div class="chips">${p.topics.map(t => `<span class="chip dash">${esc(t)} 🔍</span>`).join("")}</div>` : ""}
+    <h3 class="sec">Interests</h3>
+    <div class="chips">${p.interests.map(t => `<span class="chip">${esc(t)}</span>`).join("")}</div>
+    <div style="height:8px"></div>
+  </div>
+  <footer class="cta">
+    <button class="btn ${S.waves[p.id] || connected ? "" : "solid"}" data-wave="${p.id}">${connected ? "Message" : S.waves[p.id] ? "Waved ✓" : "Say hi"}</button>
+  </footer></div>`;
+}
+
+/* ------------------------------------------------------- connections tab */
+function chats(){
+  const list = S.connections.map(person);
+  return `<div class="top"><h2>Connections</h2></div>
+    <div class="deck">
+      <div class="note" style="margin-top:0">Anybody you have interacted with — a wave either way, or a message. Private to you, and nobody sees a count.</div>
+      ${list.length ? list.map(p => `<button class="evrow" data-open="${p.id}">
+          <span class="date" style="background:${p.color};color:#fff"><b>${p.init}</b></span>
+          <span style="flex:1"><span class="t">${esc(p.name)}</span>
+            <span class="s">${esc(p.injury)}${p.level ? " · " + p.level : ""} · ${esc(p.city)}</span></span>
+        </button>`).join("")
+        : `<div class="empty"><b>Nothing yet</b>Tap the wave on a card to say hi.</div>`}
+    </div>`;
+}
+
+function activity(){
+  return `<div class="top"><h2>Activity</h2></div>
+    <div class="deck">
+      <div class="note" style="margin-top:0">Waves, replies and event reminders land here. Notifications are asked for at the first wave you receive, never during signup.</div>
+      <button class="evrow" data-open="p4"><span class="date" style="background:#2F6B58;color:#fff"><b>AL</b></span>
+        <span style="flex:1"><span class="t">Ana L. waved back</span><span class="s">Yesterday · you are now connected</span></span></button>
+      <button class="evrow" data-ev="e1"><span class="date"><i>SAT</i><b>22</b></span>
+        <span style="flex:1"><span class="t">Marcus R. is going to the handcycle ride</span><span class="s">2 days ago</span></span></button>
+    </div>`;
+}
+/* ------------------------------------------------------------------- me */
+function meTab(){
+  const pct = completeness(), m = S.me;
+  return `<div class="top"><h2>Me</h2></div>
+    <div class="deck">
+      <div style="display:flex;align-items:center;gap:14px;margin-top:4px">
+        <span class="avatar">AR</span>
+        <span><div style="font-family:var(--head);font-size:23px;font-weight:700">Alex R.</div>
+        <div class="hint" style="margin:3px 0 0">SCI - para · T6 · San Jose, CA</div></span>
+      </div>
+      <div class="cardbox">
+        <div style="display:flex;gap:14px;align-items:center">
+          <span class="ring" style="background:conic-gradient(var(--pine) ${pct}%, var(--line) 0)"><i>${pct}%</i></span>
+          <span><div style="font-family:var(--head);font-size:17px;font-weight:700">Complete your profile</div>
+          <div class="hint" style="margin:4px 0 0">Better matches for events and peers. And it's how people find you.</div></span>
+        </div>
+        <button class="btn solid" style="width:100%;margin-top:14px;min-height:48px" data-flow="list">${pct > 40 ? "Continue" : "Start"}</button>
+      </div>
+      <h3 class="sec">Your account</h3>
+      <button class="row" data-act="noop"><span><span class="nm">Show me in browse</span></span><span class="sw on"><i></i></span></button>
+      <button class="row" data-tab="chats"><span><span class="nm">Connections</span><span class="s">Anybody you have interacted with</span></span><span class="pill">${S.connections.length}</span></button>
+      <button class="row" data-act="filters"><span><span class="nm">Event filters and mutes</span><span class="s">${S.mutes.orgs.length + S.mutes.activities.length + S.mutes.events.length} hidden</span></span><span class="pill todo">Open</span></button>
+      <div class="note">Demo build. Nothing is saved — reload to start over.</div>
+      <div style="height:10px"></div>
+    </div>`;
+}
+
+/* ------------------------------------------------- profile flow, step list */
+const FLOW = ["bio","photos","mentor","injury","life","topics","tips","equipment","wish"];
+const FLOW_TITLE = {
+  bio:"In your own words", photos:"Your photos", mentor:"Being a mentor", injury:"Your injury",
+  life:"Life now", topics:"Ask me about", tips:"Tips and tricks", equipment:"Your equipment",
+  wish:"What you wish you'd known"
+};
+
+function flowList(){
+  const m = S.me, done = x => x ? `<span class="pill">Done</span>` : `<span class="pill todo">To do</span>`;
+  return `<div class="page">
+    <div class="prog"><div class="r"><span class="nm">PeerConnect</span><span class="ct">${completeness()}% complete</span></div>
+      <div class="track"><i style="width:${completeness()}%"></i></div></div>
+    <div class="scroll">
+      <button class="back" data-act="closeflow">← Me</button>
+      <h1 class="sm">Your profile</h1>
+      <p class="sub">Do as much or as little as you like. Everything here is optional and editable.</p>
+
+      <h3 class="sec">About you — helps matching</h3>
+      <button class="row" data-flow="bio"><span><span class="nm">In your own words</span><span class="s">The three lines on your card</span></span>${done(!!m.bio)}</button>
+      <button class="row" data-flow="photos"><span><span class="nm">Your photos</span><span class="s">Doing things you enjoy</span></span><span class="pill">${m.photos.length} added</span></button>
+      <button class="row" data-act="noop"><span><span class="nm">Interests &amp; activities</span><span class="s">Pick your top three</span></span><span class="pill">Done</span></button>
+
+      <h3 class="sec">Willing to help — makes you findable</h3>
+      <button class="row" data-flow="mentor"><span><span class="nm">Do you want to be a mentor?</span><span class="s">One question, asked once</span></span>${m.mentor === null ? `<span class="pill new">Ask</span>` : `<span class="pill">${m.mentor ? "Yes" : "Not now"}</span>`}</button>
+      <button class="row" data-flow="injury"><span><span class="nm">Your injury</span><span class="s">Type, level, how it happened</span></span>${done(m.injuryDone)}</button>
+      <button class="row" data-flow="life"><span><span class="nm">Life now</span><span class="s">Independence, work, family</span></span>${done(m.lifeDone)}</button>
+      <button class="row" data-flow="topics"><span><span class="nm">Ask me about</span><span class="s">Topics and self-care</span></span>${done(m.topics.length > 0)}</button>
+
+      <h3 class="sec">Your story — the part people read</h3>
+      <button class="row" data-flow="tips"><span><span class="nm">Tips and tricks</span><span class="s">Photos and video welcome</span></span><span class="pill">${m.tips.length}</span></button>
+      <button class="row" data-flow="equipment"><span><span class="nm">Your favourite equipment</span><span class="s">Make, model, and an offer</span></span>${done(!!m.equipment)}</button>
+      <button class="row" data-flow="wish"><span><span class="nm">What you wish you'd known</span><span class="s">Written to someone three months in</span></span>${done(!!m.wish)}</button>
+      <div style="height:14px"></div>
+    </div>
+    <footer class="cta"><button class="btn solid" data-flow="${nextUndone()}">Continue</button></footer></div>`;
+}
+
+function nextUndone(){
+  const m = S.me;
+  if (!m.bio) return "bio";
+  if (m.mentor === null) return "mentor";
+  if (!m.injuryDone) return "injury";
+  if (!m.lifeDone) return "life";
+  if (!m.equipment) return "equipment";
+  if (!m.wish) return "wish";
+  return "list";
+}
+
+function flowShell(step, body, footer){
+  const i = FLOW.indexOf(step) + 1;
+  return `<div class="page">
+    <div class="prog"><div class="r"><span class="nm">${FLOW_TITLE[step]}</span><span class="ct">${i} of ${FLOW.length}</span></div>
+      <div class="track"><i style="width:${Math.round(i / FLOW.length * 100)}%"></i></div></div>
+    <div class="scroll">
+      <button class="back" data-flow="list">← Your profile</button>
+      ${body}
+      <div style="height:12px"></div>
+    </div>
+    <footer class="cta">${footer}</footer></div>`;
+}
+
+function flowScreen(){
+  const m = S.me;
+  switch (S.flow){
+    case "list": return flowList();
+
+    case "bio": {
+      const text = m.bioDraft !== undefined ? m.bioDraft : m.bio;
+      const words = text.trim() ? text.trim().split(/\s+/).length : 0;
+      return flowShell("bio", `
+        <h1 class="sm">In your own words</h1>
+        <p class="sub">The lines under your photo. People read this before anything else on your profile — and often instead of everything else.</p>
+        <textarea class="fld area" id="bio" data-bind="bioDraft" placeholder="A few sentences on who you are.">${esc(text)}</textarea>
+        <div class="count">${words} word${words === 1 ? "" : "s"} ${words && words < 60 ? "· fits your card" : words >= 60 ? "· the card will cut this short" : ""}</div>
+        <h3 class="sec">Stuck? Start with one of these</h3>
+        <div class="chips">
+          <button class="chip dash" data-starter="I work in ">What you do</button>
+          <button class="chip dash" data-starter="Into ">What you're into</button>
+          <button class="chip dash" data-starter="Happy to talk about ">What you're up for</button>
+        </div>
+        <h3 class="sec">On your card</h3>
+        <div class="mini-card" style="background:#274B66">
+          <div class="scrim"></div>
+          <div class="who"><b>Alex R.</b><span>SCI - para · T6 · Manual chair</span></div>
+          <div class="bio">${esc(text) || `<span style="opacity:.6">Your bio appears here.</span>`}</div>
+        </div>
+        <div class="note">We never rewrite this. It is the one part of the profile that has to sound like you.</div>`,
+        `<button class="btn" data-flow="list">Skip</button><button class="btn solid" data-save="bio">Save</button>`);
+    }
+
+    case "photos": return flowShell("photos", `
+      <h1 class="sm">Add a few photos</h1>
+      <p class="sub">Not portraits — photos of you <b>doing something</b>. Travelling, handcycling, in the garden, cooking, with the dog. That is what someone four months in is looking for.</p>
+      <div class="pgrid">
+        ${m.photos.map((p, i) => i === 0
+          ? `<span class="lead" style="background:${p.color}"><span class="tagp">Your card photo</span>${esc(p.label)}</span>`
+          : `<span class="cell" style="background:${p.color}">${esc(p.label)}</span>`).join("")}
+        ${Array.from({length: Math.max(0, 6 - m.photos.length)}).slice(0,2).map(() => `<button class="add" data-act="addphoto">${PLUS}</button>`).join("")}
+      </div>
+      <p class="hint" style="margin-top:11px">Drag to reorder. The first one is the photo on your card.</p>
+      <h3 class="sec">Tag what you are doing</h3>
+      <p class="hint">Tagging a photo adds that interest to your profile, so it feeds your matches too.</p>
+      <div class="chips">${m.photos.map(p => `<span class="chip on">${esc(p.tag)}</span>`).join("")}<button class="chip" data-act="addphoto">Add</button></div>
+      <div class="note">Each photo takes alt text, and photos follow your photo visibility setting — members only, or public.</div>`,
+      `<button class="btn" data-flow="list">Skip</button><button class="btn solid" data-flow="mentor">Continue</button>`);
+
+    case "mentor": return flowShell("mentor", `
+      <h1>Do you want to be a mentor?</h1>
+      <p class="sub">An explicit question, asked once. Nothing you fill in turns this on by itself.</p>
+      <h3 class="sec">If you say yes</h3>
+      <div class="row"><span><span class="nm">You appear in Mentors</span><span class="s">A separate tab from Peers</span></span></div>
+      <div class="row"><span><span class="nm">People can message you first</span><span class="s">No wave back needed</span></span></div>
+      <div class="row"><span><span class="nm">You set your capacity</span><span class="s">Open · at capacity · paused</span></span></div>
+      ${m.mentor === true ? `<div class="note"><b>You are listed as an experienced peer.</b> If an organization vouches for you, their badge appears too.</div>` : ""}
+      ${m.mentor === false ? `<div class="note">Saved as <b>not now</b>. Everything else on your profile still works — you just will not be messaged first by a stranger.</div>` : ""}
+      <div class="note">Craig and NorCal train their mentors. Without an organization behind you, you are listed as an <b>experienced peer</b>.</div>`,
+      `<button class="btn" data-save="mentor|no">Not now</button><button class="btn solid" data-save="mentor|yes">Yes, I'll help</button>`);
+
+    case "injury": return flowShell("injury", `
+      <h1 class="sm">Your injury</h1>
+      <p class="sub">Level and completeness drive the closest-match line on your card.</p>
+      <h3 class="sec">Injury type</h3>
+      <div class="chips">${["SCI - para","SCI - quad","TBI","Spina Bifida","MS","Other"].map((x,i) => `<span class="chip ${i===0?"on":""}">${x}</span>`).join("")}</div>
+      <h3 class="sec">Level</h3>
+      <div class="chips">${["C1–C4","C5–C8","T1–T6","T7–T12","L / S"].map((x,i) => `<span class="chip ${i===2?"on":""}">${x}</span>`).join("")}</div>
+      <h3 class="sec">Complete or incomplete</h3>
+      <div class="chips">${["Complete","Incomplete","Don't know"].map((x,i) => `<span class="chip ${i===1?"on":""}">${x}</span>`).join("")}</div>
+      <h3 class="sec">Age at injury</h3>
+      <input class="fld" value="31">
+      <h3 class="sec">How were you injured?</h3>
+      <div class="chips">${["Vehicle","Sport","Fall","Medical","Other"].map((x,i) => `<span class="chip ${i===0?"on":""}">${x}</span>`).join("")}</div>`,
+      `<button class="btn" data-flow="list">Back</button><button class="btn solid" data-save="injury">Save</button>`);
+
+    case "life": return flowShell("life", `
+      <h1 class="sm">Life now</h1>
+      <p class="sub">Every field is optional, and each one can be hidden separately.</p>
+      <h3 class="sec">Independence</h3>
+      <div class="chips">${["Completely independent","Some help","Full-time care"].map((x,i) => `<span class="chip ${i===0?"on":""}">${x}</span>`).join("")}</div>
+      <h3 class="sec">Relationship</h3>
+      <div class="chips">${["Single","Partnered","Married","Prefer not to say"].map((x,i) => `<span class="chip ${i===1?"on":""}">${x}</span>`).join("")}</div>
+      <h3 class="sec">Children</h3>
+      <div class="chips">${["No","Yes, pre-injury","Yes, post-injury"].map((x,i) => `<span class="chip ${i===1?"on":""}">${x}</span>`).join("")}</div>
+      <h3 class="sec">Work</h3>
+      <input class="fld" value="Employed · Software">
+      <h3 class="sec">Languages</h3>
+      <div class="chips"><span class="chip on">English</span><span class="chip on">Spanish</span><span class="chip">Add</span></div>`,
+      `<button class="btn" data-flow="list">Back</button><button class="btn solid" data-save="life">Save</button>`);
+
+    case "topics": return flowShell("topics", `
+      <h1 class="sm">Ask me about</h1>
+      <p class="sub">Fixed lists, so tapping one finds everybody else who talks about it.</p>
+      <h3 class="sec">Topics I'm happy to talk about</h3>
+      <div class="chips">${DATA.topicPool.map(t => `<button class="chip ${m.topics.includes(t) ? "on" : ""}" data-topic="${esc(t)}">${esc(t)}</button>`).join("")}</div>
+      <h3 class="sec">Self-care devices and procedures</h3>
+      <div class="chips">${DATA.devicePool.map(t => `<button class="chip ${m.devices.includes(t) ? "on" : ""}" data-device="${esc(t)}">${esc(t)}</button>`).join("")}</div>
+      <div class="note">Anything not on the list goes in your own words — and if enough people write the same thing, it graduates into the list.</div>`,
+      `<button class="btn" data-flow="list">Back</button><button class="btn solid" data-flow="tips">Continue</button>`);
+
+    case "tips": return flowShell("tips", `
+      <h1 class="sm">What are your tips and tricks?</h1>
+      <p class="sub">The small things that make your life easier. These are what people actually copy — add one, or ten.</p>
+      ${m.tips.map(t => `<div class="tip">
+        <span class="tag">${esc(t.topic)}</span>
+        <p>${esc(t.text)}</p>
+        ${t.video ? `<div class="vid"><span class="thumb"><span class="play">▶</span></span>
+          <span><span class="t">${esc(t.video)}</span><span class="s">YouTube · captions on</span></span></div>` : ""}
+      </div>`).join("")}
+      <button class="addlink" data-act="addtip">+ Add a tip</button>
+      <div class="note">Tips carry a topic tag, so someone searching "transfers" finds yours. Video is by link — paste a YouTube or Instagram URL and we pull the thumbnail.</div>`,
+      `<button class="btn" data-flow="list">Back</button><button class="btn solid" data-flow="equipment">Continue</button>`);
+
+    case "equipment": {
+      const text = m.equipDraft !== undefined ? m.equipDraft : m.equipment;
+      return flowShell("equipment", `
+        <h1 class="sm">What's your favourite piece of equipment?</h1>
+        <p class="sub">Make and model beats a category — "TiLite ZRA with SmartDrive" tells someone far more than "manual chair".</p>
+        <input class="fld" id="equip" data-bind="equipDraft" value="${esc(text)}" placeholder="TiLite ZRA · SmartDrive MX2+">
+        <div class="vid"><span class="thumb" style="background:#14483C"><span class="play">▶</span></span>
+          <span><span class="t">Why I picked this frame</span><span class="s">YouTube · 4:02 · captions on</span></span></div>
+        <button class="addlink" data-act="addphoto">+ Add a photo or video</button>
+        <button class="row" data-act="noop" style="margin-top:14px"><span><span class="nm">Happy to advise, or let someone try it</span>
+          <span class="s">Adds an Ask me about chip</span></span><span class="sw on"><i></i></span></button>`,
+        `<button class="btn" data-flow="list">Back</button><button class="btn solid" data-save="equipment">Save</button>`);
+    }
+
+    case "wish": {
+      const text = m.wishDraft !== undefined ? m.wishDraft : m.wish;
+      return flowShell("wish", `
+        <h1 class="sm">What do you wish you'd known when you were freshly injured?</h1>
+        <p class="sub">Write it to someone three months in. They will read this before they read anything else about you.</p>
+        <textarea class="fld area" id="wish" data-bind="wishDraft" placeholder="One thing you would tell them.">${esc(text)}</textarea>
+        <div class="note">Shown to people in their first year before it is shown to anyone else — it is the line that gets a first message sent.</div>
+        <h3 class="sec">Where this appears</h3>
+        <button class="row" data-act="noop"><span><span class="nm">On your profile</span></span><span class="sw on"><i></i></span></button>
+        <button class="row" data-act="noop"><span><span class="nm">In Mentors browse, as a card line</span></span><span class="sw on"><i></i></span></button>`,
+        `<button class="btn" data-flow="list">Back</button><button class="btn solid" data-save="wish">Finish</button>`);
+    }
+  }
+}
+
+/* --------------------------------------------------------------- sheets */
+function filterSheet(){
+  const n = visibleEvents().length;
+  const hidden = [
+    ...S.mutes.orgs.map(id => ({k:"org", id, nm:org(id).name, s:"Organization"})),
+    ...S.mutes.activities.map(a => ({k:"activity", id:a, nm:a, s:"Activity"})),
+    ...S.mutes.events.map(e => ({k:"event", id:e, nm:DATA.events.find(x => x.id === e).title, s:"Single event"}))
+  ];
+  return `<div class="veil" data-act="closesheet"></div>
+    <div class="sheet">
+      <div class="shead"><h2>Filters</h2>
+        <button class="txtbtn" data-act="reset">Reset</button>
+        <button class="xbtn" data-act="closesheet" aria-label="Close">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#111A16" stroke-width="2.6" stroke-linecap="round"><path d="M5 5l14 14M19 5 5 19"/></svg></button>
+      </div>
+      <div class="scroll">
+        <h3 class="sec" style="margin-top:0">Feed</h3>
+        <div style="display:flex;gap:8px">
+          <button class="btn ${S.feed === "foryou" ? "solid" : ""}" style="min-height:46px;font-size:15px" data-feed="foryou">For you</button>
+          <button class="btn ${S.feed === "all" ? "solid" : ""}" style="min-height:46px;font-size:15px" data-feed="all">Everything</button>
+        </div>
+        <p class="hint" style="margin-top:9px">For you is built from what you picked at signup and what you have marked since. Everything is the full list.</p>
+
+        <h3 class="sec">Where</h3>
+        <div class="chips">
+          <button class="chip ${S.place === "California" ? "on" : ""}" data-place="California">California</button>
+          <button class="chip ${S.place === "Arizona" ? "on" : ""}" data-place="Arizona">Arizona</button>
+        </div>
+        <button class="row" data-toggle="includeOnline" style="margin-top:6px">
+          <span><span class="nm">Include online events</span><span class="s">They ignore the state filter</span></span>
+          <span class="sw ${S.includeOnline ? "on" : ""}"><i></i></span></button>
+
+        <h3 class="sec">When</h3>
+        <div class="chips">
+          ${[["week","This week"],["month","This month"],["any","Anything"]].map(([k,l]) =>
+            `<button class="chip ${S.when === k ? "on" : ""}" data-when="${k}">${l}</button>`).join("")}
+        </div>
+
+        <h3 class="sec">Format</h3>
+        <div class="chips">${Object.keys(S.formats).map(f =>
+          `<button class="chip ${S.formats[f] ? "on" : ""}" data-format="${esc(f)}">${esc(f)}</button>`).join("")}</div>
+
+        <h3 class="sec">Activities</h3>
+        ${DATA.genres.map(g => {
+          const acts = DATA.activitiesByGenre[g];
+          const on = acts.filter(a => S.activities[a] && !S.mutes.activities.includes(a)).length;
+          const genreOn = !S.mutes.genres.includes(g);
+          return `<div class="genre"><span><b>${esc(g)}</b><span class="cnt">${genreOn ? `${on} of ${acts.length}` : "Off"}</span></span>
+              <button class="sw ${genreOn ? "on" : ""}" data-genre="${esc(g)}"><i></i></button></div>
+            ${genreOn ? `<div class="chips">${acts.map(a =>
+              `<button class="chip ${S.activities[a] && !S.mutes.activities.includes(a) ? "on" : ""}" data-activity="${esc(a)}">${esc(a)}</button>`).join("")}</div>` : ""}`;
+        }).join("")}
+
+        <h3 class="sec">Organizations</h3>
+        <p class="hint">Following puts an org's events at the top.</p>
+        ${DATA.orgs.map(o => {
+          const st = S.mutes.orgs.includes(o.id) ? "m" : (S.follows[o.id] ? "" : "n");
+          const label = st === "m" ? "Muted" : st === "" ? "Following" : "Neutral";
+          return `<button class="row" data-orgstate="${o.id}"><span><span class="nm">${esc(o.name)}</span></span>
+            <span class="state ${st}">${label}</span></button>`;
+        }).join("")}
+
+        <h3 class="sec">Hidden — ${hidden.length}</h3>
+        ${hidden.length ? hidden.map(h => `<div class="row">
+            <span><span class="nm">${esc(h.nm)}</span><span class="s">${h.s}</span></span>
+            <button class="restore" data-restore="${h.k}|${esc(h.id)}">Restore</button></div>`).join("")
+          : `<p class="hint">Nothing hidden.</p>`}
+        <div style="height:10px"></div>
+      </div>
+      <footer class="cta"><button class="btn solid" data-act="closesheet">Show ${n} event${n === 1 ? "" : "s"}</button></footer>
+    </div>`;
+}
+
+function notIntSheet(){
+  const e = DATA.events.find(x => x.id === S.sheetEvent), o = org(e.org);
+  return `<div class="veil" data-act="closesheet"></div>
+    <div class="sheet">
+      <div class="shead"><h2>Stop showing</h2>
+        <button class="xbtn" data-act="closesheet" aria-label="Close">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#111A16" stroke-width="2.6" stroke-linecap="round"><path d="M5 5l14 14M19 5 5 19"/></svg></button>
+      </div>
+      <div class="scroll">
+        <p class="sub">We ask what to stop showing, not why. Everything here is reversible from Filters.</p>
+        <button class="row" data-mute="org|${o.id}"><span><span class="nm">Stop showing ${esc(o.name)} events</span>
+          <span class="s">Mutes the organization</span></span><span class="pill todo">Org</span></button>
+        <button class="row" data-mute="activity|${esc(e.activity)}"><span><span class="nm">Stop showing ${esc(e.activity.toLowerCase())}</span>
+          <span class="s">Mutes the activity and down-weights it</span></span><span class="pill todo">Activity</span></button>
+        <button class="row" data-mute="genre|${esc(e.genre)}"><span><span class="nm">Stop showing ${esc(e.genre.toLowerCase())}</span>
+          <span class="s">The big lever</span></span><span class="pill todo">Category</span></button>
+        <button class="row" data-mute="event|${e.id}"><span><span class="nm">Hide this event</span>
+          <span class="s">Touches nothing else</span></span><span class="pill todo">Once</span></button>
+        <div class="note">Too far, or wrong time? That is on the event page — it is logistics feedback for the organizer, not a mute.</div>
+        <div style="height:10px"></div>
+      </div>
+    </div>`;
+}
+
+/* ------------------------------------------------------------------ nav */
+const NAV = [["discover","Discover"],["events","Events"],["chats","Chats"],["activity","Activity"],["me","Me"]];
+function nav(){
+  return `<nav>${NAV.map(([k,l]) => `<button data-tab="${k}" ${S.tab === k ? 'aria-current="page"' : ""}>
+    <span class="ic">${k === "me" ? `<span class="av">A</span>` : `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+      stroke-linecap="round" stroke-linejoin="round">${
+      k === "discover" ? `<circle cx="12" cy="12" r="8"/><path d="M12 4v3M12 17v3M4 12h3M17 12h3"/><circle cx="12" cy="12" r="2" fill="currentColor"/>`
+      : k === "events" ? `<rect x="3.5" y="5" width="17" height="15" rx="3"/><path d="M3.5 10h17M8 3v4M16 3v4"/>`
+      : k === "chats" ? `<path d="M20.5 12a8 8 0 1 1-3.2-6.4"/><path d="M4 20l1.6-4"/><circle cx="12" cy="12" r="1" fill="currentColor"/>`
+      : `<path d="M18 9a6 6 0 1 0-12 0c0 5-2 6-2 6h16s-2-1-2-6"/><path d="M10.5 20a2 2 0 0 0 3 0"/>`}
+    </svg>`}${k === "chats" && S.connections.length ? `<span class="badge-n">${S.connections.length}</span>` : ""}</span>${l}</button>`).join("")}</nav>`;
+}
+
+/* --------------------------------------------------------------- render */
+function render(){
+  const body = S.tab === "discover" ? discover()
+             : S.tab === "events" ? events()
+             : S.tab === "chats" ? chats()
+             : S.tab === "activity" ? activity() : meTab();
+  $("#root").innerHTML = `<div class="screen">${body}${nav()}</div>
+    ${S.flow ? flowScreen() : ""}
+    ${S.view === "person" ? personPage() : S.view === "event" ? eventPage() : S.view === "org" ? orgPage() : ""}
+    ${S.sheet === "filters" ? filterSheet() : S.sheet === "notint" ? notIntSheet() : ""}
+    ${S.toast ? `<div class="toast"><span>${esc(S.toast)}</span>${S.undo ? `<button data-act="undo">Undo</button>` : ""}</div>` : ""}`;
+}
+/* --------------------------------------------------------------- events */
+function addConnection(id, why){
+  if (!S.connections.includes(id)) S.connections.push(id);
+  toast(why, () => { S.connections = S.connections.filter(x => x !== id); delete S.waves[id]; });
+}
+
+function applyMute(kind, val){
+  const before = JSON.parse(JSON.stringify(S.mutes));
+  if (kind === "org") S.mutes.orgs.push(val);
+  if (kind === "activity") S.mutes.activities.push(val);
+  if (kind === "genre") S.mutes.genres.push(val);
+  if (kind === "event") S.mutes.events.push(val);
+  const label = kind === "org" ? org(val).name
+    : kind === "event" ? DATA.events.find(e => e.id === val).title : val;
+  S.sheet = null;
+  toast(`Hidden: ${label}. Find it under Filters → Hidden.`, () => { S.mutes = before; });
+}
+
+document.addEventListener("click", e => {
+  const t = e.target.closest("[data-act],[data-tab],[data-seg],[data-evseg],[data-open],[data-wave],[data-ev],[data-org]," +
+    "[data-rsvp],[data-follow],[data-flow],[data-save],[data-starter],[data-topic],[data-device],[data-feed]," +
+    "[data-place],[data-when],[data-format],[data-activity],[data-genre],[data-orgstate],[data-restore],[data-mute],[data-toggle],[data-notint]");
+  if (!t) return;
+  const d = t.dataset;
+  const stash = () => { document.querySelectorAll("[data-bind]").forEach(f => { S.me[f.dataset.bind] = f.value; }); };
+
+  if (d.wave){
+    e.stopPropagation(); e.preventDefault();
+    const p = person(d.wave);
+    if (S.connections.includes(p.id)){ toast(`Opening your thread with ${p.name.split(" ")[0]} — messaging is stubbed in this demo.`); return; }
+    S.waves[p.id] = true;
+    addConnection(p.id, `You said hi to ${p.name.split(" ")[0]}. They are now in your connections.`);
+    return;
+  }
+  if (d.rsvp){
+    const [id, want] = d.rsvp.split("|");
+    S.rsvps[id] = S.rsvps[id] === want ? undefined : want;
+    if (!S.rsvps[id]) delete S.rsvps[id];
+    const ev = DATA.events.find(x => x.id === id);
+    render();
+    if (S.rsvps[id] === "going" && ev.mode === "virtual") toast("You're going — the join link is on the event page.");
+    else if (S.rsvps[id] === "going") toast("You're going. Add to calendar is on the event page.");
+    else if (S.rsvps[id] === "interested") toast("Saved. We'll remind you, and nobody sees that you're interested.");
+    return;
+  }
+  if (d.notint){ S.sheet = "notint"; S.sheetEvent = d.notint; render(); return; }
+  if (d.mute){ const [k, v] = d.mute.split("|"); applyMute(k, v); return; }
+  if (d.restore){
+    const [k, v] = d.restore.split("|");
+    if (k === "org") S.mutes.orgs = S.mutes.orgs.filter(x => x !== v);
+    if (k === "activity") S.mutes.activities = S.mutes.activities.filter(x => x !== v);
+    if (k === "genre") S.mutes.genres = S.mutes.genres.filter(x => x !== v);
+    if (k === "event") S.mutes.events = S.mutes.events.filter(x => x !== v);
+    render(); return;
+  }
+  if (d.follow){
+    e.stopPropagation();
+    S.follows[d.follow] = !S.follows[d.follow];
+    render();
+    toast(S.follows[d.follow] ? `Following ${org(d.follow).name}. Their events move to the top of your feed.` : `Unfollowed ${org(d.follow).name}.`);
+    return;
+  }
+  if (d.open){ S.sel = d.open; S.view = "person"; render(); return; }
+  if (d.ev){ S.sel = d.ev; S.view = "event"; render(); return; }
+  if (d.org){ S.sel = d.org; S.view = "org"; render(); return; }
+  if (d.tab){ S.tab = d.tab; S.view = null; S.flow = null; S.sheet = null; render(); return; }
+  if (d.seg){ S.seg = d.seg; render(); return; }
+  if (d.evseg){ S.evSeg = d.evseg; render(); return; }
+  if (d.feed){ S.feed = d.feed; render(); return; }
+  if (d.place){ S.place = d.place; render(); return; }
+  if (d.when){ S.when = d.when; render(); return; }
+  if (d.format){ S.formats[d.format] = !S.formats[d.format]; render(); return; }
+  if (d.activity){
+    const a = d.activity;
+    if (S.mutes.activities.includes(a)) S.mutes.activities = S.mutes.activities.filter(x => x !== a);
+    else S.activities[a] = !S.activities[a];
+    render(); return;
+  }
+  if (d.genre){
+    const g = d.genre;
+    S.mutes.genres = S.mutes.genres.includes(g) ? S.mutes.genres.filter(x => x !== g) : S.mutes.genres.concat(g);
+    render(); return;
+  }
+  if (d.orgstate){
+    const id = d.orgstate;
+    if (S.mutes.orgs.includes(id)){ S.mutes.orgs = S.mutes.orgs.filter(x => x !== id); S.follows[id] = false; }
+    else if (S.follows[id]) S.follows[id] = false;
+    else S.mutes.orgs.push(id);
+    render(); return;
+  }
+  if (d.toggle){ S[d.toggle] = !S[d.toggle]; render(); return; }
+  if (d.flow){ stash(); S.flow = d.flow; S.view = null; S.sheet = null; render(); return; }
+  if (d.starter){
+    const f = document.querySelector("#bio");
+    f.value = (f.value ? f.value.replace(/\s*$/, " ") : "") + d.starter;
+    S.me.bioDraft = f.value; render();
+    const g = document.querySelector("#bio"); if (g){ g.focus(); g.setSelectionRange(g.value.length, g.value.length); }
+    return;
+  }
+  if (d.topic){
+    const i = S.me.topics.indexOf(d.topic);
+    i >= 0 ? S.me.topics.splice(i, 1) : S.me.topics.push(d.topic);
+    render(); return;
+  }
+  if (d.device){
+    const i = S.me.devices.indexOf(d.device);
+    i >= 0 ? S.me.devices.splice(i, 1) : S.me.devices.push(d.device);
+    render(); return;
+  }
+  if (d.save){
+    stash();
+    const [what, arg] = d.save.split("|");
+    if (what === "bio"){ S.me.bio = (S.me.bioDraft || "").trim(); S.flow = "photos"; }
+    if (what === "mentor"){ S.me.mentor = arg === "yes"; S.flow = "injury"; }
+    if (what === "injury"){ S.me.injuryDone = true; S.flow = "life"; }
+    if (what === "life"){ S.me.lifeDone = true; S.flow = "topics"; }
+    if (what === "equipment"){ S.me.equipment = (S.me.equipDraft || "").trim(); S.flow = "wish"; }
+    if (what === "wish"){ S.me.wish = (S.me.wishDraft || "").trim(); S.flow = "list"; }
+    render();
+    if (what === "mentor") toast(arg === "yes"
+      ? "Saved. You will appear in Mentors once sections are filled in."
+      : "Saved as not now. Nothing else about your profile changes.");
+    else toast(`Saved — profile is ${completeness()}% complete.`);
+    return;
+  }
+  switch (d.act){
+    case "close": S.view = null; S.sel = null; render(); return;
+    case "closeflow": S.flow = null; render(); return;
+    case "closesheet": S.sheet = null; render(); return;
+    case "filters": S.sheet = "filters"; render(); return;
+    case "peerfilters": toast("Peer filters are stubbed in this demo — the events filter sheet is the one to look at."); return;
+    case "reset":
+      S.feed = "foryou"; S.when = "month"; S.place = "California"; S.includeOnline = true;
+      Object.keys(S.formats).forEach(f => S.formats[f] = f !== "Beginner-friendly");
+      Object.keys(S.activities).forEach(a => S.activities[a] = true);
+      render(); toast("Filters reset. Mutes are cleared one at a time from Hidden."); return;
+    case "goall": S.evSeg = "all"; render(); return;
+    case "addphoto": toast("Photo picker is stubbed in this demo."); return;
+    case "addtip":
+      S.me.tips.push({topic:"Travel", text:"Gate-check tag on the frame and a photo of the setup on my phone. Never lost a part yet.", video:""});
+      render(); toast("Tip added — tagged Travel."); return;
+    case "logistics": toast("Sent to the organizer as logistics feedback. Nothing is muted."); return;
+    case "undo": if (S.undo){ S.undo(); S.undo = null; S.toast = null; render(); } return;
+    case "noop": render(); return;
+  }
+});
+
+document.addEventListener("input", e => {
+  const k = e.target.dataset.bind; if (!k) return;
+  S.me[k] = e.target.value;
+  if (k === "bioDraft"){
+    const prev = document.querySelector(".mini-card .bio");
+    if (prev) prev.textContent = e.target.value || "Your bio appears here.";
+    const c = document.querySelector(".count");
+    if (c){
+      const w = e.target.value.trim() ? e.target.value.trim().split(/\s+/).length : 0;
+      c.textContent = `${w} word${w === 1 ? "" : "s"} ${w && w < 60 ? "· fits your card" : w >= 60 ? "· the card will cut this short" : ""}`;
+    }
+  }
+});
+
+document.addEventListener("keydown", e => {
+  if (e.key !== "Enter" && e.key !== " ") return;
+  const t = e.target.closest('[data-wave][role="button"],[data-follow][role="button"]');
+  if (t){ e.preventDefault(); t.click(); }
+});
+
+S.evSeg = "all";
+render();
+</script></body></html>
