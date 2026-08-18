@@ -1,11 +1,12 @@
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { coordinators, mentors, organizations } from '@/mocks/seed';
+import { MENTORS, ORGS } from '@/mocks/seed';
 
 export default function CoordinatorPage() {
-  const coordinator = coordinators[0];
-  const organization = organizations.find((org) => org.id === coordinator?.organizationId);
+  // Coordinator isn't modeled as its own person in src/types/domain.ts yet
+  // (see docs/CONTEXT.md) — the dashboard is scoped to the org they upload for.
+  const organization = ORGS[0];
 
   return (
     <div>
@@ -19,10 +20,8 @@ export default function CoordinatorPage() {
 
       <div className="mt-6 flex items-center justify-between rounded-lg border px-4 py-3 text-sm">
         <div>
-          Signed in as <span className="font-medium">{coordinator?.displayName}</span>
-          {organization ? (
-            <span className="text-muted-foreground"> · {organization.name}</span>
-          ) : null}
+          Coordinator dashboard for{' '}
+          <span className="font-medium">{organization?.name ?? 'your organization'}</span>
         </div>
         <Badge variant="outline">full PII visible to you only</Badge>
       </div>
@@ -62,14 +61,14 @@ export default function CoordinatorPage() {
               </tr>
             </thead>
             <tbody>
-              {mentors.map((mentor) => (
+              {MENTORS.map((mentor) => (
                 <tr key={mentor.id} className="border-b last:border-0">
                   <td className="py-2 pr-4">{mentor.displayName}</td>
                   <td className="py-2 pr-4">
-                    {mentor.location.city}, {mentor.location.state}
+                    {mentor.city}, {mentor.state}
                   </td>
-                  <td className="py-2 pr-4">{mentor.affiliations.join(', ')}</td>
-                  <td className="py-2 pr-4">{mentor.menteeCapacity ?? '—'}</td>
+                  <td className="py-2 pr-4">{mentor.affiliations.join(', ') || '—'}</td>
+                  <td className="py-2 pr-4">{mentor.capacity ?? '—'}</td>
                   <td className="text-muted-foreground py-2">not tracked yet</td>
                 </tr>
               ))}
