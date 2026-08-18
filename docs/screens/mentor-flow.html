@@ -1,0 +1,269 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><title>PeerConnect — profile completion and mentor flow</title><link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=Public+Sans:wght@400;500;600;700&display=swap" rel="stylesheet"><style>
+:root{
+  --canvas:#EFF2EE; --paper:#fff; --ink:#111A16; --ink2:#46524C;
+  --pine:#14483C; --tint:#DDE9E3; --clay:#C9491B; --clay-t:#FBE7DE;
+  --line:#C9D2CC; --grey:#8A968F;
+  --head:Archivo,"TeX Gyre Heros","Liberation Sans",sans-serif;
+  --body:"Public Sans","Liberation Sans",-apple-system,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{background:#DCE2DB;font-family:var(--body);color:var(--ink)}
+#wrap{display:grid;grid-template-columns:repeat(3,390px);gap:30px 34px;padding:34px}
+.col{display:flex;flex-direction:column;gap:10px}
+.cap{font-family:var(--head);font-size:13.5px;font-weight:700;color:var(--pine);text-align:center;line-height:1.35}
+.phone{width:390px;height:844px;background:var(--canvas);display:flex;flex-direction:column;overflow:hidden;
+  position:relative;border-radius:30px;box-shadow:0 16px 40px rgba(17,26,22,.20)}
+.status{flex:none;display:flex;align-items:center;justify-content:space-between;padding:14px 24px 2px;font-weight:700;font-size:15px}
+.status .r{display:flex;align-items:center;gap:5px}
+.bars{display:flex;align-items:flex-end;gap:2px;height:12px}
+.bars i{display:block;width:3px;background:var(--ink);border-radius:1px}
+.batt{width:24px;height:12px;border:1.6px solid var(--ink);border-radius:3px;position:relative;padding:1.5px}
+.batt::after{content:"";position:absolute;right:-3.5px;top:3.5px;width:2px;height:4px;background:var(--ink);border-radius:0 1px 1px 0}
+.batt i{display:block;height:100%;width:100%;background:var(--ink);border-radius:1px}
+.back{background:none;border:0;color:var(--pine);font-weight:700;font-size:15px;padding:10px 20px 0;text-align:left}
+.prog{flex:none;padding:8px 20px 0}
+.prog .row{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px}
+.prog .nm{font-family:var(--head);font-size:13px;font-weight:700;color:var(--pine)}
+.prog .ct{font-size:12.5px;font-weight:600;color:var(--ink2)}
+.track{height:5px;background:var(--line);border-radius:3px;overflow:hidden}
+.track i{display:block;height:100%;background:var(--pine);border-radius:3px}
+.scroll{flex:1;min-height:0;overflow:hidden;padding:0 20px 4px;
+  -webkit-mask-image:linear-gradient(to bottom,#000 94%,rgba(0,0,0,.05));
+  mask-image:linear-gradient(to bottom,#000 94%,rgba(0,0,0,.05))}
+h1{font-family:var(--head);font-size:26px;margin:14px 0 8px;letter-spacing:-.022em;line-height:1.18}
+h1.sm{font-size:23px}
+p.sub{font-size:14.5px;line-height:1.45;color:var(--ink2);margin:0 0 16px}
+h3.sec{font-family:var(--head);font-size:11.5px;text-transform:uppercase;letter-spacing:.09em;
+  color:var(--ink2);margin:18px 0 8px}
+.hint{font-size:12.5px;color:var(--ink2);margin:-2px 0 9px;line-height:1.4}
+.chips{display:flex;flex-wrap:wrap;gap:7px}
+.chip{min-height:36px;padding:0 13px;border-radius:18px;border:2px solid var(--line);background:var(--paper);
+  font-size:12.5px;font-weight:600;display:inline-flex;align-items:center;color:var(--ink)}
+.chip.on{border-color:var(--pine);background:var(--tint);color:var(--pine)}
+.fld{width:100%;min-height:50px;border-radius:12px;border:2px solid var(--line);background:#fff;
+  padding:13px 15px;font:inherit;font-size:15px;color:var(--ink)}
+.fld.ph{color:var(--grey)}
+.area{min-height:104px;line-height:1.45}
+.kv{display:flex;justify-content:space-between;gap:12px;padding:11px 0;border-bottom:1px solid var(--line);font-size:14px}
+.kv dt{color:var(--ink2);font-weight:600}
+.kv dd{margin:0;text-align:right;font-weight:700}
+.row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 0;border-bottom:1px solid var(--line)}
+.row .nm{font-family:var(--head);font-size:15px;font-weight:700;display:block}
+.row .s{font-size:12.5px;color:var(--ink2);margin-top:2px;display:block}
+.pill{font-size:11px;font-weight:700;padding:4px 10px;border-radius:11px;background:var(--tint);color:var(--pine);white-space:nowrap}
+.pill.todo{background:#E7EAE6;color:var(--ink2)}
+.pill.new{background:var(--clay);color:#fff}
+.sw{width:48px;height:28px;border-radius:16px;background:var(--line);position:relative;flex:none}
+.sw i{position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.25)}
+.sw.on{background:var(--pine)}
+.sw.on i{left:23px}
+.photos{display:flex;gap:9px;margin-top:11px}
+.ph2{width:82px;height:82px;border-radius:14px;flex:none;display:grid;place-items:center;color:#fff;
+  font-size:11px;font-weight:700;text-align:center;padding:6px}
+.addph{width:82px;height:82px;border-radius:14px;border:2.5px dashed var(--pine);display:grid;place-items:center;
+  color:var(--pine);flex:none}
+.vid{display:flex;gap:11px;align-items:center;background:var(--paper);border:1.6px solid var(--line);
+  border-radius:14px;padding:9px;margin-top:10px}
+.vid .thumb{width:96px;height:60px;border-radius:10px;flex:none;display:grid;place-items:center;position:relative;
+  background:#274B66}
+.vid .play{width:28px;height:28px;border-radius:50%;background:rgba(255,255,255,.92);display:grid;place-items:center;
+  color:var(--pine);font-size:12px}
+.vid .t{font-family:var(--head);font-size:13.5px;font-weight:700;line-height:1.25}
+.vid .s{font-size:11.5px;color:var(--ink2);margin-top:3px}
+.addlink{width:100%;min-height:46px;border-radius:12px;border:2px dashed var(--pine);background:transparent;
+  color:var(--pine);font-family:var(--head);font-size:13.5px;font-weight:700;margin-top:10px}
+.pgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-top:10px}
+.pgrid .lead{grid-column:span 2;grid-row:span 2;border-radius:16px;position:relative;overflow:hidden;
+  display:grid;place-items:end start;color:#fff;padding:11px;font-size:12px;font-weight:700;min-height:170px}
+.pgrid .cell{border-radius:14px;min-height:80px;display:grid;place-items:end start;color:#fff;padding:9px;
+  font-size:11px;font-weight:700}
+.pgrid .add{border-radius:14px;min-height:80px;border:2.5px dashed var(--pine);display:grid;place-items:center;
+  color:var(--pine)}
+.lead .tagp{position:absolute;top:10px;left:10px;background:rgba(255,255,255,.94);color:var(--pine);
+  font-size:10.5px;font-weight:700;padding:4px 9px;border-radius:10px}
+.mini-card{position:relative;height:190px;border-radius:18px;overflow:hidden;background:#274B66;margin-top:10px}
+.mini-card .scrim{position:absolute;left:0;right:0;bottom:0;height:72%;
+  background:linear-gradient(to top,rgba(8,14,11,.94) 14%,rgba(8,14,11,.5) 48%,transparent)}
+.mini-card .who{position:absolute;top:14px;left:16px;color:#fff}
+.mini-card .who b{font-family:var(--head);font-size:19px;display:block}
+.mini-card .who span{font-size:11.5px;color:#e2e9e5}
+.mini-card .bio{position:absolute;left:16px;right:16px;bottom:14px;color:#fff;font-size:12.5px;line-height:1.4}
+.starter{min-height:34px;padding:0 12px;border-radius:17px;border:2px dashed var(--pine);background:transparent;
+  color:var(--pine);font-size:12.5px;font-weight:700;display:inline-flex;align-items:center}
+.count{font-size:12px;color:var(--ink2);font-weight:600;margin-top:8px;text-align:right}
+.tip{background:var(--paper);border:1.6px solid var(--line);border-radius:16px;padding:14px;margin-top:11px}
+.tip .tag{display:inline-block;font-size:11px;font-weight:700;padding:4px 10px;border-radius:11px;
+  background:var(--tint);color:var(--pine);margin-bottom:8px}
+.tip p{margin:0;font-size:14px;line-height:1.45}
+.note{background:var(--tint);border-radius:13px;padding:12px 14px;font-size:13px;line-height:1.45;margin:14px 0 0}
+.note.warn{background:var(--clay-t);color:#5C2410}
+.card{background:var(--paper);border:1.6px solid var(--line);border-radius:18px;padding:16px;margin-top:14px}
+.ring{width:64px;height:64px;border-radius:50%;flex:none;display:grid;place-items:center;
+  font-family:var(--head);font-weight:800;font-size:15px;color:var(--pine)}
+footer{flex:none;padding:10px 20px 16px;background:linear-gradient(to top,var(--canvas) 74%,rgba(239,242,238,0));display:flex;gap:9px}
+.btn{flex:1;min-height:54px;border-radius:14px;border:0;background:var(--pine);color:#fff;
+  font-family:var(--head);font-size:16.5px;font-weight:700}
+.btn.ghost{background:transparent;color:var(--pine);border:2px solid var(--pine)}
+.btn.link{background:none;color:var(--ink2);min-height:44px;font-family:var(--body);font-size:14.5px;font-weight:700}
+.avatar{width:74px;height:74px;border-radius:24px;background:var(--pine);color:#fff;display:grid;place-items:center;
+  font-family:var(--head);font-weight:800;font-size:25px}
+</style></head><body><div id="wrap"><div class="col"><div class="phone"><div class="status"><span>9:41</span><span class="r">
+  <span class="bars"><i style="height:4px"></i><i style="height:7px"></i><i style="height:10px"></i><i style="height:12px"></i></span>
+  <span class="batt"><i></i></span></span></div><div class="scroll"><div style="display:flex;align-items:center;gap:14px;margin-top:14px">
+       <span class="avatar">AR</span>
+       <span><div style="font-family:var(--head);font-size:23px;font-weight:700">Alex R.</div>
+       <div class="hint" style="margin:3px 0 0">SCI - para · T6 · San Jose, CA</div></span>
+     </div>
+     <div class="card">
+       <div style="display:flex;gap:14px;align-items:center">
+         <span class="ring" style="background:conic-gradient(var(--pine) 40%, var(--line) 0)">
+           <span style="width:50px;height:50px;border-radius:50%;background:var(--paper);display:grid;place-items:center">40%</span></span>
+         <span><div style="font-family:var(--head);font-size:17px;font-weight:700">Complete your profile</div>
+         <div class="hint" style="margin:4px 0 0">Better matches for events and peers. And it's how people find you.</div></span>
+       </div>
+       <button class="btn" style="width:100%;margin-top:14px;min-height:48px">Continue</button>
+     </div>
+     <h3 class="sec">Your account</h3>
+     <div class="row"><span><span class="nm">Notifications</span></span><span class="pill todo">Off</span></div>
+     <div class="row"><span><span class="nm">Show me in browse</span></span><span class="sw on"><i></i></span></div>
+     <div class="row"><span><span class="nm">Connections</span><span class="s">7 people</span></span><span class="pill">7</span></div></div><footer></footer></div><div class="cap">1 · Me — the entry point. Self-initiated, never a nag bar on your card</div></div><div class="col"><div class="phone"><div class="status"><span>9:41</span><span class="r">
+  <span class="bars"><i style="height:4px"></i><i style="height:7px"></i><i style="height:10px"></i><i style="height:12px"></i></span>
+  <span class="batt"><i></i></span></span></div><div class="prog"><div class="row" style="padding:0;border:0"><span class="nm">PeerConnect</span><span class="ct">40% complete</span></div><div class="track"><i style="width:40%"></i></div></div><div class="scroll"><h1 class="sm">Your profile</h1>
+     <p class="sub">Do as much or as little as you like. Everything here is optional and editable.</p>
+     <h3 class="sec">About you — helps matching</h3>
+     <div class="row"><span><span class="nm">In your own words</span><span class="s">The three lines on your card</span></span><span class="pill todo">2 min</span></div>
+     <div class="row"><span><span class="nm">Your photos</span><span class="s">Doing things you enjoy</span></span><span class="pill todo">3 added</span></div>
+     <div class="row"><span><span class="nm">Interests &amp; activities</span><span class="s">Pick your top three</span></span><span class="pill">Done</span></div>
+     <div class="row"><span><span class="nm">Equipment you own</span><span class="s">Chair, adaptive sports gear</span></span><span class="pill">Done</span></div>
+     <div class="row"><span><span class="nm">Languages</span><span class="s">Which do you speak?</span></span><span class="pill todo">2 min</span></div>
+     <h3 class="sec">Willing to help — makes you findable</h3>
+     <div class="row"><span><span class="nm">Your injury</span><span class="s">Type, level, how it happened</span></span><span class="pill todo">5 questions</span></div>
+     <div class="row"><span><span class="nm">Life now</span><span class="s">Independence, work, family</span></span><span class="pill todo">7 questions</span></div>
+     <div class="row"><span><span class="nm">Ask me about</span><span class="s">Topics and self-care</span></span><span class="pill todo">2 questions</span></div>
+     <h3 class="sec">Your story — the part people read</h3>
+     <div class="row"><span><span class="nm">Tips, equipment, and what you wish you knew</span><span class="s">Photos and videos welcome</span></span><span class="pill new">New</span></div></div><footer><button class="btn">Start</button></footer></div><div class="cap">2 · Sections, split by what each one buys you</div></div><div class="col"><div class="phone"><div class="status"><span>9:41</span><span class="r">
+  <span class="bars"><i style="height:4px"></i><i style="height:7px"></i><i style="height:10px"></i><i style="height:12px"></i></span>
+  <span class="batt"><i></i></span></span></div><div class="prog"><div class="row" style="padding:0;border:0"><span class="nm">In your own words</span><span class="ct">1 of 1</span></div><div class="track"><i style="width:20%"></i></div></div><div class="scroll"><h1 class="sm">In your own words</h1>
+     <p class="sub">The lines under your photo. People read this before anything else on your profile —
+       and often instead of everything else.</p>
+     <div class="fld area ph">Bay Area native, three years post. Handcycle most weekends, work in
+       software, dad to two. Happy to talk gear, transfers, and going back to work.</div>
+     <div class="count">38 words · fits your card</div>
+     <h3 class="sec">Stuck? Start with one of these</h3>
+     <div class="chips">
+       <span class="starter">What you do</span>
+       <span class="starter">What you’re into</span>
+       <span class="starter">What you’re up for</span>
+     </div>
+     <h3 class="sec">On your card</h3>
+     <div class="mini-card">
+       <div class="scrim"></div>
+       <div class="who"><b>Alex R.</b><span>SCI - para · T6 · Manual chair</span></div>
+       <div class="bio">Bay Area native, three years post. Handcycle most weekends, work in
+         software, dad to two. Happy to talk gear…</div>
+     </div>
+     <div class="note">We never rewrite this. It is the one part of the profile that has to sound
+       like you.</div></div><footer><button class="btn ghost">Skip</button><button class="btn">Continue</button></footer></div><div class="cap">3 · The bio, with a live preview of the three lines that survive on a card</div></div><div class="col"><div class="phone"><div class="status"><span>9:41</span><span class="r">
+  <span class="bars"><i style="height:4px"></i><i style="height:7px"></i><i style="height:10px"></i><i style="height:12px"></i></span>
+  <span class="batt"><i></i></span></span></div><div class="prog"><div class="row" style="padding:0;border:0"><span class="nm">Your photos</span><span class="ct">3 of 5</span></div><div class="track"><i style="width:60%"></i></div></div><div class="scroll"><h1 class="sm">Add a few photos</h1>
+     <p class="sub">Not portraits — photos of you <b>doing something</b>. Travelling, handcycling,
+       in the garden, cooking, with the dog. That is what someone four months in is looking for.</p>
+     <div class="pgrid">
+       <span class="lead" style="background:linear-gradient(160deg,#2F6B58,#14483C)">
+         <span class="tagp">Your card photo</span>Handcycling, Bay Trail</span>
+       <span class="cell" style="background:#274B66">Lisbon</span>
+       <span class="cell" style="background:#7A5C2E">Garden</span>
+       <span class="add">
+         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 6v12M6 12h12"/></svg></span>
+       <span class="add">
+         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 6v12M6 12h12"/></svg></span>
+     </div>
+     <p class="hint" style="margin-top:11px">Drag to reorder. The first one is the photo on your card.</p>
+     <h3 class="sec">Tag what you are doing</h3>
+     <p class="hint">Tagging a photo adds that interest to your profile, so it feeds your matches too.</p>
+     <div class="chips">
+       <span class="chip on">Handcycling</span><span class="chip on">Travel</span>
+       <span class="chip on">Gardening</span><span class="chip">Add</span>
+     </div>
+     <div class="note">Each photo takes alt text, and photos follow your photo visibility setting —
+       members only, or public.</div></div><footer><button class="btn ghost">Skip</button><button class="btn">Continue</button></footer></div><div class="cap">4 · Photos of doing things, tagged with the same interest vocabulary</div></div><div class="col"><div class="phone"><div class="status"><span>9:41</span><span class="r">
+  <span class="bars"><i style="height:4px"></i><i style="height:7px"></i><i style="height:10px"></i><i style="height:12px"></i></span>
+  <span class="batt"><i></i></span></span></div><button class="back">← Back</button><div class="scroll"><h1>Do you want to be a mentor?</h1>
+     <p class="sub">An explicit question, asked once. Nothing you fill in turns this on by itself.</p>
+     <h3 class="sec">If you say yes</h3>
+     <div class="row"><span><span class="nm">You appear in Mentors</span><span class="s">A separate tab from Peers</span></span></div>
+     <div class="row"><span><span class="nm">People can message you first</span><span class="s">No wave back needed</span></span></div>
+     <div class="row"><span><span class="nm">You set your capacity</span><span class="s">Open · at capacity · paused</span></span></div>
+     <div class="note">Craig and NorCal train their mentors. If an organization vouches for you,
+       their badge appears on your profile — otherwise you are listed as an <b>experienced peer</b>.</div></div><footer><button class="btn ghost">Not now</button><button class="btn">Yes, I will help</button></footer></div><div class="cap">5 · The explicit ask — separate from the data</div></div><div class="col"><div class="phone"><div class="status"><span>9:41</span><span class="r">
+  <span class="bars"><i style="height:4px"></i><i style="height:7px"></i><i style="height:10px"></i><i style="height:12px"></i></span>
+  <span class="batt"><i></i></span></span></div><div class="prog"><div class="row" style="padding:0;border:0"><span class="nm">Your injury</span><span class="ct">3 of 5</span></div><div class="track"><i style="width:60%"></i></div></div><div class="scroll"><h1 class="sm">Your injury</h1>
+     <p class="sub">Level and completeness drive the closest-match line on your card.</p>
+     <h3 class="sec">Injury type</h3><div class="chips"><span class="chip on">SCI - para</span><span class="chip">SCI - quad</span><span class="chip">TBI</span><span class="chip">Spina Bifida</span><span class="chip">MS</span><span class="chip">Other</span></div><h3 class="sec">Level</h3><div class="chips"><span class="chip">C1–C4</span><span class="chip">C5–C8</span><span class="chip on">T1–T6</span><span class="chip">T7–T12</span><span class="chip">L / S</span></div><h3 class="sec">Complete or incomplete</h3><div class="chips"><span class="chip">Complete</span><span class="chip on">Incomplete</span><span class="chip">Don't know</span></div><h3 class="sec">Age at injury</h3>
+     <input class="fld" value="31" readonly>
+     <h3 class="sec">How were you injured?</h3><div class="chips"><span class="chip on">Vehicle</span><span class="chip">Sport</span><span class="chip">Fall</span><span class="chip">Medical</span><span class="chip">Other</span></div></div><footer><button class="btn">Continue</button></footer></div><div class="cap">6 · Your injury — taps rather than free text</div></div><div class="col"><div class="phone"><div class="status"><span>9:41</span><span class="r">
+  <span class="bars"><i style="height:4px"></i><i style="height:7px"></i><i style="height:10px"></i><i style="height:12px"></i></span>
+  <span class="batt"><i></i></span></span></div><div class="prog"><div class="row" style="padding:0;border:0"><span class="nm">Life now</span><span class="ct">5 of 7</span></div><div class="track"><i style="width:70%"></i></div></div><div class="scroll"><h1 class="sm">Life now</h1>
+     <p class="sub">Every field is optional, and each one can be hidden separately.</p>
+     <h3 class="sec">Independence</h3><div class="chips"><span class="chip on">Completely independent</span><span class="chip">Some help</span><span class="chip">Full-time care</span></div><h3 class="sec">Relationship</h3><div class="chips"><span class="chip">Single</span><span class="chip on">Partnered</span><span class="chip">Married</span><span class="chip">Prefer not to say</span></div><h3 class="sec">Children</h3><div class="chips"><span class="chip">No</span><span class="chip on">Yes, pre-injury</span><span class="chip">Yes, post-injury</span></div><h3 class="sec">Work</h3>
+     <input class="fld" value="Employed · Software" readonly>
+     <h3 class="sec">Languages</h3><div class="chips"><span class="chip on">English</span><span class="chip on">Spanish</span><span class="chip">Add</span></div></div><footer><button class="btn">Continue</button></footer></div><div class="cap">7 · Life now — the questions a stranger actually asks</div></div><div class="col"><div class="phone"><div class="status"><span>9:41</span><span class="r">
+  <span class="bars"><i style="height:4px"></i><i style="height:7px"></i><i style="height:10px"></i><i style="height:12px"></i></span>
+  <span class="batt"><i></i></span></span></div><div class="prog"><div class="row" style="padding:0;border:0"><span class="nm">Ask me about</span><span class="ct">2 of 2</span></div><div class="track"><i style="width:85%"></i></div></div><div class="scroll"><h1 class="sm">Ask me about</h1>
+     <p class="sub">Fixed lists, so tapping one finds everybody else who talks about it.</p>
+     <h3 class="sec">Topics I'm happy to talk about</h3><div class="chips"><span class="chip on">Bladder</span><span class="chip on">Bowel</span><span class="chip">Skin &amp; pressure</span><span class="chip on">Pain</span><span class="chip">Spasticity</span><span class="chip">Sexuality</span><span class="chip on">Dating</span><span class="chip">Mental health</span><span class="chip on">Back to work</span><span class="chip">School</span><span class="chip on">Driving &amp; vehicle mods</span><span class="chip">Home mods</span><span class="chip">Insurance</span><span class="chip on">Travel</span><span class="chip">Parenting</span></div><h3 class="sec">Self-care devices and procedures</h3><div class="chips"><span class="chip on">Suprapubic catheter</span><span class="chip">Intermittent cath</span><span class="chip on">Bowel program</span><span class="chip">Wound care</span><span class="chip">Baclofen pump</span><span class="chip">FES</span><span class="chip on">Wheelchair assist devices</span></div><div class="note">Anything not on the list goes in your own words below — and if enough people
+     write the same thing, it graduates into the list.</div></div><footer><button class="btn">Continue</button></footer></div><div class="cap">8 · Topics and self-care, as controlled vocabulary — these become filters</div></div><div class="col"><div class="phone"><div class="status"><span>9:41</span><span class="r">
+  <span class="bars"><i style="height:4px"></i><i style="height:7px"></i><i style="height:10px"></i><i style="height:12px"></i></span>
+  <span class="batt"><i></i></span></span></div><div class="prog"><div class="row" style="padding:0;border:0"><span class="nm">Your story</span><span class="ct">1 of 3</span></div><div class="track"><i style="width:33%"></i></div></div><div class="scroll"><h1 class="sm">What are your tips and tricks?</h1>
+     <p class="sub">The small things that make your life easier. These are what people actually copy —
+       add one, or ten.</p>
+     <div class="tip">
+       <span class="tag">Driving &amp; transfers</span>
+       <p>Minivan with a power sliding door — I load the chair without taking it apart. Under
+         30 seconds into the car.</p>
+       <div class="vid">
+         <span class="thumb"><span class="play">&#9654;</span></span>
+         <span><span class="t">Loading the chair, start to finish</span>
+           <span class="s">YouTube · 2:14 · captions on</span></span>
+       </div>
+     </div>
+     <div class="tip">
+       <span class="tag">Travel</span>
+       <p>Gate-check tag on the frame and a photo of the setup on my phone. Never lost a part yet.</p>
+     </div>
+     <button class="addlink">+ Add a tip</button>
+     <div class="note">Tips carry a topic tag, so someone searching "transfers" finds yours.</div></div><footer><button class="btn">Continue</button></footer></div><div class="cap">9 · Tips and tricks — repeatable, tagged, and video-friendly</div></div><div class="col"><div class="phone"><div class="status"><span>9:41</span><span class="r">
+  <span class="bars"><i style="height:4px"></i><i style="height:7px"></i><i style="height:10px"></i><i style="height:12px"></i></span>
+  <span class="batt"><i></i></span></span></div><div class="prog"><div class="row" style="padding:0;border:0"><span class="nm">Your story</span><span class="ct">2 of 3</span></div><div class="track"><i style="width:66%"></i></div></div><div class="scroll"><h1 class="sm">What's your favourite piece of equipment?</h1>
+     <p class="sub">Make and model beats a category — "TiLite ZRA with SmartDrive" tells someone far
+       more than "manual chair".</p>
+     <input class="fld" value="TiLite ZRA · SmartDrive MX2+" readonly>
+     <div class="fld area ph" style="margin-top:9px">Took me three chairs to get here. Happy to talk
+       through the trade-offs before you spend the grant money.</div>
+     <h3 class="sec">Photos</h3>
+     <div class="photos">
+       <span class="ph2" style="background:#14483C">Chair</span>
+       <span class="ph2" style="background:#C9491B">Setup</span>
+       <span class="addph">
+         <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 6v12M6 12h12"/></svg></span>
+     </div>
+     <div class="vid">
+       <span class="thumb" style="background:#14483C"><span class="play">&#9654;</span></span>
+       <span><span class="t">Why I picked this frame</span>
+         <span class="s">YouTube · 4:02 · captions on</span></span>
+     </div>
+     <button class="addlink">+ Add a photo or video</button>
+     <div class="row" style="margin-top:14px"><span><span class="nm">Happy to advise, or let someone try it</span>
+       <span class="s">Adds an Ask me about chip</span></span><span class="sw on"><i></i></span></div></div><footer><button class="btn">Continue</button></footer></div><div class="cap">10 · Equipment, with photos and video — a spec list turned into an offer</div></div><div class="col"><div class="phone"><div class="status"><span>9:41</span><span class="r">
+  <span class="bars"><i style="height:4px"></i><i style="height:7px"></i><i style="height:10px"></i><i style="height:12px"></i></span>
+  <span class="batt"><i></i></span></span></div><div class="prog"><div class="row" style="padding:0;border:0"><span class="nm">Your story</span><span class="ct">3 of 3</span></div><div class="track"><i style="width:100%"></i></div></div><div class="scroll"><h1 class="sm">What do you wish you'd known when you were freshly injured?</h1>
+     <p class="sub">Write it to someone three months in. They will read this before they read anything
+       else about you.</p>
+     <div class="fld area ph">That the first year is the worst year, and it is not the shape of the
+       rest of it. Also: fight for the right cushion early.</div>
+     <div class="note">This one is shown to people in their first year before it is shown to anyone
+       else — it is the line that gets a first message sent.</div>
+     <h3 class="sec">Where this appears</h3>
+     <div class="row"><span><span class="nm">On your profile</span></span><span class="sw on"><i></i></span></div>
+     <div class="row"><span><span class="nm">In Mentors browse, as a card line</span></span><span class="sw on"><i></i></span></div></div><footer><button class="btn ghost">Save</button><button class="btn">Finish</button></footer></div><div class="cap">11 · The question aimed straight at the newly injured</div></div></div></body></html>
