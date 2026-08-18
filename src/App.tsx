@@ -4,6 +4,8 @@ import { SessionProvider, useSession } from '@/lib/session';
 import { cn } from '@/lib/utils';
 import ConnectPage from '@/routes/connect/page';
 import CoordinatorPage from '@/routes/coordinator/page';
+import EventPage from '@/routes/event/page';
+import EventsPage from '@/routes/events/page';
 import MapPage from '@/routes/map/page';
 import OnboardingPage from '@/routes/onboarding/page';
 import ProfilePage from '@/routes/profile/page';
@@ -21,6 +23,7 @@ const flows: Flow[] = [
   { to: '/profile', label: 'Profile', description: 'Single peer/mentor profile' },
   { to: '/connect', label: 'Connect', description: 'Message or reveal-contact action' },
   { to: '/coordinator', label: 'Coordinator Dashboard', description: 'Roster + PII + touchpoints' },
+  { to: '/events', label: 'Events', description: 'Discover adaptive sports & peer events' },
 ];
 
 function RootRedirect() {
@@ -68,6 +71,8 @@ export function App() {
             <Route path="/profile" element={<ProfilePage />} />
             <Route path="/connect" element={<ConnectPage />} />
             <Route path="/coordinator" element={<CoordinatorPage />} />
+            <Route path="/events" element={<EventsPage />} />
+            <Route path="/event/:id" element={<EventPage />} />
           </Routes>
         </main>
       </div>
