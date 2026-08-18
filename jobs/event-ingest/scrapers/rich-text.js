@@ -16,12 +16,39 @@
 import * as cheerio from 'cheerio';
 
 const ALLOWED_TAGS = new Set([
-  'a', 'p', 'br', 'strong', 'b', 'em', 'i', 'u', 'ul', 'ol', 'li',
-  'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote',
+  'a',
+  'p',
+  'br',
+  'strong',
+  'b',
+  'em',
+  'i',
+  'u',
+  'ul',
+  'ol',
+  'li',
+  'h1',
+  'h2',
+  'h3',
+  'h4',
+  'h5',
+  'h6',
+  'blockquote',
 ]);
 
 const BLOCK_TAGS = new Set([
-  'p', 'div', 'ul', 'ol', 'li', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote',
+  'p',
+  'div',
+  'ul',
+  'ol',
+  'li',
+  'h1',
+  'h2',
+  'h3',
+  'h4',
+  'h5',
+  'h6',
+  'blockquote',
 ]);
 
 const DROPPED_TAGS = new Set(['script', 'style', 'noscript', 'svg', 'button', 'form', 'iframe']);
@@ -76,28 +103,37 @@ export function normalizeChars(value) {
 
   // Normalize whitespace to single spaces using character codes
   // U+00A0 (non-breaking space), U+2000-U+200B (various unicode spaces)
-  result = result.split('').map(ch => {
-    const code = ch.charCodeAt(0);
-    // Replace common whitespace characters with regular space
-    if (code === 0x00A0 || // non-breaking space
-        (code >= 0x2000 && code <= 0x200B) || // unicode spaces
-        code === 0x3000) { // ideographic space
-      return ' ';
-    }
-    // Remove zero-width and directional marks
-    if (code === 0x200C || // zero-width non-joiner
-        code === 0x200D || // zero-width joiner
-        code === 0x200E || // left-to-right mark
-        code === 0x200F || // right-to-left mark
-        code === 0xFEFF) { // zero-width no-break space
-      return '';
-    }
-    // Replace line and paragraph separators with newline
-    if (code === 0x2028 || code === 0x2029) {
-      return '\n';
-    }
-    return ch;
-  }).join('');
+  result = result
+    .split('')
+    .map((ch) => {
+      const code = ch.charCodeAt(0);
+      // Replace common whitespace characters with regular space
+      if (
+        code === 0x00a0 || // non-breaking space
+        (code >= 0x2000 && code <= 0x200b) || // unicode spaces
+        code === 0x3000
+      ) {
+        // ideographic space
+        return ' ';
+      }
+      // Remove zero-width and directional marks
+      if (
+        code === 0x200c || // zero-width non-joiner
+        code === 0x200d || // zero-width joiner
+        code === 0x200e || // left-to-right mark
+        code === 0x200f || // right-to-left mark
+        code === 0xfeff
+      ) {
+        // zero-width no-break space
+        return '';
+      }
+      // Replace line and paragraph separators with newline
+      if (code === 0x2028 || code === 0x2029) {
+        return '\n';
+      }
+      return ch;
+    })
+    .join('');
 
   return result;
 }
@@ -126,7 +162,8 @@ function toHtml($, node, baseUrl) {
     // Unknown wrapper (Squarespace nests many styling divs): keep the content
     // but drop the element. Add a paragraph break only when the content is
     // inline, otherwise we'd nest <p> inside <p> and produce invalid markup.
-    const needsBreak = BLOCK_TAGS.has(tag) && inner.trim() && !/<(?:p|ul|ol|li|h[1-6]|blockquote)\b/.test(inner);
+    const needsBreak =
+      BLOCK_TAGS.has(tag) && inner.trim() && !/<(?:p|ul|ol|li|h[1-6]|blockquote)\b/.test(inner);
     return needsBreak ? `<p>${inner}</p>` : inner;
   }
   // Whitespace-only inline tags still carry a meaningful space (e.g. the

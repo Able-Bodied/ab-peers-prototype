@@ -17,7 +17,7 @@ Before running the ingestion job, create the database schema:
 
 1. Open Supabase Dashboard for your project
 2. Go to SQL Editor
-3. Copy the entire contents of `supabase/migrations/20260818_create_events_schema.sql`
+3. Copy the entire contents of `supabase/migrations/20260818060000_create_events_schema.sql`
 4. Paste into a new query and execute
 
 This creates:
@@ -66,13 +66,13 @@ pnpm -F event-ingest dev
 Event photos are downloaded and stored at:
 
 ```
-/Users/rantaoca/Documents/ab-peers-prototype/public/photos/{event-id}/photo-{hash}.ext
+/Users/rantaoca/Documents/ab-peers-prototype/public/photos/events/{event-id}/photo-{hash}.ext
 ```
 
-The scraper:
+The ingest job:
 - Validates image format (JPEG, PNG, GIF, WEBP)
 - Caches photos by MD5 hash to avoid re-downloading
-- Sets `image_url` field in database to `/photos/{event-id}/photo-{hash}.ext`
+- Inserts into `event_photos` table with storage path and metadata
 - Skips invalid or oversized (>10MB) images with warnings
 
 ## Database Schema
@@ -98,7 +98,6 @@ Normalized event data:
 - `url`: Original event URL
 - `registration_url`: Registration link (if any)
 - `category`: Event category (e.g. "events")
-- `image_url`: Path to featured photo
 - `created_at`, `updated_at`: Timestamps
 - **Constraint**: UNIQUE(feed_id, external_id) prevents duplicates from same source
 
@@ -106,11 +105,12 @@ Normalized event data:
 Photo metadata for events:
 - `id`: UUID primary key
 - `event_id`: Reference to events
-- `photo_url`: Source URL
+- `photo_url`: Relative path to photo (e.g., `/photos/events/{event-id}/photo-{hash}.ext`)
 - `is_primary`: Whether this is the featured photo
 - `storage_type`: 'local' (filesystem), 'supabase', or 's3'
-- `storage_path`: Path like `/photos/{feed-id}/photo-{hash}.ext`
+- `storage_path`: Path on disk (same as `photo_url` for local storage)
 - `alt_text`, `description`: Photo metadata
+- `uploaded_by`: Who uploaded it (e.g., 'scraper' for automated ingest)
 - `created_at`, `updated_at`: Timestamps
 
 ## Deduplication

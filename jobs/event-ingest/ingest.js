@@ -8,7 +8,10 @@ import { createClient } from '@supabase/supabase-js';
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { NorCalSCIEventsJsonWithImagesScraper } from './scrapers/norcalsci-events-json-with-images.js';
+import {
+  downloadEventImage,
+  NorCalSCIEventsJsonWithImagesScraper,
+} from './scrapers/norcalsci-events-json-with-images.js';
 
 // Load environment configuration in priority order:
 // 1. Local .env in event-ingest directory (highest priority)
@@ -171,6 +174,8 @@ class EventIngestionWorker {
       let dedupCount = 0;
 
       // Prepare event payloads with validation
+      // Track source_image_url separately (non-column field for later download)
+      const eventImageMap = {};
       const payloads = events
         .filter((event) => {
           // Skip events without required fields
@@ -188,21 +193,27 @@ class EventIngestionWorker {
           }
           return true;
         })
-        .map((event) => ({
-          feed_id: feedId,
-          external_id: event.external_id,
-          title: event.title,
-          description: event.description || '',
-          description_html: event.description_html || '',
-          start_time: event.start_time,
-          end_time: event.end_time || null,
-          location: event.location || '',
-          url: event.url || '',
-          registration_url: event.registration_url || null,
-          category: event.category || null,
-          image_url: event.image_url || null,
-          updated_at: event.updated_at || new Date().toISOString(),
-        }));
+        .map((event) => {
+          // Save source image URL for post-upsert download
+          if (event.source_image_url) {
+            eventImageMap[event.external_id] = event.source_image_url;
+          }
+
+          return {
+            feed_id: feedId,
+            external_id: event.external_id,
+            title: event.title,
+            description: event.description || '',
+            description_html: event.description_html || '',
+            start_time: event.start_time,
+            end_time: event.end_time || null,
+            location: event.location || '',
+            url: event.url || '',
+            registration_url: event.registration_url || null,
+            category: event.category || null,
+            updated_at: event.updated_at || new Date().toISOString(),
+          };
+        });
 
       this.log(`  Preparing to upsert ${payloads.length} events...`, 'info');
 
@@ -211,13 +222,13 @@ class EventIngestionWorker {
         const duplicate = await this.checkForDuplicatesByContent(
           payload.title,
           payload.start_time,
-          feedId
+          feedId,
         );
         if (duplicate) {
           dedupCount++;
           this.log(
             `  Event "${payload.title}" matches existing event from feed ${duplicate.feed_id}`,
-            'info'
+            'info',
           );
         }
       }
@@ -230,13 +241,10 @@ class EventIngestionWorker {
           onConflict: 'feed_id,external_id',
           ignoreDuplicates: false, // Update on conflict
         })
-        .select('id, created_at');
+        .select('id, external_id, created_at');
 
       if (error) {
-        this.log(
-          `Upsert error (status ${status}): ${error.message}`,
-          'error'
-        );
+        this.log(`Upsert error (status ${status}): ${error.message}`, 'error');
         this.log(`Error details: ${JSON.stringify(error)}`, 'error');
         throw error;
       }
@@ -248,6 +256,7 @@ class EventIngestionWorker {
       const now = Date.now();
       let inserted = 0;
       let updated = 0;
+      const externalIdToDbId = {};
 
       if (Array.isArray(data)) {
         data.forEach((record) => {
@@ -264,6 +273,8 @@ class EventIngestionWorker {
             // If we can't parse date, assume it's an update
             updated++;
           }
+          // Build map from external_id to db event id for image download phase
+          externalIdToDbId[record.external_id] = record.id;
         });
       }
 
@@ -273,12 +284,11 @@ class EventIngestionWorker {
         failed: 0,
         deduplicated: dedupCount,
         total: payloads.length,
+        eventImageMap,
+        externalIdToDbId,
       };
     } catch (error) {
-      this.log(
-        `Failed to upsert events: ${error.message}`,
-        'error'
-      );
+      this.log(`Failed to upsert events: ${error.message}`, 'error');
       return {
         inserted: 0,
         updated: 0,
@@ -290,14 +300,94 @@ class EventIngestionWorker {
   }
 
   /**
+   * Download images for events and insert into event_photos table
+   * Called after upsert so event IDs are known
+   * Does not fail the event ingest if individual images fail
+   */
+  async downloadImagesAndInsertPhotos(eventImageMap, externalIdToDbId) {
+    if (Object.keys(eventImageMap).length === 0) {
+      this.log('  No images to download', 'info');
+      return { downloaded: 0, cached: 0, failed: 0, photosInserted: 0 };
+    }
+
+    let downloaded = 0;
+    let cached = 0;
+    let failed = 0;
+    let photosInserted = 0;
+
+    for (const [externalId, sourceImageUrl] of Object.entries(eventImageMap)) {
+      const dbEventId = externalIdToDbId[externalId];
+      if (!dbEventId) {
+        this.log(`  Warning: Could not find database event ID for ${externalId}`, 'warning');
+        failed++;
+        continue;
+      }
+
+      try {
+        // Download the image
+        const imageResult = await downloadEventImage(sourceImageUrl, dbEventId);
+
+        if (!imageResult.success) {
+          this.log(
+            `  Warning: Image failed for event ${dbEventId}: ${imageResult.error}`,
+            'warning',
+          );
+          failed++;
+          continue;
+        }
+
+        if (imageResult.cached) {
+          cached++;
+        } else {
+          downloaded++;
+        }
+
+        // Insert into event_photos with upsert on UNIQUE(event_id, photo_url)
+        const photoUrl = imageResult.filePath;
+        const { error: photoError } = await this.supabase.from('event_photos').upsert(
+          {
+            event_id: dbEventId,
+            photo_url: photoUrl,
+            is_primary: true,
+            display_order: 0,
+            storage_type: 'local',
+            storage_path: photoUrl,
+            uploaded_by: 'scraper',
+            alt_text: null,
+          },
+          {
+            onConflict: 'event_id,photo_url',
+            ignoreDuplicates: false, // Update if already exists
+          },
+        );
+
+        if (photoError) {
+          this.log(
+            `  Warning: Failed to insert photo row for event ${dbEventId}: ${photoError.message}`,
+            'warning',
+          );
+          failed++;
+        } else {
+          photosInserted++;
+        }
+      } catch (error) {
+        this.log(
+          `  Warning: Unexpected error downloading image for event ${dbEventId}: ${error.message}`,
+          'warning',
+        );
+        failed++;
+      }
+    }
+
+    return { downloaded, cached, failed, photosInserted };
+  }
+
+  /**
    * Scrape NorCal SCI events with images
    */
   async scrapeNorCalSCIEvents(feed) {
     this.log(`  Using NorCal SCI Events scraper with image download`, 'info');
-    const scraper = new NorCalSCIEventsJsonWithImagesScraper(
-      feed.feed_url,
-      { skipImages: false }
-    );
+    const scraper = new NorCalSCIEventsJsonWithImagesScraper(feed.feed_url, { skipImages: false });
 
     const events = await scraper.scrape(feed.id);
     return events;
@@ -317,31 +407,37 @@ class EventIngestionWorker {
         throw new Error(`Expected array of events, got ${typeof events}`);
       }
 
-      this.log(
-        `  Scraped ${events.length} events from ${feed.name}`,
-        'info'
-      );
+      this.log(`  Scraped ${events.length} events from ${feed.name}`, 'info');
       this.stats.eventsScraped += events.length;
 
       // Upsert events to database
       const result = await this.upsertEvents(feed.id, events);
 
       if (result.failed && result.failed > 0) {
-        this.log(
-          `  Upsert failed for ${result.failed} events`,
-          'warning'
-        );
+        this.log(`  Upsert failed for ${result.failed} events`, 'warning');
         this.stats.eventsFailed += result.failed;
       } else {
         this.log(
           `  Upserted: ${result.inserted} inserted, ${result.updated} updated${
             result.deduplicated > 0 ? `, ${result.deduplicated} deduplicated` : ''
           }`,
-          'success'
+          'success',
         );
         this.stats.eventsInserted += result.inserted;
         this.stats.eventsUpdated += result.updated;
         this.stats.eventsDeduplicated += result.deduplicated || 0;
+      }
+
+      // Download images and insert into event_photos (happens after upsert)
+      if (result.eventImageMap && Object.keys(result.eventImageMap).length > 0) {
+        const imageResult = await this.downloadImagesAndInsertPhotos(
+          result.eventImageMap,
+          result.externalIdToDbId,
+        );
+        this.log(
+          `  Images: ${imageResult.downloaded} downloaded, ${imageResult.cached} cached, ${imageResult.failed} failed, ${imageResult.photosInserted} inserted`,
+          'info',
+        );
       }
 
       // Update last_fetched_at timestamp
@@ -354,18 +450,12 @@ class EventIngestionWorker {
         .eq('id', feed.id);
 
       if (updateError) {
-        this.log(
-          `  Failed to update last_fetched_at: ${updateError.message}`,
-          'warning'
-        );
+        this.log(`  Failed to update last_fetched_at: ${updateError.message}`, 'warning');
       }
 
       return true;
     } catch (error) {
-      this.log(
-        `  Failed to process feed ${feed.name}: ${error.message}`,
-        'error'
-      );
+      this.log(`  Failed to process feed ${feed.name}: ${error.message}`, 'error');
       this.log(`  Stack: ${error.stack?.split('\n')[1] || ''}`, 'error');
       this.stats.eventsFailed++;
       return false;
@@ -421,16 +511,16 @@ class EventIngestionWorker {
       this.log(`Found ${feeds.length} active feed(s)`, 'info');
 
       if (feeds.length === 0) {
-        this.log(
-          'No active feeds configured. Add feeds to data_feeds table.',
-          'warning'
-        );
+        this.log('No active feeds configured. Add feeds to data_feeds table.', 'warning');
         this.log('Example SQL:', 'info');
-        this.log(`
+        this.log(
+          `
   INSERT INTO data_feeds (name, feed_url, feed_type, is_active) VALUES
   ('NorCal SCI Calendar', 'https://norcalsci.org/calendar', 'squarespace', true),
   ('BORP Calendar', 'https://borp.app.neoncrm.com/nx/portal/event-calendar', 'neoncrm', true);
-        `, 'info');
+        `,
+          'info',
+        );
         return;
       }
 
@@ -454,30 +544,17 @@ class EventIngestionWorker {
    */
   printSummary() {
     this.stats.endTime = new Date();
-    const duration =
-      (this.stats.endTime - this.stats.startTime) / 1000;
+    const duration = (this.stats.endTime - this.stats.startTime) / 1000;
 
     console.log('\n' + '='.repeat(70));
     console.log('Ingestion Summary');
     console.log('='.repeat(70));
-    console.log(
-      `Feeds Processed: ${this.stats.feedsProcessed}`
-    );
-    console.log(
-      `Events Scraped: ${this.stats.eventsScraped}`
-    );
-    console.log(
-      `Events Inserted: ${this.stats.eventsInserted}`
-    );
-    console.log(
-      `Events Updated: ${this.stats.eventsUpdated}`
-    );
-    console.log(
-      `Events Deduplicated (cross-feed): ${this.stats.eventsDeduplicated}`
-    );
-    console.log(
-      `Events Failed: ${this.stats.eventsFailed}`
-    );
+    console.log(`Feeds Processed: ${this.stats.feedsProcessed}`);
+    console.log(`Events Scraped: ${this.stats.eventsScraped}`);
+    console.log(`Events Inserted: ${this.stats.eventsInserted}`);
+    console.log(`Events Updated: ${this.stats.eventsUpdated}`);
+    console.log(`Events Deduplicated (cross-feed): ${this.stats.eventsDeduplicated}`);
+    console.log(`Events Failed: ${this.stats.eventsFailed}`);
     console.log(`Duration: ${duration.toFixed(2)}s`);
     console.log('='.repeat(70) + '\n');
   }

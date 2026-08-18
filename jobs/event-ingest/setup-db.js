@@ -4,10 +4,10 @@
  */
 
 import { createClient } from '@supabase/supabase-js';
+import dotenv from 'dotenv';
 import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import dotenv from 'dotenv';
 
 // Load environment variables
 const __filename = fileURLToPath(import.meta.url);
@@ -31,10 +31,7 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 
 async function checkTableExists(tableName) {
   try {
-    const { data, error } = await supabase
-      .from(tableName)
-      .select('*')
-      .limit(0);
+    const { data, error } = await supabase.from(tableName).select('*').limit(0);
 
     return !error || error.code !== 'PGRST116';
   } catch {
@@ -47,7 +44,10 @@ async function setupDatabase() {
   console.log('='.repeat(70));
 
   // Read the migration SQL file
-  const migrationPath = path.join(projectRoot, 'supabase/migrations/20260818_create_events_schema.sql');
+  const migrationPath = path.join(
+    projectRoot,
+    'supabase/migrations/20260818060000_create_events_schema.sql',
+  );
 
   console.log(`Reading migration file: ${migrationPath}`);
   let sql;
@@ -84,7 +84,7 @@ async function setupDatabase() {
 
   // Print only the actual SQL (skip comments about copy-paste instructions)
   const sqlLines = sql.split('\n');
-  const startIdx = sqlLines.findIndex(line => line.includes('CREATE TABLE'));
+  const startIdx = sqlLines.findIndex((line) => line.includes('CREATE TABLE'));
   if (startIdx >= 0) {
     console.log(sqlLines.slice(startIdx).join('\n'));
   } else {
@@ -98,7 +98,7 @@ async function setupDatabase() {
   console.log('to enable automatic schema setup (requires admin access).');
 }
 
-setupDatabase().catch(error => {
+setupDatabase().catch((error) => {
   console.error('Fatal error:', error.message);
   process.exit(1);
 });

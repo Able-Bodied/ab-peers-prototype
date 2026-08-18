@@ -1,0 +1,24 @@
+{
+  "name": "event-ingest",
+  "version": "0.0.1",
+  "type": "module",
+  "description": "Event ingestion job for syncing calendar feeds to Supabase",
+  "scripts": {
+    "start": "node ingest.js",
+    "dev": "node --watch ingest.js"
+  },
+  "keywords": [
+    "events",
+    "ingestion",
+    "calendar",
+    "scraper"
+  ],
+  "dependencies": {
+    "@supabase/supabase-js": "^2.112.3",
+    "cheerio": "^1.2.0",
+    "dotenv": "^16.3.1"
+  },
+  "devDependencies": {
+    "pg": "^8.23.0"
+  }
+}

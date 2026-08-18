@@ -311,6 +311,6 @@ For issues, check:
 ## Additional Resources
 
 - [Supabase Documentation](https://supabase.com/docs)
-- [Event Schema](../supabase/migrations/20260818_create_events_schema.sql)
+- [Event Schema](../supabase/migrations/20260818060000_create_events_schema.sql)
 - [Scraper Code](./ingest.js)
 - [Rich Text Parser](./scrapers/rich-text.js)

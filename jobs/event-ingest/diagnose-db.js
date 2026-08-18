@@ -3,9 +3,9 @@
  */
 
 import { createClient } from '@supabase/supabase-js';
+import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import dotenv from 'dotenv';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -26,10 +26,7 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 
 async function testTable(tableName) {
   try {
-    const { data, error } = await supabase
-      .from(tableName)
-      .select('*', { count: 'exact' })
-      .limit(1);
+    const { data, error } = await supabase.from(tableName).select('*', { count: 'exact' }).limit(1);
 
     if (error) {
       return { exists: false, error: error.message };
@@ -67,7 +64,7 @@ async function run() {
     console.log('2. Go to SQL Editor');
     console.log('3. Create a new query');
     console.log('4. Copy the content from:');
-    console.log('   supabase/migrations/20260818_create_events_schema.sql');
+    console.log('   supabase/migrations/20260818060000_create_events_schema.sql');
     console.log('5. Paste and execute\n');
 
     console.log('Option 2: Using Supabase CLI');

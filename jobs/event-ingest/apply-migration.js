@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+
 /**
  * Apply Database Migration to Supabase
  *
@@ -6,10 +7,10 @@
  * to your Supabase database.
  */
 
+import dotenv from 'dotenv';
 import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import dotenv from 'dotenv';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -34,7 +35,10 @@ async function applyMigration() {
   console.log(`\nProject: ${supabaseUrl}`);
 
   // Read the migration file
-  const migrationPath = path.join(projectRoot, 'supabase/migrations/20260818_create_events_schema.sql');
+  const migrationPath = path.join(
+    projectRoot,
+    'supabase/migrations/20260818060000_create_events_schema.sql',
+  );
 
   let migrationSQL;
   try {
@@ -46,7 +50,7 @@ async function applyMigration() {
 
   // Extract just the SQL (remove comments)
   const sqlLines = migrationSQL.split('\n');
-  const sqlStart = sqlLines.findIndex(line => line.startsWith('CREATE TABLE'));
+  const sqlStart = sqlLines.findIndex((line) => line.startsWith('CREATE TABLE'));
 
   if (sqlStart < 0) {
     console.error('\nError: Could not find CREATE TABLE statement in migration file');
@@ -84,7 +88,7 @@ async function applyMigration() {
   console.log('='.repeat(80) + '\n');
 }
 
-applyMigration().catch(error => {
+applyMigration().catch((error) => {
   console.error('Error:', error.message);
   process.exit(1);
 });
