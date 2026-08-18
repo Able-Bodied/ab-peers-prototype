@@ -21,7 +21,7 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
-import { mentors } from '@/mocks/seed';
+import { MENTORS } from '@/mocks/seed';
 
 interface ConnectFormValues {
   message: string;
@@ -29,7 +29,7 @@ interface ConnectFormValues {
 
 export default function ConnectPage() {
   const [open, setOpen] = useState(false);
-  const mentor = mentors[0];
+  const mentor = MENTORS[0];
   const form = useForm<ConnectFormValues>({ defaultValues: { message: '' } });
 
   function onSubmit(_values: ConnectFormValues): void {

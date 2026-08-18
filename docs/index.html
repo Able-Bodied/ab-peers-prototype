@@ -35,7 +35,7 @@ button{font:inherit;cursor:pointer}
 /* top */
 .top{flex:none;display:flex;gap:9px;align-items:center;padding:14px 18px 10px}
 .seg{min-height:44px;padding:0 22px;border-radius:22px;border:2px solid var(--line);background:var(--paper);
-  font-family:Archivo;font-weight:700;font-size:16px;color:var(--ink)}
+  font-family:Archivo,sans-serif;font-weight:700;font-size:16px;color:var(--ink)}
 .seg[aria-selected="true"]{background:var(--pine);border-color:var(--pine);color:#fff}
 .icb{width:44px;height:44px;border-radius:50%;border:2px solid var(--line);background:var(--paper);
   display:grid;place-items:center;flex:none;margin-left:auto}
@@ -45,7 +45,7 @@ button{font:inherit;cursor:pointer}
 .card{position:relative;width:100%;height:calc(100% - 8px);min-height:470px;border-radius:26px;overflow:hidden;
   scroll-snap-align:center;margin-bottom:14px;background:#274b66;display:block;text-align:left;border:0;padding:0}
 .card img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
-.card .init{position:absolute;inset:0;display:grid;place-items:center;font-family:Archivo;font-weight:800;
+.card .init{position:absolute;inset:0;display:grid;place-items:center;font-family:Archivo,sans-serif;font-weight:800;
   font-size:120px;color:rgba(255,255,255,.55)}
 body.nophoto #phone::after{content:"Photos blocked here — open the file directly in a browser";
   position:absolute;left:16px;right:16px;top:6px;z-index:99;background:#C9491B;color:#fff;
@@ -55,7 +55,7 @@ body.nophoto #phone::after{content:"Photos blocked here — open the file direct
 .card .scrim-top{position:absolute;left:0;right:0;top:0;height:34%;
   background:linear-gradient(to bottom,rgba(8,14,11,.62),transparent)}
 .card .head{position:absolute;top:22px;left:24px;right:24px;color:#fff}
-.card .head h2{font-family:Archivo;font-size:30px;margin:0 0 8px;letter-spacing:-.02em}
+.card .head h2{font-family:Archivo,sans-serif;font-size:30px;margin:0 0 8px;letter-spacing:-.02em}
 .card .head .l{font-size:14.5px;color:#e6ece8;margin-bottom:3px}
 .badges{display:flex;gap:7px;flex-wrap:wrap;align-items:center;margin-top:9px}
 .obadge{display:inline-flex;align-items:center;gap:7px;background:#fff;border-radius:14px;
@@ -83,11 +83,11 @@ body.nophoto #phone::after{content:"Photos blocked here — open the file direct
 .back{background:none;border:0;color:var(--pine);font-weight:700;font-size:15px;padding:14px 0 6px}
 .hero{position:relative;height:330px;border-radius:22px;overflow:hidden;margin-bottom:16px;background:#274b66}
 .hero img{width:100%;height:100%;object-fit:cover}
-.hero .init{position:absolute;inset:0;display:grid;place-items:center;font-family:Archivo;font-weight:800;
+.hero .init{position:absolute;inset:0;display:grid;place-items:center;font-family:Archivo,sans-serif;font-weight:800;
   font-size:96px;color:rgba(255,255,255,.55)}
-h1{font-family:Archivo;font-size:28px;margin:0 0 6px;letter-spacing:-.02em}
+h1{font-family:Archivo,sans-serif;font-size:28px;margin:0 0 6px;letter-spacing:-.02em}
 .meta{font-size:14.5px;color:var(--ink2);line-height:1.45}
-h3.sec{font-family:Archivo;font-size:11.5px;text-transform:uppercase;letter-spacing:.09em;
+h3.sec{font-family:Archivo,sans-serif;font-size:11.5px;text-transform:uppercase;letter-spacing:.09em;
   color:var(--ink2);margin:24px 0 4px}
 .hint{font-size:13px;color:var(--ink2);margin:0 0 10px}
 .chips{display:flex;flex-wrap:wrap;gap:8px}
@@ -105,17 +105,17 @@ dl{margin:6px 0 0}
 footer.cta{flex:none;padding:12px 20px max(14px,env(safe-area-inset-bottom));
   background:linear-gradient(to top,var(--canvas) 72%,rgba(239,242,238,0))}
 .btn{width:100%;min-height:56px;border-radius:14px;border:0;background:var(--pine);color:#fff;
-  font-family:Archivo;font-size:17px;font-weight:700}
+  font-family:Archivo,sans-serif;font-size:17px;font-weight:700}
 .btn[disabled]{background:#B4C0BA;color:#5C6862;cursor:not-allowed}
 .btn.ghost{background:transparent;color:var(--pine);border:2px solid var(--pine)}
-.btn.link{background:none;color:var(--ink2);min-height:42px;font-family:"Public Sans";font-size:14.5px;font-weight:700}
+.btn.link{background:none;color:var(--ink2);min-height:42px;font-family:"Public Sans",sans-serif;font-size:14.5px;font-weight:700}
 
 /* events */
 .ev{width:100%;text-align:left;background:var(--paper);border:1.6px solid var(--line);border-radius:16px;
   padding:15px;margin-bottom:13px;display:flex;gap:14px}
 .date{width:62px;height:62px;border-radius:13px;background:var(--tint);flex:none;display:flex;
   flex-direction:column;align-items:center;justify-content:center;color:var(--pine)}
-.date b{font-family:Archivo;font-size:21px;line-height:1}
+.date b{font-family:Archivo,sans-serif;font-size:21px;line-height:1}
 .date i{font-style:normal;font-size:10.5px;font-weight:700;letter-spacing:.06em}
 .badge{display:inline-block;font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:9px;margin-left:6px}
 .badge.v{background:var(--clay);color:#fff}
@@ -135,11 +135,11 @@ nav .ic{width:22px;height:22px}
   padding:13px 16px;font-size:14px;font-weight:600;z-index:30;box-shadow:0 10px 30px rgba(0,0,0,.25)}
 .prog{flex:none;padding:14px 20px 0}
 .prog .row{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:9px}
-.prog .nm{font-family:Archivo;font-size:13px;font-weight:700;color:var(--pine)}
+.prog .nm{font-family:Archivo,sans-serif;font-size:13px;font-weight:700;color:var(--pine)}
 .prog .ct{font-size:12.5px;font-weight:600;color:var(--ink2)}
 .track{height:5px;background:var(--line);border-radius:3px;overflow:hidden}
 .track i{display:block;height:100%;background:var(--pine);border-radius:3px;transition:width .3s}
-.big{font-family:Archivo;font-size:29px;line-height:1.1;letter-spacing:-.025em;margin:14px 0 10px}
+.big{font-family:Archivo,sans-serif;font-size:29px;line-height:1.1;letter-spacing:-.025em;margin:14px 0 10px}
 .sub{font-size:15.5px;line-height:1.45;color:var(--ink2);margin:0 0 22px}
 .drop{width:150px;height:150px;border-radius:44px;border:2.5px dashed var(--pine);margin:22px auto 0;
   display:grid;place-items:center;cursor:pointer;background:#fff;background-size:cover;background-position:center}
@@ -152,8 +152,8 @@ nav .ic{width:22px;height:22px}
 .fchip{flex:none;min-height:36px;padding:0 14px;border-radius:18px;border:2px solid var(--pine);
   background:var(--tint);color:var(--pine);font-size:13px;font-weight:700}
 .empty{text-align:center;padding:60px 20px;color:var(--ink2)}
-.empty b{display:block;font-family:Archivo;font-size:19px;color:var(--ink);margin-bottom:6px}
-@media(prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}}
+.empty b{display:block;font-family:Archivo,sans-serif;font-size:19px;color:var(--ink);margin-bottom:6px}
+@media(prefers-reduced-motion:reduce){*{transition:none;scroll-behavior:auto}}
 </style></head>
 <body><div id="phone"><div id="root"></div></div>
 <script>
@@ -179,7 +179,7 @@ const MAG = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke=
   stroke-width="2.6" stroke-linecap="round" style="margin-left:6px;opacity:.55"><circle cx="11" cy="11" r="7"/>
   <path d="m20 20-3.5-3.5"/></svg>`;
 
-function orgBadge(p, dark){
+function orgBadge(p, _dark){
   if(!p.isMentor) return "";
   const logo = DATA.orgLogos[p.mentorOrg];
   return `<span class="obadge"><img src="${logo}" alt="${esc(p.mentorOrg)}" referrerpolicy="no-referrer"
@@ -194,7 +194,7 @@ function photo(p){
   // initials sit underneath as the fallback; the photo paints over them when it loads
   const fb = `<div class="init">${esc(ini(p.name))}</div>`;
   if(!p.photo) return fb;
-  return fb + `<img src="${p.photo}" alt="" style="object-position:${p.focal}"
+  return `${fb}<img src="${p.photo}" alt="" style="object-position:${p.focal}"
      referrerpolicy="no-referrer" loading="lazy"
      onerror="this.remove();document.body.classList.add('nophoto')">`;
 }
@@ -322,7 +322,7 @@ function deck(){
       <div class="head">
         <h2>${esc(p.name)}</h2>
         <div class="l">${esc(bits)}</div>
-        <div class="l">${p.age?esc(p.age)+"  ·  ":""}${esc(loc)}</div>
+        <div class="l">${p.age?`${esc(p.age)}  ·  `:""}${esc(loc)}</div>
         <div class="badges">${orgBadge(p)}<span class="pillw warn">Unclaimed</span></div>
       </div>
       <div class="foot">
@@ -337,9 +337,9 @@ function deck(){
 
 function activeFilters(){
   const f = [];
-  if(S.filters.interest) f.push(["interest", "Into " + S.filters.interest.toLowerCase()]);
+  if(S.filters.interest) f.push(["interest", `Into ${S.filters.interest.toLowerCase()}`]);
   if(S.filters.org) f.push(["org", S.filters.org]);
-  if(S.filters.topic) f.push(["topic", "Talks about " + S.filters.topic.toLowerCase()]);
+  if(S.filters.topic) f.push(["topic", `Talks about ${S.filters.topic.toLowerCase()}`]);
   if(!f.length) return "";
   return `<div class="fbar">${f.map(([k,label])=>`
     <button class="fchip" data-clear="${k}">${esc(label)} <span aria-hidden="true">&times;</span>
@@ -374,7 +374,7 @@ function profile(){
       <h1>${esc(p.name)}</h1>
       <div class="meta">${[p.injury==="N/A - family member"?"Family member":p.injury, p.level,
         p.completeness&&p.completeness!=="Do Not Know"?p.completeness.toLowerCase():null].filter(Boolean).join("  ·  ")}</div>
-      <div class="meta">${p.age?esc(p.age)+"  ·  ":""}${esc(loc)}</div>
+      <div class="meta">${p.age?`${esc(p.age)}  ·  `:""}${esc(loc)}</div>
       <div class="badges" style="margin-top:12px">${orgBadge(p)}</div>
       <div class="note warn"><b>Unclaimed listing.</b> ${esc(p.name)} is published on NorCal SCI's
         public mentor page and has not signed up here. Contact goes through their coordinator,
@@ -432,7 +432,7 @@ function eventDetail(){
       <button class="back" data-act="close">&larr; Back</button>
       <h1 style="margin-top:10px">${esc(e.title)}</h1>
       <p style="font-weight:700;color:var(--pine);margin:0 0 4px">${esc(e.day)} ${esc(e.num)} · ${esc(e.time)}</p>
-      <div class="meta">${esc(e.org)} · ${esc(e.city)}${e.mode==="virtual"?"":", "+esc(e.state)}</div>
+      <div class="meta">${esc(e.org)} · ${esc(e.city)}${e.mode==="virtual"?"":`, ${esc(e.state)}`}</div>
       <p style="font-size:15px;line-height:1.5">${esc(e.desc)}</p>
       <div class="note"><b>${e.going + (going?1:0)} going</b></div>
       <h3 class="sec">Access</h3><p style="font-size:14.5px;line-height:1.5;margin:0">${esc(e.access)}</p>
@@ -474,7 +474,7 @@ function me(){
       <div class="kv"><dt>Disability</dt><dd>${esc(S.me.disability)}</dd></div>
       <div class="kv"><dt>Time since</dt><dd>${esc(S.me.duration)}</dd></div>
       <div class="kv"><dt>State</dt><dd>${esc(S.me.state)}</dd></div>
-      <div class="kv"><dt>Joined via</dt><dd>${S.me.invitedBy?esc(S.me.invitedBy)+" invite":"Phone verification"}</dd></div></dl>
+      <div class="kv"><dt>Joined via</dt><dd>${S.me.invitedBy?`${esc(S.me.invitedBy)} invite`:"Phone verification"}</dd></div></dl>
     <h3 class="sec">Interests</h3>
     <div class="chips">${S.me.interests.length?S.me.interests.map(i=>`<span class="chip on">${esc(i)}</span>`).join("")
       :`<span class="meta">None picked</span>`}</div>
@@ -517,7 +517,7 @@ function wirePhoto(){
 
 function render(){
   if(S.setup){ $("#root").innerHTML = setupView(); wirePhoto(); return; }
-  let body = S.tab==="discover"?discover():S.tab==="events"?events():S.tab==="chats"?chats():me();
+  const body = S.tab==="discover"?discover():S.tab==="events"?events():S.tab==="chats"?chats():me();
   $("#root").innerHTML = `<div class="screen">${body}${nav()}</div>
     ${S.view==="profile"?profile():S.view==="event"?eventDetail():""}
     ${S.toast?`<div class="toast">${esc(S.toast)}</div>`:""}`;
@@ -559,18 +559,18 @@ document.addEventListener("click",e=>{
     const p=DATA.people.find(x=>x.id===d.wave);
     if(S.waves[d.wave]){ delete S.waves[d.wave]; render(); return; }
     S.waves[d.wave]=true;
-    toast("Request sent. NorCal SCI's coordinator makes the introduction — "+p.name.split(" ")[0]+" is not a member yet.");
+    toast(`Request sent. NorCal SCI's coordinator makes the introduction — ${p.name.split(" ")[0]} is not a member yet.`);
     return; }
   if(d.fint){ S.filters={interest:d.fint,org:null,topic:null}; S.view=null; S.sel=null;
-    S.tab="discover"; toast("Showing people into "+d.fint.toLowerCase()); return; }
+    S.tab="discover"; toast(`Showing people into ${d.fint.toLowerCase()}`); return; }
   if(d.forg){ S.filters={interest:null,org:d.forg,topic:null}; S.view=null; S.sel=null;
-    S.tab="discover"; toast("Showing "+d.forg); return; }
+    S.tab="discover"; toast(`Showing ${d.forg}`); return; }
   if(d.clear){ S.filters[d.clear]=null; render(); return; }
   if(d.act==="clearf"){ S.filters={interest:null,org:null,topic:null}; render(); return; }
   if(d.ftopic){ S.filters={interest:null,org:null,topic:d.ftopic}; S.view=null; S.sel=null;
-    S.tab="discover"; toast("Showing people who talk about "+d.ftopic.toLowerCase()); return; }
+    S.tab="discover"; toast(`Showing people who talk about ${d.ftopic.toLowerCase()}`); return; }
   if(d.act==="next"){
-    ["ph","cd","nm"].forEach(id=>{ const f=$("#"+id);
+    ["ph","cd","nm"].forEach(id=>{ const f=$(`#${id}`);
       if(f) S.me[f.dataset.bind]=f.value; });
     if(S.step<7){ S.step++; render(); return; }
     S.setup=false; if(isNew()) S.seg="mentors"; render(); return; }
@@ -590,7 +590,7 @@ document.addEventListener("click",e=>{
   if(d.tab){ S.tab=d.tab; S.view=null; render(); return; }
   if(d.open){ S.sel=d.open; S.view="profile"; render(); return; }
   if(d.ev){ S.sel=d.ev; S.view="event"; render(); return; }
-  if(d.rsvp){ S.rsvps[d.rsvp]?delete S.rsvps[d.rsvp]:S.rsvps[d.rsvp]=true; render(); return; }
+  if(d.rsvp){ if(S.rsvps[d.rsvp]) delete S.rsvps[d.rsvp]; else S.rsvps[d.rsvp]=true; render(); return; }
 });
 document.addEventListener("input",e=>{
   const k=e.target.dataset.bind; if(!k) return;

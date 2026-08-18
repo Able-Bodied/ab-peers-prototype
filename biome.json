@@ -14,7 +14,9 @@
       "!**/node_modules",
       "!**/pnpm-lock.yaml",
       "!**/components.json",
-      "!public"
+      "!public",
+      "!supabase/.temp",
+      "!supabase/.branches"
     ]
   },
   "formatter": {
