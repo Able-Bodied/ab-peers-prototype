@@ -16,6 +16,7 @@ interface EventCardProps {
 function formatEventTime(isoString: string): string {
   const date = new Date(isoString);
   return date.toLocaleDateString('en-US', {
+    weekday: 'short',
     month: 'short',
     day: 'numeric',
     hour: '2-digit',
