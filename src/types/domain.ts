@@ -11,30 +11,58 @@
 /* ------------------------------------------------------------------ enums */
 
 export const DISABILITIES = [
-  "SCI - para",
-  "SCI - quad",
-  "TBI",
-  "Spina Bifida",
-  "Cerebral Palsy",
-  "Amputee",
-  "MS",
-  "Combo (SCI and TBI)",
-  "Other",
+  'SCI - para',
+  'SCI - quad',
+  'TBI',
+  'Spina Bifida',
+  'Cerebral Palsy',
+  'Amputee',
+  'MS',
+  'Combo (SCI and TBI)',
+  'Other',
 ] as const;
 export type Disability = (typeof DISABILITIES)[number];
 
 /** Level only applies to SCI and Combo. Ranges exist because people describe them that way. */
 export const INJURY_LEVELS = [
-  "C1","C2","C3","C4","C5","C6","C7","C8",
-  "C4/5","C5/6","C6/7",
-  "T1","T2","T3","T4","T5","T6","T7","T8","T9","T10","T11","T12","T11/12",
-  "L1","L2","L3","L4","L5",
-  "S1","S2","S3","S4",
-  "Do not know",
+  'C1',
+  'C2',
+  'C3',
+  'C4',
+  'C5',
+  'C6',
+  'C7',
+  'C8',
+  'C4/5',
+  'C5/6',
+  'C6/7',
+  'T1',
+  'T2',
+  'T3',
+  'T4',
+  'T5',
+  'T6',
+  'T7',
+  'T8',
+  'T9',
+  'T10',
+  'T11',
+  'T12',
+  'T11/12',
+  'L1',
+  'L2',
+  'L3',
+  'L4',
+  'L5',
+  'S1',
+  'S2',
+  'S3',
+  'S4',
+  'Do not know',
 ] as const;
 export type InjuryLevel = (typeof INJURY_LEVELS)[number];
 
-export const COMPLETENESS = ["Complete", "Incomplete", "Do not know"] as const;
+export const COMPLETENESS = ['Complete', 'Incomplete', 'Do not know'] as const;
 export type Completeness = (typeof COMPLETENESS)[number];
 
 /**
@@ -44,174 +72,174 @@ export type Completeness = (typeof COMPLETENESS)[number];
  * or the "newly injured" segment fills with people who no longer are.
  */
 export const DURATIONS = [
-  "Since birth",
-  "Less than 6 months",
-  "6 - 12 months",
-  "1 - 3 years",
-  "3 - 10 years",
-  "10+ years",
+  'Since birth',
+  'Less than 6 months',
+  '6 - 12 months',
+  '1 - 3 years',
+  '3 - 10 years',
+  '10+ years',
 ] as const;
 export type DurationBucket = (typeof DURATIONS)[number];
 
 /** Asked in onboarding, because equipment is a browse filter. */
 export const EQUIPMENT = [
-  "Manual chair",
-  "Power assist",
-  "Power chair",
-  "Scooter",
-  "Crutches or walker",
-  "Walks unaided",
-  "Prefer not to say",
+  'Manual chair',
+  'Power assist',
+  'Power chair',
+  'Scooter',
+  'Crutches or walker',
+  'Walks unaided',
+  'Prefer not to say',
 ] as const;
 export type Equipment = (typeof EQUIPMENT)[number];
 
 export const SPORTS_EQUIPMENT = [
-  "Handcycle",
-  "Monoski or sit-ski",
-  "Sport wheelchair",
-  "Racing chair",
-  "Off-road or trail chair",
-  "Kayak and paddling",
-  "FES bike",
-  "Standing frame",
-  "Adaptive climbing gear",
-  "Hunting or fishing rig",
-  "Scuba gear",
-  "Other",
+  'Handcycle',
+  'Monoski or sit-ski',
+  'Sport wheelchair',
+  'Racing chair',
+  'Off-road or trail chair',
+  'Kayak and paddling',
+  'FES bike',
+  'Standing frame',
+  'Adaptive climbing gear',
+  'Hunting or fishing rig',
+  'Scuba gear',
+  'Other',
 ] as const;
 export type SportsEquipment = (typeof SPORTS_EQUIPMENT)[number];
 
 export const GRANTS = [
-  "Kelly Brush Foundation",
-  "Challenged Athletes Foundation",
-  "Reeve Foundation Quality of Life",
-  "Triumph Foundation",
-  "High Fives",
-  "Swim with Mike",
-  "State Department of Rehabilitation",
-  "VA",
-  "Other",
+  'Kelly Brush Foundation',
+  'Challenged Athletes Foundation',
+  'Reeve Foundation Quality of Life',
+  'Triumph Foundation',
+  'High Fives',
+  'Swim with Mike',
+  'State Department of Rehabilitation',
+  'VA',
+  'Other',
 ] as const;
 export type Grant = (typeof GRANTS)[number];
 
-export const AGE_BANDS = ["18-29", "30-39", "40-49", "50-59", "60-69", "70+"] as const;
+export const AGE_BANDS = ['18-29', '30-39', '40-49', '50-59', '60-69', '70+'] as const;
 export type AgeBand = (typeof AGE_BANDS)[number];
 
-export const CAPACITIES = ["open", "at capacity", "paused"] as const;
+export const CAPACITIES = ['open', 'at capacity', 'paused'] as const;
 export type Capacity = (typeof CAPACITIES)[number];
 
-export const MEMBER_TYPES = ["peer", "mentor"] as const;
+export const MEMBER_TYPES = ['peer', 'mentor'] as const;
 export type MemberType = (typeof MEMBER_TYPES)[number];
 
 export const RELATIONSHIPS = [
-  "Self",
-  "Family member (parent)",
-  "Family member (partner)",
-  "Caregiver",
+  'Self',
+  'Family member (parent)',
+  'Family member (partner)',
+  'Caregiver',
 ] as const;
 export type Relationship = (typeof RELATIONSHIPS)[number];
 
-export const EVENT_MODES = ["in-person", "virtual"] as const;
+export const EVENT_MODES = ['in-person', 'virtual'] as const;
 export type EventMode = (typeof EVENT_MODES)[number];
 
-export const ROSTER_VISIBILITY = ["attendees", "first-names", "off"] as const;
+export const ROSTER_VISIBILITY = ['attendees', 'first-names', 'off'] as const;
 export type RosterVisibility = (typeof ROSTER_VISIBILITY)[number];
 
 export const INTERESTS = [
-  "3D printing",
-  "Archery",
-  "Baking",
-  "Birding",
-  "Board games",
-  "Camping",
-  "Coffee",
-  "Cooking",
-  "Dogs",
-  "Film & TV",
-  "Fishing",
-  "Gardening",
-  "Gym & fitness",
-  "Handcycling",
-  "Hiking with a trail chair",
-  "Kayaking",
-  "Live music",
-  "Monoskiing",
-  "Painting",
-  "Photography",
-  "Podcasts",
-  "Reading",
-  "Road trips",
-  "Rock climbing",
-  "Sailing",
-  "Scuba diving",
-  "Sled hockey",
-  "Swimming",
-  "Travel",
-  "Video games",
-  "Volunteering",
-  "Wheelchair basketball",
-  "Wheelchair rugby",
-  "Wheelchair tennis",
-  "Woodworking"
+  '3D printing',
+  'Archery',
+  'Baking',
+  'Birding',
+  'Board games',
+  'Camping',
+  'Coffee',
+  'Cooking',
+  'Dogs',
+  'Film & TV',
+  'Fishing',
+  'Gardening',
+  'Gym & fitness',
+  'Handcycling',
+  'Hiking with a trail chair',
+  'Kayaking',
+  'Live music',
+  'Monoskiing',
+  'Painting',
+  'Photography',
+  'Podcasts',
+  'Reading',
+  'Road trips',
+  'Rock climbing',
+  'Sailing',
+  'Scuba diving',
+  'Sled hockey',
+  'Swimming',
+  'Travel',
+  'Video games',
+  'Volunteering',
+  'Wheelchair basketball',
+  'Wheelchair rugby',
+  'Wheelchair tennis',
+  'Woodworking',
 ] as const;
 export type Interest = (typeof INTERESTS)[number];
 
 /** Craig Q10 + Q23, plus what NorCal's mentors actually say. Free text supplements it. */
 export const TOPICS = [
-  "Aging with SCI",
-  "Baclofen pump",
-  "Being injured young",
-  "Botox",
-  "Bowel program",
-  "Choosing a wheelchair",
-  "Choosing adaptive equipment",
-  "Colostomy",
-  "Dating & intimacy",
-  "Dictation & assistive tech",
-  "Driving & hand controls",
-  "Getting back on a bike",
-  "Going back to school",
-  "Grants & funding",
-  "Hiring & managing caregivers",
-  "Home modifications",
-  "Intermittent catheterization",
-  "Mental health",
-  "Moving out & living independently",
-  "Pain management",
-  "Pregnancy & parenting",
-  "Pressure sores",
-  "Returning to work",
-  "SSI/SSDI & benefits",
-  "Service animals",
-  "Spasticity & tone",
-  "Suprapubic catheter",
-  "Transfers",
-  "Travel & flying",
-  "UTIs",
-  "Vehicle modifications"
+  'Aging with SCI',
+  'Baclofen pump',
+  'Being injured young',
+  'Botox',
+  'Bowel program',
+  'Choosing a wheelchair',
+  'Choosing adaptive equipment',
+  'Colostomy',
+  'Dating & intimacy',
+  'Dictation & assistive tech',
+  'Driving & hand controls',
+  'Getting back on a bike',
+  'Going back to school',
+  'Grants & funding',
+  'Hiring & managing caregivers',
+  'Home modifications',
+  'Intermittent catheterization',
+  'Mental health',
+  'Moving out & living independently',
+  'Pain management',
+  'Pregnancy & parenting',
+  'Pressure sores',
+  'Returning to work',
+  'SSI/SSDI & benefits',
+  'Service animals',
+  'Spasticity & tone',
+  'Suprapubic catheter',
+  'Transfers',
+  'Travel & flying',
+  'UTIs',
+  'Vehicle modifications',
 ] as const;
 export type Topic = (typeof TOPICS)[number];
 
 export const US_STATES = [
-  "Arizona",
-  "California",
-  "Colorado",
-  "Florida",
-  "Georgia",
-  "Idaho",
-  "Maryland",
-  "Michigan",
-  "Minnesota",
-  "Nevada",
-  "New Jersey",
-  "New York",
-  "North Carolina",
-  "Oregon",
-  "Pennsylvania",
-  "Texas",
-  "Utah",
-  "Vermont",
-  "Washington"
+  'Arizona',
+  'California',
+  'Colorado',
+  'Florida',
+  'Georgia',
+  'Idaho',
+  'Maryland',
+  'Michigan',
+  'Minnesota',
+  'Nevada',
+  'New Jersey',
+  'New York',
+  'North Carolina',
+  'Oregon',
+  'Pennsylvania',
+  'Texas',
+  'Utah',
+  'Vermont',
+  'Washington',
 ] as const;
 export type UsState = (typeof US_STATES)[number];
 
@@ -235,6 +263,9 @@ export interface Member {
   type: MemberType;
   displayName: string;
 
+  /** E.164 format. Never rendered to other members — sign-in identity only. */
+  phone: string;
+
   /** Optional, always. A required photo filters out the people we most need. */
   photoUrl: string | null;
   photoAlt: string | null;
@@ -254,6 +285,11 @@ export interface Member {
   /** Derived where known; null for congenital or unknown. Display as a range. */
   yearsSince: number | null;
 
+  /**
+   * ISO date (YYYY-MM-DD). Collected once at onboarding for the under-18 gate;
+   * never rendered anywhere in the app — every UI surface reads `ageBand` instead.
+   */
+  birthDate: string;
   ageBand: AgeBand;
   relationship: Relationship;
 
@@ -331,17 +367,20 @@ export interface Session {
 }
 
 export interface MemberFilters {
-  state: UsState | "All";
-  disability: Disability | "All";
-  equipment?: Equipment | "All";
-  orgId?: string | "All";
-  duration?: DurationBucket | "All";
-  language?: string | "All";
-  topic?: Topic | "All";
+  state: UsState | 'All';
+  disability: Disability | 'All';
+  equipment?: Equipment | 'All';
+  /** 'All' is a valid value here too — it's just not distinguishable from any other org id at the type level. */
+  orgId?: string;
+  duration?: DurationBucket | 'All';
+  /** 'All' is a valid value here too — it's just not distinguishable from any other language at the type level. */
+  language?: string;
+  topic?: Topic | 'All';
 }
 
 export interface EventFilters {
-  state: UsState | "Virtual" | "All";
+  state: UsState | 'Virtual' | 'All';
   includeVirtual: boolean;
-  activity?: string | "All";
+  /** 'All' is a valid value here too — it's just not distinguishable from any other activity at the type level. */
+  activity?: string;
 }
