@@ -9,7 +9,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { mentors } from '@/mocks/seed';
+import { MENTORS } from '@/mocks/seed';
 
 function initials(name: string): string {
   return name
@@ -83,7 +83,7 @@ export default function MapPage() {
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2">
-            {mentors.map((mentor) => (
+            {MENTORS.map((mentor) => (
               <Card key={mentor.id}>
                 <CardContent className="flex items-start gap-3">
                   <Avatar>
@@ -92,7 +92,7 @@ export default function MapPage() {
                   <div className="min-w-0">
                     <p className="truncate text-sm font-medium">{mentor.displayName}</p>
                     <p className="text-muted-foreground text-xs">
-                      {mentor.location.city}, {mentor.location.state} · {mentor.injuryType}
+                      {mentor.city}, {mentor.state} · {mentor.disability}
                     </p>
                     <div className="mt-1.5 flex flex-wrap gap-1">
                       {mentor.topics.slice(0, 2).map((topic) => (

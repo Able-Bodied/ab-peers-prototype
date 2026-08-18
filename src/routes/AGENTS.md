@@ -12,6 +12,12 @@ conventions).
   directly, or derive local component state from them. No `fetch`, no `axios`, no simulated
   network layer — this repo has no backend, and pretending otherwise adds friction without adding
   signal about the real UX.
+  - **Deliberate exception: `onboarding/`.** Chandler, who was building the real auth/DB/API
+    foundation in `ab-peers`, is no longer on the project (health reasons). The phone/verify steps
+    and the final profile submit in `onboarding/` call a real hosted Supabase project
+    (`@/lib/supabase`) for phone-auth OTP, the `members` table, and photo storage — see
+    `supabase/migrations/`. Every other step, and every other route in this folder, still follows
+    the mock-data-only rule above. Tests mock `@/lib/supabase` rather than hitting the network.
 - **Every stub route carries a `{/* TODO(team): ... */}` block** listing the acceptance criteria
   for that flow, sourced from docs/CONTEXT.md. Keep it updated as the flow evolves — when an item
   is actually implemented, check it off or delete it rather than leaving stale TODOs.

@@ -1,5 +1,6 @@
 import { Navigate, NavLink, Route, Routes } from 'react-router-dom';
 
+import { SessionProvider, useSession } from '@/lib/session';
 import { cn } from '@/lib/utils';
 import ConnectPage from '@/routes/connect/page';
 import CoordinatorPage from '@/routes/coordinator/page';
@@ -22,44 +23,54 @@ const flows: Flow[] = [
   { to: '/coordinator', label: 'Coordinator Dashboard', description: 'Roster + PII + touchpoints' },
 ];
 
+function RootRedirect() {
+  const { member, loading } = useSession();
+  if (loading) return null;
+  return <Navigate to={member ? '/profile' : '/onboarding'} replace />;
+}
+
 export function App() {
   return (
-    <div className="flex min-h-svh">
-      <aside className="w-64 shrink-0 border-r px-4 py-6">
-        <div className="mb-6 px-2">
-          <p className="text-sm font-semibold">AbleBodied</p>
-          <p className="text-muted-foreground text-xs">Peer mentor matching — prototype</p>
-        </div>
-        <nav className="flex flex-col gap-1" aria-label="Prototype flows">
-          {flows.map((flow) => (
-            <NavLink
-              key={flow.to}
-              to={flow.to}
-              className={({ isActive }) =>
-                cn(
-                  'rounded-md px-2 py-1.5 text-sm transition-colors',
-                  isActive
-                    ? 'bg-accent text-accent-foreground font-medium'
-                    : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
-                )
-              }
-            >
-              <span className="block">{flow.label}</span>
-              <span className="text-muted-foreground block text-xs">{flow.description}</span>
-            </NavLink>
-          ))}
-        </nav>
-      </aside>
-      <main className="min-w-0 flex-1 overflow-y-auto p-8">
-        <Routes>
-          <Route path="/" element={<Navigate to="/onboarding" replace />} />
-          <Route path="/onboarding" element={<OnboardingPage />} />
-          <Route path="/map" element={<MapPage />} />
-          <Route path="/profile" element={<ProfilePage />} />
-          <Route path="/connect" element={<ConnectPage />} />
-          <Route path="/coordinator" element={<CoordinatorPage />} />
-        </Routes>
-      </main>
-    </div>
+    <SessionProvider>
+      <div className="flex min-h-svh flex-col md:flex-row">
+        {/* Dev-only flow switcher — not part of the product, so it doesn't need to exist on a
+            phone-sized viewport. Mobile shows the routed page full-screen, matching the mockups. */}
+        <aside className="hidden w-64 shrink-0 border-r px-4 py-6 md:block">
+          <div className="mb-6 px-2">
+            <p className="text-sm font-semibold">AbleBodied</p>
+            <p className="text-muted-foreground text-xs">Peer mentor matching — prototype</p>
+          </div>
+          <nav className="flex flex-col gap-1" aria-label="Prototype flows">
+            {flows.map((flow) => (
+              <NavLink
+                key={flow.to}
+                to={flow.to}
+                className={({ isActive }) =>
+                  cn(
+                    'rounded-md px-2 py-1.5 text-sm transition-colors',
+                    isActive
+                      ? 'bg-accent text-accent-foreground font-medium'
+                      : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
+                  )
+                }
+              >
+                <span className="block">{flow.label}</span>
+                <span className="text-muted-foreground block text-xs">{flow.description}</span>
+              </NavLink>
+            ))}
+          </nav>
+        </aside>
+        <main className="min-w-0 flex-1 overflow-y-auto p-4 md:p-8">
+          <Routes>
+            <Route path="/" element={<RootRedirect />} />
+            <Route path="/onboarding" element={<OnboardingPage />} />
+            <Route path="/map" element={<MapPage />} />
+            <Route path="/profile" element={<ProfilePage />} />
+            <Route path="/connect" element={<ConnectPage />} />
+            <Route path="/coordinator" element={<CoordinatorPage />} />
+          </Routes>
+        </main>
+      </div>
+    </SessionProvider>
   );
 }

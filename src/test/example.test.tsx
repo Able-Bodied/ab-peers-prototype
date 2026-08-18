@@ -9,14 +9,19 @@ import { App } from '@/App';
 // end to end, and doubles as a smoke test for the router shell. Test
 // behavior (what the user sees/can do), not markup.
 describe('App', () => {
-  it('redirects to the onboarding flow by default', () => {
+  it('redirects to the onboarding flow by default when signed out', async () => {
     render(
       <MemoryRouter initialEntries={['/']}>
         <App />
       </MemoryRouter>,
     );
 
-    expect(screen.getByRole('heading', { level: 1, name: 'Onboarding' })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('heading', {
+        level: 1,
+        name: 'A community of peers with disabilities.',
+      }),
+    ).toBeInTheDocument();
   });
 
   it('lets a user navigate to another flow from the sidebar', async () => {
@@ -31,10 +36,10 @@ describe('App', () => {
 
     expect(screen.getByRole('heading', { level: 1, name: 'Mentor Map' })).toBeInTheDocument();
     // Mentor Map renders seed data, not just an empty skeleton.
-    expect(screen.getByText('Jordan Rivera')).toBeInTheDocument();
+    expect(screen.getByText('Ilse V.')).toBeInTheDocument();
   });
 
-  it('renders the profile flow with seed mentor data', async () => {
+  it('shows a sign-in prompt on the profile flow when signed out', async () => {
     const user = userEvent.setup();
     render(
       <MemoryRouter initialEntries={['/']}>
@@ -45,7 +50,7 @@ describe('App', () => {
     await user.click(screen.getByRole('link', { name: /^Profile/ }));
 
     expect(screen.getByRole('heading', { level: 1, name: 'Profile' })).toBeInTheDocument();
-    expect(screen.getByText('Jordan Rivera')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Sign in' })).toBeInTheDocument();
   });
 
   it('renders the connect flow with the seed mentor name', async () => {
@@ -59,7 +64,7 @@ describe('App', () => {
     await user.click(screen.getByRole('link', { name: /^Connect/ }));
 
     expect(screen.getByRole('heading', { level: 1, name: 'Connect' })).toBeInTheDocument();
-    expect(screen.getByText('Jordan Rivera')).toBeInTheDocument();
+    expect(screen.getByText('Ilse V.')).toBeInTheDocument();
   });
 
   it('renders the coordinator dashboard with seed roster data', async () => {
@@ -75,8 +80,8 @@ describe('App', () => {
     expect(
       screen.getByRole('heading', { level: 1, name: 'Coordinator Dashboard' }),
     ).toBeInTheDocument();
-    expect(screen.getByText('Priya Chandrasekaran')).toBeInTheDocument();
+    expect(screen.getByText('Craig Hospital')).toBeInTheDocument();
     // Roster table lists seed mentors.
-    expect(screen.getByRole('cell', { name: 'Jordan Rivera' })).toBeInTheDocument();
+    expect(screen.getByRole('cell', { name: 'Ilse V.' })).toBeInTheDocument();
   });
 });
