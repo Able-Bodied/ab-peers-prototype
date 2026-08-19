@@ -75,6 +75,48 @@ function validateEnvironment() {
 const { supabaseUrl, supabaseKey } = validateEnvironment();
 const supabase = createClient(supabaseUrl, supabaseKey);
 
+// Columns compared to decide whether a re-scraped event counts as "changed"
+// for needs_ai_verification purposes. Photos are tracked separately and
+// don't factor in.
+const DIFF_TEXT_FIELDS = [
+  'title',
+  'description',
+  'description_html',
+  'location',
+  'url',
+  'registration_url',
+  'category',
+];
+
+function normalizeText(value) {
+  return (value ?? '').trim();
+}
+
+function normalizeTime(value) {
+  if (!value) return null;
+  const ms = new Date(value).getTime();
+  return Number.isNaN(ms) ? normalizeText(value) : ms;
+}
+
+/**
+ * True if a scraped event's content differs from the row already on file
+ * (or if there is no row on file yet).
+ */
+function eventContentChanged(existing, incoming) {
+  if (!existing) return true;
+
+  for (const field of DIFF_TEXT_FIELDS) {
+    if (normalizeText(existing[field]) !== normalizeText(incoming[field])) {
+      return true;
+    }
+  }
+
+  return (
+    normalizeTime(existing.start_time) !== normalizeTime(incoming.start_time) ||
+    normalizeTime(existing.end_time) !== normalizeTime(incoming.end_time)
+  );
+}
+
 class EventIngestionWorker {
   constructor() {
     this.supabase = supabase;
@@ -85,6 +127,7 @@ class EventIngestionWorker {
       eventsUpdated: 0,
       eventsFailed: 0,
       eventsDeduplicated: 0,
+      eventsNeedingVerification: 0,
       startTime: null,
       endTime: null,
     };
@@ -173,6 +216,26 @@ class EventIngestionWorker {
     try {
       let dedupCount = 0;
 
+      // Load existing rows for this feed so we can tell which scraped events
+      // actually changed vs. which are byte-for-byte re-scrapes.
+      const { data: existingRows, error: existingError } = await this.supabase
+        .from('events')
+        .select(
+          'external_id, title, description, description_html, start_time, end_time, location, url, registration_url, category, needs_ai_verification',
+        )
+        .eq('feed_id', feedId);
+
+      if (existingError) {
+        this.log(
+          `  Failed to load existing events for diff, treating all as changed: ${existingError.message}`,
+          'warning',
+        );
+      }
+
+      const existingByExternalId = new Map(
+        (existingRows || []).map((row) => [row.external_id, row]),
+      );
+
       // Prepare event payloads with validation
       // Track source_image_url separately (non-column field for later download)
       const eventImageMap = {};
@@ -199,7 +262,7 @@ class EventIngestionWorker {
             eventImageMap[event.external_id] = event.source_image_url;
           }
 
-          return {
+          const payload = {
             feed_id: feedId,
             external_id: event.external_id,
             title: event.title,
@@ -213,6 +276,15 @@ class EventIngestionWorker {
             category: event.category || null,
             updated_at: event.updated_at || new Date().toISOString(),
           };
+
+          // New or changed events need a human/AI to re-check the scrape;
+          // an unchanged re-scrape keeps whatever verification state it had.
+          const existing = existingByExternalId.get(event.external_id);
+          payload.needs_ai_verification = eventContentChanged(existing, payload)
+            ? true
+            : (existing?.needs_ai_verification ?? false);
+
+          return payload;
         });
 
       this.log(`  Preparing to upsert ${payloads.length} events...`, 'info');
@@ -283,6 +355,7 @@ class EventIngestionWorker {
         updated,
         failed: 0,
         deduplicated: dedupCount,
+        needsVerification: payloads.filter((p) => p.needs_ai_verification).length,
         total: payloads.length,
         eventImageMap,
         externalIdToDbId,
@@ -425,12 +498,13 @@ class EventIngestionWorker {
         this.log(
           `  Upserted: ${result.inserted} inserted, ${result.updated} updated${
             result.deduplicated > 0 ? `, ${result.deduplicated} deduplicated` : ''
-          }`,
+          }${result.needsVerification > 0 ? `, ${result.needsVerification} flagged for AI verification` : ''}`,
           'success',
         );
         this.stats.eventsInserted += result.inserted;
         this.stats.eventsUpdated += result.updated;
         this.stats.eventsDeduplicated += result.deduplicated || 0;
+        this.stats.eventsNeedingVerification += result.needsVerification || 0;
       }
 
       // Upload images and insert into event_photos (happens after upsert)
@@ -559,6 +633,7 @@ class EventIngestionWorker {
     console.log(`Events Inserted: ${this.stats.eventsInserted}`);
     console.log(`Events Updated: ${this.stats.eventsUpdated}`);
     console.log(`Events Deduplicated (cross-feed): ${this.stats.eventsDeduplicated}`);
+    console.log(`Events Flagged for AI Verification: ${this.stats.eventsNeedingVerification}`);
     console.log(`Events Failed: ${this.stats.eventsFailed}`);
     console.log(`Duration: ${duration.toFixed(2)}s`);
     console.log('='.repeat(70) + '\n');

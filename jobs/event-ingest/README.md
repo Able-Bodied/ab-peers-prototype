@@ -96,6 +96,9 @@ Normalized event data:
 - `url`: Original event URL
 - `registration_url`: Registration link (if any)
 - `category`: Event category (e.g. "events")
+- `needs_ai_verification`: Set by the ingest job when a scraped event is new or its content
+  changed since the last run; left alone on an unchanged re-scrape. Cleared by whatever reviews
+  the event, not by the ingest job.
 - `created_at`, `updated_at`: Timestamps
 - **Constraint**: UNIQUE(feed_id, external_id) prevents duplicates from same source
 
