@@ -81,6 +81,7 @@ exact JSON per event — no prose, no markdown fence:
   "id": "<event uuid, copied verbatim>",
   "registration_deadline": null,
   "event_format": "online",
+  "extracted_registration_url": "https://us02web.zoom.us/meeting/register/...",
   "tags": ["caregiver-group", "social-meetup"],
   "proposed_tags": [],
   "description_clean": "...",
@@ -135,8 +136,19 @@ carries real information ("Join us at 4pm — register here" keeps the time). Fo
 valid HTML. Preserve the original text and meaning otherwise: this is an edit, never a rewrite or
 a summary. If there is no CTA, return the description unchanged.
 
-If the removed CTA link is the event's real registration URL and `registration_url` is null,
-report it in `notes` — do not write it to `registration_url` yourself.
+### 3.5 `extracted_registration_url`
+
+**Removing a CTA deletes a link, so capture it before it is gone.** Most of these feeds put the
+registration link only in the description body and leave the `registration_url` column null — the
+Caregiver MeetUp, for instance, carries a Zoom registration link in its copy and nothing in the
+column. Strip the CTA without capturing that link and the app loses the one URL that actually
+gets someone registered, which is the whole point of the hand-off dialog.
+
+So: when the CTA you removed pointed at a registration destination, return that URL here. Return
+`null` when the copy had no registration link, or when the link merely repeats `url`.
+
+This is a field, not a note. An earlier run recorded these only in `notes`, the notes came back
+empty for all twelve events, and ten of them had their links silently deleted.
 
 ---
 
@@ -160,6 +172,8 @@ Per event, in one transaction's worth of work:
 
 1. Update `events` with `registration_deadline`, `event_format`, `description_clean`,
    `description_html_clean`.
+   Also set `registration_url` to `extracted_registration_url` **only when the column is currently
+   null** — the feed's own value is authoritative and must never be overwritten by an inferred one.
 2. Replace tags: delete this event's `event_tags` rows with `source = 'ai'`, then insert one row
    per returned slug with `source = 'ai'`. Leave `source = 'human'` rows alone — a person's
    correction outranks your guess and must survive a re-run.
@@ -183,6 +197,8 @@ run. Do not abort the batch.
 - Ingest summary from Phase 1
 - Events flagged, processed, skipped, failed
 - How many got a deadline, and the format distribution
+- How many registration URLs you recovered from description copy, and how many events had a CTA
+  removed while yielding no URL (that combination means a link was lost — call it out)
 - Every entry in `proposed_tags`, grouped, as the human's approval queue
 - Any `notes` worth a person's attention
 - If this was a DRY RUN, say so first and name the blocker
