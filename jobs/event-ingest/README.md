@@ -78,7 +78,7 @@ The ingest job:
 ### data_feeds table
 Stores configuration for each event source:
 - `id`: UUID primary key
-- `name`: Display name (e.g. "NorCal SCI Calendar")
+- `name`: Display name (e.g. "NorCal SCI")
 - `feed_url`: Source URL
 - `feed_type`: Type of feed (squarespace, neoncrm, etc.)
 - `is_active`: Enable/disable feed ingestion
@@ -141,7 +141,7 @@ Add at least one feed to the database:
 
 ```sql
 INSERT INTO data_feeds (name, feed_url, feed_type, is_active) VALUES
-  ('NorCal SCI Calendar', 'https://norcalsci.org/events', 'squarespace', true);
+  ('NorCal SCI', 'https://norcalsci.org/events', 'squarespace', true);
 ```
 
 ### Photo download failures

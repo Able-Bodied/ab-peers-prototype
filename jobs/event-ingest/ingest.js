@@ -685,7 +685,7 @@ class EventIngestionWorker {
         this.log(
           `
   INSERT INTO data_feeds (name, feed_url, feed_type, is_active) VALUES
-  ('NorCal SCI Calendar', 'https://norcalsci.org/calendar', 'squarespace', true),
+  ('NorCal SCI', 'https://norcalsci.org/calendar', 'squarespace', true),
   ('BORP Calendar', 'https://borp.app.neoncrm.com/nx/portal/event-calendar', 'neoncrm', true);
         `,
           'info',

@@ -261,7 +261,7 @@ describe('EventsPage', () => {
         id: 'e1',
         title: 'Adaptive handcycle ride',
         data_feeds: {
-          name: 'Northern California SCI Calendar',
+          name: 'NorCal SCI',
           organizations: {
             slug: 'norcal-sci',
             name: 'NorCal SCI',
