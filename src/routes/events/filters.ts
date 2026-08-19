@@ -58,6 +58,11 @@ export interface EventFilterState {
   near: NearFilter | null;
 }
 
+/** Router state carried from the event detail page's tag chips to preselect that tag on arrival. */
+export interface EventListNavState {
+  tagSlug: string;
+}
+
 export function defaultFilters(): EventFilterState {
   return {
     feed: 'foryou',

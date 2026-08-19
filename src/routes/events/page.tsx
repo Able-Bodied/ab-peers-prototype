@@ -1,6 +1,6 @@
 import { SlidersHorizontal } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useCities } from '@/lib/cities';
 import { useOrganizations } from '@/lib/organizations';
 import { useRsvps } from '@/lib/rsvps';
@@ -17,6 +17,7 @@ import {
   EVENT_FORMAT_LABELS,
   type EventFilterState,
   type EventFormat,
+  type EventListNavState,
   selectedCities,
   selectedFormats,
   selectedOrganizations,
@@ -163,10 +164,17 @@ function toFeedEvent(row: EventRow): FeedEvent | null {
 
 export default function EventsPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const sentinelRef = useRef<HTMLDivElement>(null);
 
   const [segment, setSegment] = useState<'all' | 'mine'>('all');
-  const [filters, setFilters] = useState<EventFilterState>(defaultFilters);
+  // A tag chip tapped on the event detail page arrives here as router state (see filters.ts and
+  // routes/event/page.tsx), so this list opens with that tag already narrowing the feed.
+  const [filters, setFilters] = useState<EventFilterState>(() => {
+    const navState = location.state as EventListNavState | null;
+    if (!navState?.tagSlug) return defaultFilters();
+    return { ...defaultFilters(), tags: { [navState.tagSlug]: true } };
+  });
   const [sheetOpen, setSheetOpen] = useState(false);
 
   const { categories } = useTaxonomy();
