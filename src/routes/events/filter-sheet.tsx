@@ -1,17 +1,20 @@
 import { X } from 'lucide-react';
 
+import type { TaxonomyCategory } from '@/lib/taxonomy';
 import { cn } from '@/lib/utils';
-import { ACTIVITIES_BY_GENRE, GENRES } from '@/routes/events/event-mocks';
 import {
   DATE_WINDOW_LABELS,
   DATE_WINDOWS,
   defaultFilters,
+  EVENT_FORMAT_LABELS,
+  EVENT_FORMATS,
   type EventFilterState,
-  FORMATS,
 } from '@/routes/events/filters';
 
 interface FilterSheetProps {
   filters: EventFilterState;
+  /** The tag vocabulary, read from the database rather than hardcoded here. */
+  categories: TaxonomyCategory[];
   /** Count shown on the confirm button, so the effect of a change is visible before closing. */
   resultCount: number;
   onChange: (next: EventFilterState) => void;
@@ -54,26 +57,24 @@ function Chip({
   );
 }
 
-function Toggle({ on }: { on: boolean }) {
-  return (
-    <span
-      aria-hidden="true"
-      className={cn('relative h-7 w-12 shrink-0 rounded-full', on ? 'bg-primary' : 'bg-border')}
-    >
-      <span
-        className={cn(
-          'absolute top-0.5 size-6 rounded-full bg-white shadow transition-all',
-          on ? 'left-[22px]' : 'left-0.5',
-        )}
-      />
-    </span>
-  );
-}
-
-export function FilterSheet({ filters, resultCount, onChange, onClose }: FilterSheetProps) {
-  // Everything except "When" is presentational until the schema carries these attributes, so the
-  // controls are rendered disabled rather than silently doing nothing when tapped.
+export function FilterSheet({
+  filters,
+  categories,
+  resultCount,
+  onChange,
+  onClose,
+}: FilterSheetProps) {
+  // Feed and Where have no column behind them, so those controls stay disabled rather than
+  // silently doing nothing when tapped. When, Format and Activities are live.
   const notWired = 'Not filterable yet — the events schema does not carry this field.';
+
+  const toggleFormat = (format: (typeof EVENT_FORMATS)[number]) => {
+    onChange({ ...filters, formats: { ...filters.formats, [format]: !filters.formats[format] } });
+  };
+
+  const toggleTag = (slug: string) => {
+    onChange({ ...filters, tags: { ...filters.tags, [slug]: !filters.tags[slug] } });
+  };
 
   return (
     // Full-bleed on a phone, which is the target; on a wider screen it stays the width of the list
@@ -127,13 +128,9 @@ export function FilterSheet({ filters, resultCount, onChange, onClose }: FilterS
         <div className="flex flex-wrap gap-2" title={notWired}>
           <Chip label={filters.place} on disabled onClick={() => undefined} />
         </div>
-        <div className="mt-2 flex items-center justify-between gap-3 border-b py-3">
-          <div>
-            <div className="text-sm font-bold">Include online events</div>
-            <div className="text-muted-foreground text-xs">They ignore the state filter</div>
-          </div>
-          <Toggle on={filters.includeOnline} />
-        </div>
+        <p className="text-muted-foreground mt-2 text-xs">
+          Online events are included or excluded under Format below, which is a real column now.
+        </p>
 
         <Section>When</Section>
         <div className="flex flex-wrap gap-2">
@@ -150,38 +147,43 @@ export function FilterSheet({ filters, resultCount, onChange, onClose }: FilterS
         </div>
 
         <Section>Format</Section>
-        <div className="flex flex-wrap gap-2" title={notWired}>
-          {FORMATS.map((format) => (
+        <div className="flex flex-wrap gap-2">
+          {EVENT_FORMATS.map((format) => (
             <Chip
               key={format}
-              label={format}
+              label={EVENT_FORMAT_LABELS[format]}
               on={filters.formats[format]}
-              disabled
-              onClick={() => undefined}
+              onClick={() => {
+                toggleFormat(format);
+              }}
             />
           ))}
         </div>
 
         <Section>Activities</Section>
-        {GENRES.map((genre) => (
-          <div key={genre}>
+        {categories.length === 0 && <p className="text-muted-foreground text-xs">Loading tags…</p>}
+        {categories.map((category) => (
+          <div key={category.slug}>
             <div className="mt-4 mb-2 flex items-center justify-between">
-              <span className="text-[15px] font-bold">{genre}</span>
-              <Toggle on />
+              <span className="text-[15px] font-bold">{category.name}</span>
             </div>
-            <div className="flex flex-wrap gap-2" title={notWired}>
-              {(ACTIVITIES_BY_GENRE[genre] ?? []).map((activity) => (
+            <div className="flex flex-wrap gap-2">
+              {category.children.map((tag) => (
                 <Chip
-                  key={activity}
-                  label={activity}
-                  on={filters.activities[activity] ?? false}
-                  disabled
-                  onClick={() => undefined}
+                  key={tag.slug}
+                  label={tag.name}
+                  on={filters.tags[tag.slug] ?? false}
+                  onClick={() => {
+                    toggleTag(tag.slug);
+                  }}
                 />
               ))}
             </div>
           </div>
         ))}
+        <p className="text-muted-foreground mt-3 text-xs">
+          Picking no activity shows every event; picking several shows events matching any of them.
+        </p>
       </div>
 
       <div className="px-5 pt-2.5 pb-4">

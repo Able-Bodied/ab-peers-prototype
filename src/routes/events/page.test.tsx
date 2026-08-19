@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { RsvpProvider } from '@/lib/rsvps';
 import EventsPage from '@/routes/events/page';
 
 class MockIntersectionObserver {
@@ -39,29 +40,54 @@ let appliedFilters: { method: string; column: string; value: string }[] = [];
 
 const mockRange = vi.fn(() => Promise.resolve({ data: rows, error: null }));
 
+/** The taxonomy the filter sheet reads from the `tags` table. */
+const tagRows = [
+  { id: 'c1', slug: 'sports-recreation', name: 'Sports & recreation', parent_id: null },
+  { id: 'c2', slug: 'support-groups', name: 'Support & groups', parent_id: null },
+  { id: 't1', slug: 'kayaking', name: 'Kayaking', parent_id: 'c1' },
+  { id: 't2', slug: 'handcycling', name: 'Handcycling', parent_id: 'c1' },
+  { id: 't3', slug: 'peer-support-group', name: 'Peer support group', parent_id: 'c2' },
+];
+
+/**
+ * The result of a finished query. Callers either await it directly or call `.overrideTypes()`
+ * first, so it has to behave as both — which is what supabase-js's builder does.
+ */
+function settled<T>(run: () => Promise<T>) {
+  return {
+    overrideTypes: () => run(),
+    then: (onOk?: (v: T) => unknown, onErr?: (e: unknown) => unknown) => run().then(onOk, onErr),
+    catch: (onErr?: (e: unknown) => unknown) => run().catch(onErr),
+  };
+}
+
 /**
  * Minimal stand-in for the supabase query builder: every filter method records its call and
- * returns the same chainable object, and `range` resolves. This mirrors PostgREST's real shape,
- * where filters, `order` and `range` can be chained in any order.
+ * returns the same chainable object. This mirrors PostgREST's real shape, where filters, `order`
+ * and `range` can be chained in any order.
  */
-function makeBuilder() {
+function makeBuilder(table: string) {
+  const record = (method: string) => (column: string, value: string | string[]) => {
+    appliedFilters.push({ method, column, value: Array.isArray(value) ? value.join(',') : value });
+    return builder;
+  };
+
   const builder = {
-    select: vi.fn(() => builder),
+    // The tags query ends at `select`, so that call has to be awaitable on its own.
+    select: vi.fn(() =>
+      table === 'tags' ? settled(() => Promise.resolve({ data: tagRows, error: null })) : builder,
+    ),
     order: vi.fn(() => builder),
-    range: mockRange,
-    gte: vi.fn((column: string, value: string) => {
-      appliedFilters.push({ method: 'gte', column, value });
-      return builder;
-    }),
-    lte: vi.fn((column: string, value: string) => {
-      appliedFilters.push({ method: 'lte', column, value });
-      return builder;
-    }),
+    range: vi.fn((...args: Parameters<typeof mockRange>) => settled(() => mockRange(...args))),
+    gte: vi.fn(record('gte')),
+    lte: vi.fn(record('lte')),
+    in: vi.fn(record('in')),
+    eq: vi.fn(record('eq')),
   };
   return builder;
 }
 
-const mockFrom = vi.fn(() => makeBuilder());
+const mockFrom = vi.fn((table: string) => makeBuilder(table));
 
 vi.mock('@/lib/supabase', () => ({
   getSupabase: () => ({ from: mockFrom }),
@@ -84,7 +110,9 @@ function eventRow(overrides: Partial<EventRow> & { id: string; title: string }):
 function renderEvents() {
   return render(
     <MemoryRouter initialEntries={['/events']}>
-      <EventsPage />
+      <RsvpProvider>
+        <EventsPage />
+      </RsvpProvider>
     </MemoryRouter>,
   );
 }
@@ -95,7 +123,8 @@ describe('EventsPage', () => {
     rows = [];
     appliedFilters = [];
     mockRange.mockImplementation(() => Promise.resolve({ data: rows, error: null }));
-    mockFrom.mockImplementation(() => makeBuilder());
+    mockFrom.mockImplementation((table: string) => makeBuilder(table));
+    globalThis.localStorage.clear();
   });
 
   it('lists events returned by the feed', async () => {

@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
-import { dateWindowRange, defaultFilters } from '@/routes/events/filters';
+import {
+  activeFilterCount,
+  dateWindowRange,
+  defaultFilters,
+  selectedFormats,
+  selectedTags,
+} from '@/routes/events/filters';
 
 // A Wednesday, mid-month, mid-afternoon — far enough from either month boundary that the "month"
 // window is unambiguous, and late enough in the day to catch a window that starts at "now".
@@ -45,7 +51,61 @@ describe('defaultFilters', () => {
   it('returns a fresh object each call so state updates cannot alias the default', () => {
     const a = defaultFilters();
     const b = defaultFilters();
-    a.activities.Handcycling = false;
-    expect(b.activities.Handcycling).toBe(true);
+    a.formats.online = false;
+    expect(b.formats.online).toBe(true);
+  });
+
+  it('starts with no narrowing applied', () => {
+    expect(selectedFormats(defaultFilters())).toBeNull();
+    expect(selectedTags(defaultFilters())).toBeNull();
+  });
+});
+
+describe('selectedFormats', () => {
+  it('returns null when every format is on, because that narrows nothing', () => {
+    expect(selectedFormats(defaultFilters())).toBeNull();
+  });
+
+  it('returns null when every format is off rather than matching nothing', () => {
+    const filters = defaultFilters();
+    filters.formats = { in_person: false, online: false, hybrid: false };
+    expect(selectedFormats(filters)).toBeNull();
+  });
+
+  it('returns just the selected formats', () => {
+    const filters = defaultFilters();
+    filters.formats = { in_person: true, online: false, hybrid: true };
+    expect(selectedFormats(filters)).toEqual(['in_person', 'hybrid']);
+  });
+});
+
+describe('selectedTags', () => {
+  it('returns null when nothing is picked', () => {
+    expect(selectedTags(defaultFilters())).toBeNull();
+  });
+
+  it('ignores tags that were toggled back off', () => {
+    const filters = defaultFilters();
+    filters.tags = { kayaking: false, handcycling: true };
+    expect(selectedTags(filters)).toEqual(['handcycling']);
+  });
+
+  it('sorts the slugs so the same choice produces the same query key', () => {
+    const filters = defaultFilters();
+    filters.tags = { kayaking: true, handcycling: true };
+    expect(selectedTags(filters)).toEqual(['handcycling', 'kayaking']);
+  });
+});
+
+describe('activeFilterCount', () => {
+  it('counts nothing for the defaults', () => {
+    expect(activeFilterCount(defaultFilters())).toBe(0);
+  });
+
+  it('counts a format narrowing once and each tag separately', () => {
+    const filters = defaultFilters();
+    filters.formats = { in_person: true, online: false, hybrid: false };
+    filters.tags = { kayaking: true, handcycling: true };
+    expect(activeFilterCount(filters)).toBe(3);
   });
 });

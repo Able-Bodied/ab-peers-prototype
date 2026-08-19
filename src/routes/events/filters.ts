@@ -1,19 +1,13 @@
 /**
  * Filter state for the events feed.
  *
- * Only `when` actually narrows the list. It maps to a range on `events.start_time`, which is a real
- * column, and is applied in the Supabase query rather than after the fact so that infinite scroll
- * keeps paging through the filtered set instead of the whole table.
+ * `when`, `formats` and `tags` all map to real columns and are applied in the Supabase query rather
+ * than after the fact, so infinite scroll keeps paging through the filtered set instead of paging
+ * the whole table and dropping most of each batch.
  *
- * Every other field here is presentational for now: the values render in the sheet and in the chip
- * bar, but the attributes they would filter on (city, activity, format) are invented per-render by
- * event-mocks.ts, so filtering on them would be filtering on noise.
- *
- * TODO(team): wire `place`, `formats` and `activities` to real columns once the events schema
- * carries them, and drop the `// not wired` comments below.
+ * `feed` and `place` are still presentational: there is no ranking signal and no city column, so
+ * filtering on them would be filtering on noise.
  */
-
-import { ALL_ACTIVITIES } from '@/routes/events/event-mocks';
 
 export const DATE_WINDOWS = ['week', 'month', 'any'] as const;
 export type DateWindow = (typeof DATE_WINDOWS)[number];
@@ -24,8 +18,15 @@ export const DATE_WINDOW_LABELS: Record<DateWindow, string> = {
   any: 'Anything',
 };
 
-export const FORMATS = ['In person', 'Online', 'Recurring', 'Beginner-friendly'] as const;
-export type Format = (typeof FORMATS)[number];
+/** Matches the events_event_format_check constraint on `events.event_format`. */
+export const EVENT_FORMATS = ['in_person', 'online', 'hybrid'] as const;
+export type EventFormat = (typeof EVENT_FORMATS)[number];
+
+export const EVENT_FORMAT_LABELS: Record<EventFormat, string> = {
+  in_person: 'In person',
+  online: 'Online',
+  hybrid: 'Hybrid',
+};
 
 export type FeedMode = 'foryou' | 'everything';
 
@@ -33,9 +34,9 @@ export interface EventFilterState {
   feed: FeedMode; // not wired
   place: string; // not wired
   when: DateWindow;
-  includeOnline: boolean; // not wired
-  formats: Record<Format, boolean>; // not wired
-  activities: Record<string, boolean>; // not wired
+  formats: Record<EventFormat, boolean>;
+  /** Tag slug -> selected. Absent or false means "not selected", not "excluded". */
+  tags: Record<string, boolean>;
 }
 
 export function defaultFilters(): EventFilterState {
@@ -43,15 +44,36 @@ export function defaultFilters(): EventFilterState {
     feed: 'foryou',
     place: 'California',
     when: 'month',
-    includeOnline: true,
-    formats: {
-      'In person': true,
-      Online: true,
-      Recurring: true,
-      'Beginner-friendly': false,
-    },
-    activities: Object.fromEntries(ALL_ACTIVITIES.map((a) => [a, true])),
+    // All on is the same result as none on — both mean "don't narrow by format" — but starting
+    // them on makes the sheet read as "everything is included", which is what the feed shows.
+    formats: { in_person: true, online: true, hybrid: true },
+    tags: {},
   };
+}
+
+/**
+ * The formats to narrow to, or null for "don't narrow".
+ *
+ * All-selected and none-selected both mean no filter. Treating none-selected as "match nothing"
+ * would hand someone an empty feed for the very natural act of clearing every chip, with no hint
+ * that clearing one more would have brought everything back.
+ */
+export function selectedFormats(filters: EventFilterState): EventFormat[] | null {
+  const on = EVENT_FORMATS.filter((format) => filters.formats[format]);
+  return on.length === 0 || on.length === EVENT_FORMATS.length ? null : on;
+}
+
+/** The tag slugs to narrow to, or null for "don't narrow". Selected tags are OR-ed. */
+export function selectedTags(filters: EventFilterState): string[] | null {
+  const on = Object.entries(filters.tags)
+    .filter(([, selected]) => selected)
+    .map(([slug]) => slug);
+  return on.length === 0 ? null : on.sort();
+}
+
+/** How many narrowing choices are active, for the chip bar. */
+export function activeFilterCount(filters: EventFilterState): number {
+  return (selectedFormats(filters) ? 1 : 0) + (selectedTags(filters)?.length ?? 0);
 }
 
 export interface DateRange {

@@ -1,16 +1,22 @@
 import { SlidersHorizontal } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useRsvps } from '@/lib/rsvps';
 import { getSupabase } from '@/lib/supabase';
+import { useTaxonomy } from '@/lib/taxonomy';
 import { cn } from '@/lib/utils';
-import { EventListCard, type FeedEvent, type RsvpState } from '@/routes/events/event-list-card';
+import { EventListCard, type FeedEvent } from '@/routes/events/event-list-card';
 import { mockEventAttributes } from '@/routes/events/event-mocks';
 import { FilterSheet } from '@/routes/events/filter-sheet';
 import {
   DATE_WINDOW_LABELS,
   dateWindowRange,
   defaultFilters,
+  EVENT_FORMAT_LABELS,
   type EventFilterState,
+  type EventFormat,
+  selectedFormats,
+  selectedTags,
 } from '@/routes/events/filters';
 import { GoingDialog } from '@/routes/events/going-dialog';
 
@@ -19,16 +25,17 @@ import { GoingDialog } from '@/routes/events/going-dialog';
  * groups and clinics near them, laid out to match the events screen in docs/screens/events.png.
  *
  * Events are real: they come from the `events` table, ingested from partner org calendars by
- * jobs/event-ingest. The organization name is real too, read from the event's `data_feeds` row.
- * The city, activity tag, format badges and RSVP counts on each card are invented per event by
- * event-mocks.ts, because the schema does not carry them yet.
+ * jobs/event-ingest. So are the organization name, the format badge and the tags. The city and the
+ * RSVP tallies on each card are still invented per event by event-mocks.ts, because no column
+ * carries them.
  *
  * TODO(team):
  *  - [x] Chronological list of upcoming events with infinite scroll
  *  - [x] Filter sheet matching docs/screens/filter-sheet.png
  *  - [x] Date filtering on `start_time`
- *  - [ ] Wire place/format/activity filters once those columns exist (see filters.ts)
- *  - [ ] Persist RSVPs — Interested/Going are local component state and reset on reload
+ *  - [x] Format and tag filters, applied in the query against real columns
+ *  - [ ] Wire the place filter — no city column exists, only free-text `location`
+ *  - [ ] Move RSVPs from localStorage to an `event_rsvps` table once auth lands (src/lib/rsvps.tsx)
  *  - [ ] Persist dismissals, and give the user a way to restore them (Hidden, in the sheet)
  *  - [ ] "For you" ranking from the peer's signup interests
  */
@@ -44,13 +51,31 @@ interface EventRow {
   location: string | null;
   url: string | null;
   registration_url: string | null;
+  registration_deadline: string | null;
+  event_format: EventFormat | null;
   /** PostgREST returns an embedded row as an object, or an array on some relationship shapes. */
   data_feeds?: { name: string } | { name: string }[] | null;
   event_photos?: { photo_url: string; is_primary: boolean }[] | null;
+  event_tags?: { tags: { slug: string; name: string } | null }[] | null;
 }
 
-const SELECT_COLUMNS =
-  'id, title, description, start_time, end_time, location, url, registration_url, data_feeds(name), event_photos(photo_url, is_primary)';
+const BASE_COLUMNS =
+  'id, title, description, start_time, end_time, location, url, registration_url, registration_deadline, event_format, data_feeds(name), event_photos(photo_url, is_primary)';
+
+/**
+ * Narrowing by tag needs an inner join, which also restricts the embedded rows to the matching
+ * tags — so a filtered card lists the tags it matched on rather than all of its tags. Without a
+ * tag filter the plain embed returns the full set.
+ */
+function selectFor(tags: string[] | null): string {
+  return tags
+    ? `${BASE_COLUMNS}, event_tags!inner(tags!inner(slug, name))`
+    : `${BASE_COLUMNS}, event_tags(tags(slug, name))`;
+}
+
+function tagsOf(row: EventRow): { slug: string; name: string }[] {
+  return (row.event_tags ?? []).flatMap((link) => (link.tags ? [link.tags] : []));
+}
 
 function orgNameOf(row: EventRow): string | null {
   const feed = row.data_feeds;
@@ -73,6 +98,9 @@ function toFeedEvent(row: EventRow): FeedEvent {
     location: row.location,
     url: row.url,
     registrationUrl: row.registration_url,
+    registrationDeadline: row.registration_deadline,
+    format: row.event_format,
+    tags: tagsOf(row),
     orgName: orgNameOf(row),
     photoUrl: primaryPhotoUrl(row),
     mock: mockEventAttributes(row.id),
@@ -87,8 +115,15 @@ export default function EventsPage() {
   const [filters, setFilters] = useState<EventFilterState>(defaultFilters);
   const [sheetOpen, setSheetOpen] = useState(false);
 
+  const { categories } = useTaxonomy();
+  const tagNames = useMemo(
+    () => new Map(categories.flatMap((c) => c.children).map((t) => [t.slug, t.name])),
+    [categories],
+  );
+
   const [rows, setRows] = useState<EventRow[]>([]);
-  const [rsvps, setRsvps] = useState<Record<string, RsvpState>>({});
+  // Shared across routes, so the going count on a card and on that event's own page agree.
+  const { rsvps, setRsvp } = useRsvps();
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
   // Marking Going opens the hand-off dialog: the host owns registration, so saying Going here is
   // not the same as having a place.
@@ -103,24 +138,40 @@ export default function EventsPage() {
   // The date window is the one filter with a real column behind it, so it is applied in the query.
   // Doing it here rather than on the loaded page keeps infinite scroll paging through the filtered
   // set — a client-side date filter would page through everything and drop most of each batch.
+  const formats = selectedFormats(filters);
+  const tagSlugs = selectedTags(filters);
+  // Serialized so the fetch identity tracks the chosen values rather than the array identity, which
+  // is new on every render and would refetch in a loop.
+  const formatKey = formats?.join(',') ?? '';
+  const tagKey = tagSlugs?.join(',') ?? '';
+
   const fetchPage = useCallback(
     async (from: number): Promise<EventRow[]> => {
       const supabase = getSupabase();
       const range = dateWindowRange(filters.when);
+      const activeFormats = formatKey === '' ? null : (formatKey.split(',') as EventFormat[]);
+      const activeTags = tagKey === '' ? null : tagKey.split(',');
 
-      let query = supabase.from('events').select(SELECT_COLUMNS);
+      let query = supabase.from('events').select(selectFor(activeTags));
       if (range) {
         query = query.gte('start_time', range.from).lte('start_time', range.to);
+      }
+      if (activeFormats) {
+        query = query.in('event_format', activeFormats);
+      }
+      if (activeTags) {
+        query = query.in('event_tags.tags.slug', activeTags);
       }
 
       const { data, error: queryError } = await query
         .order('start_time', { ascending: true })
-        .range(from, from + BATCH_SIZE - 1);
+        .range(from, from + BATCH_SIZE - 1)
+        .overrideTypes<EventRow[], { merge: false }>();
 
       if (queryError) throw queryError;
       return data;
     },
-    [filters.when],
+    [filters.when, formatKey, tagKey],
   );
 
   // Reloads from scratch whenever the date window changes.
@@ -201,6 +252,9 @@ export default function EventsPage() {
     filters.feed === 'foryou' ? 'For you' : 'Everything',
     filters.place,
     DATE_WINDOW_LABELS[filters.when],
+    // Only shown once they narrow something, so the bar doesn't claim a filter that isn't on.
+    ...(formats ?? []).map((format) => EVENT_FORMAT_LABELS[format]),
+    ...(tagSlugs ?? []).map((slug) => tagNames.get(slug) ?? slug.replace(/-/g, ' ')),
   ];
 
   return (
@@ -295,7 +349,7 @@ export default function EventsPage() {
               void navigate(`/event/${event.id}`);
             }}
             onRsvp={(next) => {
-              setRsvps((prev) => ({ ...prev, [event.id]: next }));
+              setRsvp(event.id, next);
               if (next === 'going') setGoingEvent(event);
             }}
             onDismiss={() => {
@@ -334,6 +388,7 @@ export default function EventsPage() {
       {sheetOpen && (
         <FilterSheet
           filters={filters}
+          categories={categories}
           resultCount={visible.length}
           onChange={setFilters}
           onClose={() => {
