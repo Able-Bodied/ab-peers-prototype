@@ -152,10 +152,6 @@ export function EventListCard({
             {going} going <span className="text-muted-foreground font-semibold">·</span>{' '}
             {interested} interested
           </p>
-
-          {mock.matchLine && (
-            <p className="text-accent mt-0.5 text-xs font-bold">{mock.matchLine}</p>
-          )}
         </button>
 
         <div className="mt-2.5 flex gap-2">
