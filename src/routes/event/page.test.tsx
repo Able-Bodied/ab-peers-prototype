@@ -166,7 +166,7 @@ describe('EventPage', () => {
   it("shows the organization's logo as a badge in the hosting card", async () => {
     eventRow = baseEvent({
       data_feeds: {
-        name: 'Northern California SCI Calendar',
+        name: 'NorCal CI',
         organizations: {
           id: 'org-1',
           slug: 'norcal-sci',

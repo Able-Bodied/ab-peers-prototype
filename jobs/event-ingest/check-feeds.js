@@ -48,7 +48,7 @@ async function checkFeeds() {
       .from('data_feeds')
       .insert([
         {
-          name: 'Northern California SCI Calendar',
+          name: 'NorCal CI',
           feed_url: 'https://norcalsci.org/events',
           feed_type: 'squarespace',
           is_active: true,

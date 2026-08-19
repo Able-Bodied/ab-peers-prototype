@@ -88,7 +88,7 @@ node jobs/event-ingest/check-feeds.js
 ```
 
 If no feeds exist, it will automatically insert the NorCal SCI feed:
-- **Name:** Northern California SCI Calendar
+- **Name:** NorCal CI
 - **URL:** https://norcalsci.org/events
 - **Type:** squarespace
 - **Active:** yes
@@ -110,10 +110,10 @@ Time: 2026-08-18T18:XX:XX.XXXZ
 [2026-08-18T18:XX:XX.XXXZ] ℹ Testing Supabase connection...
 [2026-08-18T18:XX:XX.XXXZ] ✓ Supabase connection successful
 [2026-08-18T18:XX:XX.XXXZ] ℹ Found 1 active feed(s)
-[2026-08-18T18:XX:XX.XXXZ] ℹ Processing feed: Northern California SCI Calendar
+[2026-08-18T18:XX:XX.XXXZ] ℹ Processing feed: NorCal CI
 [2026-08-18T18:XX:XX.XXXZ] ℹ Feed URL: https://norcalsci.org/events
 [2026-08-18T18:XX:XX.XXXZ] ℹ Using NorCal SCI Events scraper with image download
-[2026-08-18T18:XX:XX.XXXZ] ℹ Scraped XXX events from Northern California SCI Calendar
+[2026-08-18T18:XX:XX.XXXZ] ℹ Scraped XXX events from NorCal CI
 [2026-08-18T18:XX:XX.XXXZ] ℹ Preparing to upsert XXX events...
 [2026-08-18T18:XX:XX.XXXZ] ✓ Upserted: XX inserted, X updated
 
