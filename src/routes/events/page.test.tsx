@@ -1,10 +1,10 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import EventsPage from '@/routes/events/page';
 
-// Mock IntersectionObserver
 class MockIntersectionObserver {
   readonly root: Element | Document | null = null;
   readonly rootMargin: string = '';
@@ -17,32 +17,63 @@ class MockIntersectionObserver {
   takeRecords = vi.fn(() => []);
 }
 
-globalThis.IntersectionObserver = MockIntersectionObserver as unknown as typeof IntersectionObserver;
+globalThis.IntersectionObserver = MockIntersectionObserver;
 
-const mockRange = vi.fn((): { data: unknown; error: null } => ({
-  data: [],
-  error: null,
-}));
-const mockOrder = vi.fn((): { range: typeof mockRange } => ({ range: mockRange }));
-const mockSelect = vi.fn((): { order: typeof mockOrder } => ({ order: mockOrder }));
+interface EventRow {
+  id: string;
+  title: string;
+  description: string | null;
+  start_time: string;
+  location: string | null;
+  data_feeds: { name: string } | null;
+  event_photos: { photo_url: string; is_primary: boolean }[] | null;
+}
 
-const mockIn = vi.fn((): { data: unknown; error: null } => ({ data: [], error: null }));
-const mockPhotosSelect = vi.fn((): { in: typeof mockIn } => ({ in: mockIn }));
+/** Rows the fake PostgREST builder will return, settable per test. */
+let rows: EventRow[] = [];
+/** Records the filters the page applied, so tests can assert on the real date filter. */
+let appliedFilters: { method: string; column: string; value: string }[] = [];
 
-const mockFrom = vi.fn((table: string) => {
-  if (table === 'events') {
-    return { select: mockSelect };
-  } else if (table === 'event_photos') {
-    return { select: mockPhotosSelect };
-  }
-  return { select: mockSelect };
-});
+const mockRange = vi.fn(() => Promise.resolve({ data: rows, error: null }));
+
+/**
+ * Minimal stand-in for the supabase query builder: every filter method records its call and
+ * returns the same chainable object, and `range` resolves. This mirrors PostgREST's real shape,
+ * where filters, `order` and `range` can be chained in any order.
+ */
+function makeBuilder() {
+  const builder = {
+    select: vi.fn(() => builder),
+    order: vi.fn(() => builder),
+    range: mockRange,
+    gte: vi.fn((column: string, value: string) => {
+      appliedFilters.push({ method: 'gte', column, value });
+      return builder;
+    }),
+    lte: vi.fn((column: string, value: string) => {
+      appliedFilters.push({ method: 'lte', column, value });
+      return builder;
+    }),
+  };
+  return builder;
+}
+
+const mockFrom = vi.fn(() => makeBuilder());
 
 vi.mock('@/lib/supabase', () => ({
-  getSupabase: () => ({
-    from: mockFrom,
-  }),
+  getSupabase: () => ({ from: mockFrom }),
 }));
+
+function eventRow(overrides: Partial<EventRow> & { id: string; title: string }): EventRow {
+  return {
+    description: null,
+    start_time: '2026-08-20T17:00:00Z',
+    location: null,
+    data_feeds: null,
+    event_photos: null,
+    ...overrides,
+  };
+}
 
 function renderEvents() {
   return render(
@@ -55,187 +86,228 @@ function renderEvents() {
 describe('EventsPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    // Reset mock implementations to their defaults
-    mockRange.mockImplementation(() => ({
-      data: [],
-      error: null,
-    }));
-    mockOrder.mockImplementation(() => ({ range: mockRange }));
-    mockSelect.mockImplementation(() => ({ order: mockOrder }));
-    mockIn.mockImplementation(() => ({ data: [], error: null }));
-    mockPhotosSelect.mockImplementation(() => ({ in: mockIn }));
-    mockFrom.mockImplementation((table) => {
-      if (table === 'events') {
-        return { select: mockSelect };
-      } else if (table === 'event_photos') {
-        return { select: mockPhotosSelect };
-      }
-      return { select: mockSelect };
-    });
+    rows = [];
+    appliedFilters = [];
+    mockRange.mockImplementation(() => Promise.resolve({ data: rows, error: null }));
+    mockFrom.mockImplementation(() => makeBuilder());
   });
 
-  it('renders the events header', async () => {
-    mockRange.mockResolvedValue({ data: [], error: null });
-
-    renderEvents();
-
-    expect(await screen.findByText('Events')).toBeInTheDocument();
-  });
-
-  it('displays events sorted chronologically', async () => {
-    const eventsData = [
-      {
-        id: 'event-1',
-        title: 'Early Event',
-        description: 'First event of the year',
-        start_time: '2026-08-01T10:00:00Z',
-      },
-      {
-        id: 'event-2',
-        title: 'Later Event',
-        description: 'Later in the year',
-        start_time: '2026-12-31T14:00:00Z',
-      },
+  it('lists events returned by the feed', async () => {
+    rows = [
+      eventRow({ id: 'e1', title: 'Adaptive handcycle ride' }),
+      eventRow({ id: 'e2', title: 'Wheelchair rugby open gym' }),
     ];
 
-    mockRange.mockResolvedValue({ data: eventsData, error: null });
-
     renderEvents();
 
-    expect(await screen.findByText('Early Event')).toBeInTheDocument();
-    expect(screen.getByText('Later Event')).toBeInTheDocument();
+    expect(await screen.findByText('Adaptive handcycle ride')).toBeInTheDocument();
+    expect(screen.getByText('Wheelchair rugby open gym')).toBeInTheDocument();
   });
 
-  it('shows truncated descriptions using line-clamp', async () => {
-    const eventsData = [
-      {
-        id: 'event-1',
-        title: 'Test Event',
-        description: 'This is a long description that should be truncated',
-        start_time: '2026-08-15T10:00:00Z',
-      },
+  it('shows the publishing organization and the event time on the card', async () => {
+    rows = [
+      eventRow({
+        id: 'e1',
+        title: 'Adaptive handcycle ride',
+        start_time: '2026-08-22T16:00:00Z',
+        data_feeds: { name: 'BORP' },
+      }),
     ];
 
-    mockRange.mockResolvedValue({ data: eventsData, error: null });
+    renderEvents();
+
+    await screen.findByText('Adaptive handcycle ride');
+    expect(screen.getByText(/BORP/)).toBeInTheDocument();
+  });
+
+  it('prefers the real venue over the placeholder activity tag when the feed gave one', async () => {
+    rows = [eventRow({ id: 'e1', title: 'SCI peer support group', location: 'Valley Medical' })];
 
     renderEvents();
 
-    const description = await screen.findByText(
-      'This is a long description that should be truncated',
-    );
-    expect(description).toHaveClass('line-clamp-2');
+    await screen.findByText('SCI peer support group');
+    expect(screen.getByText(/Valley Medical/)).toBeInTheDocument();
   });
 
-  it('displays an error message when fetching fails', async () => {
-    mockOrder.mockImplementation(() => ({
-      range: vi.fn().mockRejectedValue(new Error('Fetch failed')),
-    }));
+  it('does not leave a dangling separator when the feed sends a blank location', async () => {
+    rows = [eventRow({ id: 'e1', title: 'Caregiver MeetUp', location: '   ' })];
 
     renderEvents();
 
-    expect(await screen.findByText(/Error/)).toBeInTheDocument();
+    const title = await screen.findByText('Caregiver MeetUp');
+    const card = title.closest('article');
+    expect(card?.textContent).not.toMatch(/·\s*$/m);
   });
 
-  it('shows "No events found" when the list is empty', async () => {
-    mockRange.mockResolvedValue({ data: [], error: null });
-
-    renderEvents();
-
-    expect(await screen.findByText('No events found.')).toBeInTheDocument();
-  });
-
-  it('renders event cards with clickable regions', async () => {
-    const eventsData = [
-      {
-        id: 'event-1',
-        title: 'Clickable Event',
-        description: 'Click me!',
-        start_time: '2026-08-15T10:00:00Z',
-      },
+  it('shows the primary photo as a thumbnail when the event has one', async () => {
+    rows = [
+      eventRow({
+        id: 'e1',
+        title: 'Adaptive handcycle ride',
+        event_photos: [
+          { photo_url: '/photos/events/e1/secondary.jpg', is_primary: false },
+          { photo_url: '/photos/events/e1/primary.jpg', is_primary: true },
+        ],
+      }),
     ];
 
-    mockRange.mockResolvedValue({ data: eventsData, error: null });
-
     renderEvents();
 
-    const card = await screen.findByText('Clickable Event');
-    const clickableCard = card.closest('[class*="cursor-pointer"]');
-    expect(clickableCard).toBeInTheDocument();
+    const title = await screen.findByText('Adaptive handcycle ride');
+    const card = title.closest('article');
+    const thumbnail = card?.querySelector('img');
+    expect(thumbnail).toHaveAttribute('src', '/photos/events/e1/primary.jpg');
   });
 
-  it('loads initial batch and renders with pagination', async () => {
-    const eventsData = [
-      {
-        id: 'event-1',
-        title: 'First Event',
-        description: 'First event',
-        start_time: '2026-08-01T10:00:00Z',
-      },
-    ];
-
-    mockRange.mockResolvedValue({ data: eventsData, error: null });
+  it('renders no thumbnail when the event has no photo', async () => {
+    rows = [eventRow({ id: 'e1', title: 'Adaptive handcycle ride', event_photos: [] })];
 
     renderEvents();
 
-    // Verify the page title and first event render
-    expect(await screen.findByText('Events')).toBeInTheDocument();
-    expect(await screen.findByText('First Event')).toBeInTheDocument();
+    const title = await screen.findByText('Adaptive handcycle ride');
+    const card = title.closest('article');
+    expect(card?.querySelector('img')).not.toBeInTheDocument();
   });
 
-  it('uses pagination range query for initial load', async () => {
-    const eventsData = [
-      {
-        id: 'event-1',
-        title: 'Test Event',
-        description: 'Test',
-        start_time: '2026-08-01T10:00:00Z',
-      },
-    ];
-
-    mockRange.mockResolvedValue({ data: eventsData, error: null });
+  it('applies the default month window as a range on start_time', async () => {
+    rows = [eventRow({ id: 'e1', title: 'Event' })];
 
     renderEvents();
+
+    await screen.findByText('Event');
+    expect(appliedFilters.map((f) => `${f.method}:${f.column}`)).toEqual([
+      'gte:start_time',
+      'lte:start_time',
+    ]);
+  });
+
+  it('drops the date bounds entirely when the window is set to Anything', async () => {
+    rows = [eventRow({ id: 'e1', title: 'Event' })];
+
+    renderEvents();
+    await screen.findByText('Event');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Filters' }));
+    appliedFilters = [];
+    await userEvent.click(screen.getByRole('button', { name: 'Anything' }));
 
     await waitFor(() => {
-      expect(mockRange).toHaveBeenCalledWith(0, 11);
+      expect(appliedFilters).toEqual([]);
     });
   });
 
-  it('shows "No more events" when batch is smaller than batch size', async () => {
-    // Return fewer than 12 events to indicate end of list
-    const eventsData = Array.from({ length: 5 }, (_, i) => ({
-      id: `event-${i}`,
-      title: `Event ${i}`,
-      description: `Description ${i}`,
-      start_time: `2026-08-${String(i + 1).padStart(2, '0')}T10:00:00Z`,
-    }));
+  it('refetches with a narrower range when the window changes to This week', async () => {
+    rows = [eventRow({ id: 'e1', title: 'Event' })];
 
-    mockRange.mockResolvedValue({ data: eventsData, error: null });
+    renderEvents();
+    await screen.findByText('Event');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Filters' }));
+    appliedFilters = [];
+    await userEvent.click(screen.getByRole('button', { name: 'This week' }));
+
+    await waitFor(() => {
+      expect(appliedFilters).toHaveLength(2);
+    });
+
+    const upperBound = appliedFilters.find((f) => f.method === 'lte');
+    const sevenDaysOut = Date.now() + 7 * 24 * 60 * 60 * 1000;
+    expect(new Date(upperBound?.value ?? '').getTime()).toBeLessThanOrEqual(sevenDaysOut);
+  });
+
+  it('reflects the selected window in the filter chip bar', async () => {
+    rows = [eventRow({ id: 'e1', title: 'Event' })];
+
+    renderEvents();
+    await screen.findByText('Event');
+    expect(screen.getByRole('button', { name: 'This month' })).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Filters' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Anything' }));
+    await userEvent.click(screen.getByRole('button', { name: /Show \d+ events/ }));
+
+    expect(screen.getByRole('button', { name: 'Anything' })).toBeInTheDocument();
+  });
+
+  it('moves an event into Mine once it is marked Going', async () => {
+    rows = [eventRow({ id: 'e1', title: 'Adaptive handcycle ride' })];
+
+    renderEvents();
+    await screen.findByText('Adaptive handcycle ride');
+
+    await userEvent.click(screen.getByRole('tab', { name: 'Mine' }));
+    expect(screen.getByText('Nothing saved yet')).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('tab', { name: 'All' }));
+    await userEvent.click(screen.getByRole('button', { name: /^Going/ }));
+    await userEvent.click(screen.getByRole('tab', { name: 'Mine' }));
+
+    expect(screen.getByText('Adaptive handcycle ride')).toBeInTheDocument();
+  });
+
+  it('removes a dismissed event from the list', async () => {
+    rows = [
+      eventRow({ id: 'e1', title: 'Adaptive handcycle ride' }),
+      eventRow({ id: 'e2', title: 'Wheelchair rugby open gym' }),
+    ];
+
+    renderEvents();
+    await screen.findByText('Adaptive handcycle ride');
+
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Not interested in Adaptive handcycle ride' }),
+    );
+
+    expect(screen.queryByText('Adaptive handcycle ride')).not.toBeInTheDocument();
+    expect(screen.getByText('Wheelchair rugby open gym')).toBeInTheDocument();
+  });
+
+  it('increments the going count when the viewer RSVPs', async () => {
+    rows = [eventRow({ id: 'e1', title: 'Adaptive handcycle ride' })];
+
+    renderEvents();
+    const title = await screen.findByText('Adaptive handcycle ride');
+    const card = title.closest('article');
+    if (!card) throw new Error('card not found');
+
+    const before = Number(/(\d+) going/.exec(card.textContent)?.[1]);
+    await userEvent.click(within(card).getByRole('button', { name: /^Going/ }));
+
+    const after = Number(/(\d+) going/.exec(card.textContent)?.[1]);
+    expect(after).toBe(before + 1);
+  });
+
+  it('shows an error when the initial fetch fails', async () => {
+    mockRange.mockImplementation(() => Promise.reject(new Error('Fetch failed')));
 
     renderEvents();
 
-    // Wait for events to load and then check for the no-more-events message
+    expect(await screen.findByText(/Fetch failed/)).toBeInTheDocument();
+  });
+
+  it('shows the empty state when nothing matches', async () => {
+    rows = [];
+
+    renderEvents();
+
+    expect(await screen.findByText('Nothing matches')).toBeInTheDocument();
+  });
+
+  it('stops paging once a batch comes back smaller than the batch size', async () => {
+    rows = Array.from({ length: 5 }, (_, i) => eventRow({ id: `e${i}`, title: `Event ${i}` }));
+
+    renderEvents();
+
     await waitFor(() => {
       expect(screen.getByText('No more events to load.')).toBeInTheDocument();
     });
   });
 
-  it('renders sentinel element for infinite scroll', async () => {
-    mockRange.mockResolvedValue({
-      data: [
-        {
-          id: 'event-1',
-          title: 'Event 1',
-          description: 'Desc 1',
-          start_time: '2026-08-01T10:00:00Z',
-        },
-      ],
-      error: null,
-    });
+  it('renders a sentinel for infinite scroll', async () => {
+    rows = [eventRow({ id: 'e1', title: 'Event' })];
 
     renderEvents();
 
-    const sentinel = await screen.findByTestId('scroll-sentinel');
-    expect(sentinel).toBeInTheDocument();
+    expect(await screen.findByTestId('scroll-sentinel')).toBeInTheDocument();
   });
 });

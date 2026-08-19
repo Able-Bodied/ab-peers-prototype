@@ -1,145 +1,170 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { SlidersHorizontal } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-
-import { EventCard } from '@/components/EventCard';
 import { getSupabase } from '@/lib/supabase';
+import { cn } from '@/lib/utils';
+import { EventListCard, type FeedEvent, type RsvpState } from '@/routes/events/event-list-card';
+import { mockEventAttributes } from '@/routes/events/event-mocks';
+import { FilterSheet } from '@/routes/events/filter-sheet';
+import {
+  DATE_WINDOW_LABELS,
+  dateWindowRange,
+  defaultFilters,
+  type EventFilterState,
+} from '@/routes/events/filters';
 
-interface Event {
+/**
+ * Events discovery — the feed a peer lands on to find adaptive sports sessions, peer support
+ * groups and clinics near them, laid out to match the events screen in docs/screens/events.png.
+ *
+ * Events are real: they come from the `events` table, ingested from partner org calendars by
+ * jobs/event-ingest. The organization name is real too, read from the event's `data_feeds` row.
+ * The city, activity tag, format badges and RSVP counts on each card are invented per event by
+ * event-mocks.ts, because the schema does not carry them yet.
+ *
+ * TODO(team):
+ *  - [x] Chronological list of upcoming events with infinite scroll
+ *  - [x] Filter sheet matching docs/screens/filter-sheet.png
+ *  - [x] Date filtering on `start_time`
+ *  - [ ] Wire place/format/activity filters once those columns exist (see filters.ts)
+ *  - [ ] Persist RSVPs — Interested/Going are local component state and reset on reload
+ *  - [ ] Persist dismissals, and give the user a way to restore them (Hidden, in the sheet)
+ *  - [ ] "For you" ranking from the peer's signup interests
+ */
+
+const BATCH_SIZE = 12;
+
+interface EventRow {
   id: string;
   title: string;
   description: string | null;
   start_time: string;
-  image_url?: string | null;
+  location: string | null;
+  /** PostgREST returns an embedded row as an object, or an array on some relationship shapes. */
+  data_feeds?: { name: string } | { name: string }[] | null;
+  event_photos?: { photo_url: string; is_primary: boolean }[] | null;
 }
 
-const BATCH_SIZE = 12;
+const SELECT_COLUMNS =
+  'id, title, description, start_time, location, data_feeds(name), event_photos(photo_url, is_primary)';
+
+function orgNameOf(row: EventRow): string | null {
+  const feed = row.data_feeds;
+  if (!feed) return null;
+  return (Array.isArray(feed) ? feed[0]?.name : feed.name) ?? null;
+}
+
+function primaryPhotoUrl(row: EventRow): string | null {
+  const photos = row.event_photos ?? [];
+  return photos.find((p) => p.is_primary)?.photo_url ?? photos[0]?.photo_url ?? null;
+}
+
+function toFeedEvent(row: EventRow): FeedEvent {
+  return {
+    id: row.id,
+    title: row.title,
+    startTime: row.start_time,
+    location: row.location,
+    orgName: orgNameOf(row),
+    photoUrl: primaryPhotoUrl(row),
+    mock: mockEventAttributes(row.id),
+  };
+}
 
 export default function EventsPage() {
   const navigate = useNavigate();
   const sentinelRef = useRef<HTMLDivElement>(null);
 
-  const [events, setEvents] = useState<Event[]>([]);
-  const [imageMap, setImageMap] = useState<Record<string, string | null>>({});
+  const [segment, setSegment] = useState<'all' | 'mine'>('all');
+  const [filters, setFilters] = useState<EventFilterState>(defaultFilters);
+  const [sheetOpen, setSheetOpen] = useState(false);
+
+  const [rows, setRows] = useState<EventRow[]>([]);
+  const [rsvps, setRsvps] = useState<Record<string, RsvpState>>({});
+  const [dismissed, setDismissed] = useState<Set<string>>(new Set());
+
   const [loading, setLoading] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(true);
   const [offset, setOffset] = useState(0);
 
-  // Fetch photos for a set of events
-  const fetchPhotosForEvents = useCallback(
-    async (eventIds: string[]): Promise<Record<string, string | null>> => {
-      if (eventIds.length === 0) return {};
+  // The date window is the one filter with a real column behind it, so it is applied in the query.
+  // Doing it here rather than on the loaded page keeps infinite scroll paging through the filtered
+  // set — a client-side date filter would page through everything and drop most of each batch.
+  const fetchPage = useCallback(
+    async (from: number): Promise<EventRow[]> => {
+      const supabase = getSupabase();
+      const range = dateWindowRange(filters.when);
 
-      try {
-        const supabase = getSupabase();
-        const { data: photosData, error: photosError } = await supabase
-          .from('event_photos')
-          .select('event_id, photo_url, is_primary')
-          .in('event_id', eventIds);
-
-        if (photosError) throw photosError;
-
-        // Build image map: event_id -> primary image URL
-        const imagesByEvent: Record<string, string | null> = {};
-        eventIds.forEach((eventId) => {
-          imagesByEvent[eventId] = null;
-        });
-
-        photosData.forEach(
-          (photo: { event_id: string; photo_url: string; is_primary: boolean }) => {
-            if (photo.is_primary || !imagesByEvent[photo.event_id]) {
-              imagesByEvent[photo.event_id] = photo.photo_url;
-            }
-          },
-        );
-
-        return imagesByEvent;
-      } catch (err) {
-        console.error('Failed to fetch photos:', err);
-        return {};
+      let query = supabase.from('events').select(SELECT_COLUMNS);
+      if (range) {
+        query = query.gte('start_time', range.from).lte('start_time', range.to);
       }
+
+      const { data, error: queryError } = await query
+        .order('start_time', { ascending: true })
+        .range(from, from + BATCH_SIZE - 1);
+
+      if (queryError) throw queryError;
+      return data;
     },
-    [],
+    [filters.when],
   );
 
-  // Load initial batch of events
+  // Reloads from scratch whenever the date window changes.
   useEffect(() => {
-    async function loadInitialEvents() {
+    let cancelled = false;
+
+    async function loadFirstPage() {
       try {
         setLoading(true);
         setError(null);
-        const supabase = getSupabase();
+        const page = await fetchPage(0);
+        if (cancelled) return;
 
-        // Fetch first batch
-        const { data: eventsData, error: eventsError } = await supabase
-          .from('events')
-          .select('id, title, description, start_time')
-          .order('start_time', { ascending: true })
-          .range(0, BATCH_SIZE - 1);
-
-        if (eventsError) throw eventsError;
-
-        setEvents(eventsData);
+        setRows(page);
         setOffset(BATCH_SIZE);
-        setHasMore(eventsData.length === BATCH_SIZE);
-
-        // Fetch images for initial events
-        const newImageMap = await fetchPhotosForEvents(eventsData.map((e: Event) => e.id));
-        setImageMap(newImageMap);
+        setHasMore(page.length === BATCH_SIZE);
       } catch (err) {
-        const message = err instanceof Error ? err.message : 'Failed to load events';
-        setError(message);
+        if (cancelled) return;
+        setError(err instanceof Error ? err.message : 'Failed to load events');
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     }
 
-    void loadInitialEvents();
-  }, [fetchPhotosForEvents]);
+    void loadFirstPage();
+    return () => {
+      cancelled = true;
+    };
+  }, [fetchPage]);
 
-  // Load more events when sentinel becomes visible
   useEffect(() => {
-    if (!sentinelRef.current || !hasMore) return;
+    const sentinel = sentinelRef.current;
+    if (!sentinel || !hasMore || loading) return;
 
     const observer = new IntersectionObserver(
       (entries) => {
         const entry = entries[0];
         // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-        if (!entry?.isIntersecting || isLoadingMore || !hasMore) {
-          return;
-        }
+        if (!entry?.isIntersecting || isLoadingMore || !hasMore) return;
 
-        // Trigger load more
         void (async () => {
           try {
             setIsLoadingMore(true);
-            const supabase = getSupabase();
+            const page = await fetchPage(offset);
 
-            // Fetch next batch
-            const { data: moreEventsData, error: eventsError } = await supabase
-              .from('events')
-              .select('id, title, description, start_time')
-              .order('start_time', { ascending: true })
-              .range(offset, offset + BATCH_SIZE - 1);
-
-            if (eventsError) throw eventsError;
-
-            if (moreEventsData.length === 0) {
+            if (page.length === 0) {
               setHasMore(false);
               return;
             }
 
-            // Fetch images for new events
-            const newImageMap = await fetchPhotosForEvents(moreEventsData.map((e: Event) => e.id));
-
-            setEvents((prev) => [...prev, ...moreEventsData]);
-            setImageMap((prev) => ({ ...prev, ...newImageMap }));
+            setRows((prev) => [...prev, ...page]);
             setOffset((prev) => prev + BATCH_SIZE);
-            setHasMore(moreEventsData.length === BATCH_SIZE);
+            setHasMore(page.length === BATCH_SIZE);
           } catch (err) {
-            const message = err instanceof Error ? err.message : 'Failed to load more events';
-            setError(message);
+            setError(err instanceof Error ? err.message : 'Failed to load more events');
           } finally {
             setIsLoadingMore(false);
           }
@@ -148,73 +173,142 @@ export default function EventsPage() {
       { threshold: 0.1 },
     );
 
-    observer.observe(sentinelRef.current);
-
+    observer.observe(sentinel);
     return () => {
       observer.disconnect();
     };
-  }, [offset, hasMore, isLoadingMore, fetchPhotosForEvents]);
+  }, [offset, hasMore, isLoadingMore, loading, fetchPage]);
 
-  if (loading) {
-    return (
-      <div className="mx-auto max-w-6xl">
-        <h1 className="text-2xl font-semibold">Events</h1>
-        <p className="text-muted-foreground mt-2 text-sm">Loading events…</p>
-      </div>
-    );
-  }
+  const visible = useMemo(() => {
+    return rows
+      .filter((row) => !dismissed.has(row.id))
+      .filter((row) => segment === 'all' || Boolean(rsvps[row.id]))
+      .map(toFeedEvent);
+  }, [rows, dismissed, segment, rsvps]);
 
-  if (error && events.length === 0) {
-    return (
-      <div className="mx-auto max-w-6xl">
-        <h1 className="text-2xl font-semibold">Events</h1>
-        <p className="text-destructive mt-2 text-sm">Error: {error}</p>
-      </div>
-    );
-  }
+  const chips = [
+    filters.feed === 'foryou' ? 'For you' : 'Everything',
+    filters.place,
+    DATE_WINDOW_LABELS[filters.when],
+  ];
 
   return (
-    <div className="mx-auto max-w-6xl">
-      <h1 className="text-2xl font-semibold">Events</h1>
-      <p className="text-muted-foreground mt-2 text-sm">
-        Discover adaptive sports and peer support events across the US.
-      </p>
-
-      {events.length === 0 ? (
-        <p className="text-muted-foreground mt-6 text-sm">No events found.</p>
-      ) : (
-        <>
-          <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {events.map((event) => (
-              <EventCard
-                key={event.id}
-                event={{
-                  id: event.id,
-                  title: event.title,
-                  description: event.description ?? 'No description available',
-                  start_time: event.start_time,
-                }}
-                image={imageMap[event.id]}
-                onClick={() => {
-                  void navigate(`/event/${event.id}`);
-                }}
-              />
-            ))}
-          </div>
-
-          {/* Sentinel element for infinite scroll */}
-          <div ref={sentinelRef} className="mt-8 flex justify-center" data-testid="scroll-sentinel">
-            {isLoadingMore && (
-              <div className="flex flex-col items-center gap-2">
-                <div className="h-8 w-8 animate-spin rounded-full border-4 border-muted border-t-primary" />
-                <p className="text-muted-foreground text-sm">Loading more events…</p>
-              </div>
+    <div className="mx-auto flex min-h-0 w-full max-w-xl flex-col">
+      <div className="flex items-center gap-2.5 pb-2">
+        {(['all', 'mine'] as const).map((seg) => (
+          <button
+            key={seg}
+            type="button"
+            role="tab"
+            aria-selected={segment === seg}
+            onClick={() => {
+              setSegment(seg);
+            }}
+            className={cn(
+              'bg-card min-h-11 rounded-full border-2 px-5 text-base font-bold',
+              segment === seg && 'bg-primary border-primary text-primary-foreground',
             )}
-            {!hasMore && events.length > 0 && (
-              <p className="text-muted-foreground text-sm">No more events to load.</p>
-            )}
-          </div>
-        </>
+          >
+            {seg === 'all' ? 'All' : 'Mine'}
+          </button>
+        ))}
+        <button
+          type="button"
+          onClick={() => {
+            setSheetOpen(true);
+          }}
+          aria-label="Filters"
+          className="bg-card ml-auto grid size-11 shrink-0 place-items-center rounded-full border-2"
+        >
+          <SlidersHorizontal className="size-5" aria-hidden="true" />
+        </button>
+      </div>
+
+      {segment === 'all' && (
+        <div className="flex gap-2 overflow-x-auto pb-2.5">
+          {chips.map((chip, index) => (
+            <button
+              key={chip}
+              type="button"
+              onClick={() => {
+                setSheetOpen(true);
+              }}
+              className={cn(
+                'bg-card inline-flex min-h-9 shrink-0 items-center rounded-full border-2 px-3.5 text-[13px] font-bold',
+                // The feed chip leads the bar and reads as the active mode, matching the mockup.
+                index === 0 && 'border-primary bg-secondary text-primary',
+              )}
+            >
+              {chip}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {loading && <p className="text-muted-foreground py-8 text-sm">Loading events…</p>}
+
+      {error && rows.length === 0 && !loading && (
+        <p className="text-destructive py-8 text-sm">Error: {error}</p>
+      )}
+
+      {!loading && !error && visible.length === 0 && (
+        <div className="py-10 text-center">
+          <p className="text-base font-bold">
+            {segment === 'mine' ? 'Nothing saved yet' : 'Nothing matches'}
+          </p>
+          <p className="text-muted-foreground mx-auto mt-1 max-w-xs text-sm">
+            {segment === 'mine'
+              ? 'Mark an event Interested or Going and it lands here.'
+              : 'Try a wider date range in filters.'}
+          </p>
+          <button
+            type="button"
+            onClick={() => {
+              if (segment === 'mine') setSegment('all');
+              else setSheetOpen(true);
+            }}
+            className="bg-primary text-primary-foreground mt-4 min-h-11 rounded-xl px-6 font-bold"
+          >
+            {segment === 'mine' ? 'Browse events' : 'Open filters'}
+          </button>
+        </div>
+      )}
+
+      <div className="flex flex-col gap-3">
+        {visible.map((event) => (
+          <EventListCard
+            key={event.id}
+            event={event}
+            rsvp={rsvps[event.id] ?? null}
+            onOpen={() => {
+              void navigate(`/event/${event.id}`);
+            }}
+            onRsvp={(next) => {
+              setRsvps((prev) => ({ ...prev, [event.id]: next }));
+            }}
+            onDismiss={() => {
+              setDismissed((prev) => new Set(prev).add(event.id));
+            }}
+          />
+        ))}
+      </div>
+
+      <div ref={sentinelRef} className="flex justify-center py-6" data-testid="scroll-sentinel">
+        {isLoadingMore && <p className="text-muted-foreground text-sm">Loading more events…</p>}
+        {!hasMore && visible.length > 0 && (
+          <p className="text-muted-foreground text-sm">No more events to load.</p>
+        )}
+      </div>
+
+      {sheetOpen && (
+        <FilterSheet
+          filters={filters}
+          resultCount={visible.length}
+          onChange={setFilters}
+          onClose={() => {
+            setSheetOpen(false);
+          }}
+        />
       )}
     </div>
   );
