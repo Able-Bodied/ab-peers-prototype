@@ -92,6 +92,16 @@ function normalizeText(value) {
   return (value ?? '').trim();
 }
 
+// Mirrors supabase/migrations/20260819100000_events_needs_pii_review.sql — organizer contact
+// details are fine to store (they're already public in the listing), but new rows still need the
+// flag set so a future policy change can find them without re-scanning every description.
+const EMAIL_PATTERN = /[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/i;
+const PHONE_PATTERN = /\(?[0-9]{3}\)?[-. ][0-9]{3}[-. ][0-9]{4}/;
+
+function containsPii(...texts) {
+  return texts.some((text) => text && (EMAIL_PATTERN.test(text) || PHONE_PATTERN.test(text)));
+}
+
 function normalizeTime(value) {
   if (!value) return null;
   const ms = new Date(value).getTime();
@@ -283,6 +293,7 @@ class EventIngestionWorker {
           payload.needs_ai_verification = eventContentChanged(existing, payload)
             ? true
             : (existing?.needs_ai_verification ?? false);
+          payload.needs_pii_review = containsPii(payload.description, payload.description_html);
 
           return payload;
         });
