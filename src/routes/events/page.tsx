@@ -38,9 +38,9 @@ import { GoingDialog } from '@/routes/events/going-dialog';
  * start_time/end_time/location prefer the scraped column and fall back to the AI-extracted one
  * (ai_extracted_start_time/end_time/location — see
  * supabase/migrations/20260819140000_events_ai_extracted_fields.sql) only when the scraped column
- * is empty; an event with neither is dropped from the feed rather than shown with no date. City and
- * distance filtering run against `events.city`/the `nearby_events` RPC — both geocoded, never
- * against event-mocks.ts's invented city, which the card still uses only for its own display text.
+ * is empty; an event with neither is dropped from the feed rather than shown with no date. City,
+ * on the card and in the filter/RPC alike, is `events.city` — geocoded, real, and null until that
+ * event has a resolvable location; event-mocks.ts's invented city has no reader left in this file.
  *
  * TODO(team):
  *  - [x] Chronological list of upcoming events with infinite scroll
@@ -156,6 +156,7 @@ function toFeedEvent(row: EventRow): FeedEvent | null {
     tags: tagsOf(row),
     orgName: orgNameOf(row),
     orgBadge: orgBadgeOf(row),
+    city: row.city,
     mock: mockEventAttributes(row.id),
   };
 }

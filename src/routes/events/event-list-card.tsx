@@ -30,6 +30,8 @@ export interface FeedEvent {
   orgName: string | null;
   /** The organization badge — one per feed, via `data_feeds.organizations`. */
   orgBadge: { name: string; logoUrl: string | null } | null;
+  /** Geocoded from the real location text; null until that event has one to geocode. */
+  city: string | null;
   mock: MockEventAttributes;
 }
 
@@ -143,7 +145,7 @@ export function EventListCard({
           </div>
 
           <p className="text-muted-foreground mt-1 text-[13px] leading-snug">
-            {[event.orgName, mock.city].filter(Boolean).join(' · ')}
+            {[event.orgName, event.city].filter(Boolean).join(' · ')}
             <br />
             {timeLabel(event.startTime)} · {secondary}
           </p>

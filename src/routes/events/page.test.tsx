@@ -198,6 +198,42 @@ describe('EventsPage', () => {
     expect(screen.getByText(/Valley Medical/)).toBeInTheDocument();
   });
 
+  it('shows the real geocoded city on the card, not an invented one', async () => {
+    rows = [
+      eventRow({
+        id: 'e1',
+        title: 'Adaptive handcycle ride',
+        data_feeds: { name: 'BORP', organizations: null },
+        city: 'Sausalito',
+      }),
+    ];
+
+    renderEvents();
+
+    const title = await screen.findByText('Adaptive handcycle ride');
+    const card = title.closest('article');
+    expect(card).toHaveTextContent('BORP · Sausalito');
+  });
+
+  it('shows just the organization when the event has no geocoded city yet', async () => {
+    rows = [
+      eventRow({
+        id: 'e1',
+        title: 'Adaptive handcycle ride',
+        data_feeds: { name: 'BORP', organizations: null },
+        city: null,
+      }),
+    ];
+
+    renderEvents();
+
+    const title = await screen.findByText('Adaptive handcycle ride');
+    const card = title.closest('article');
+    // No dangling separator, and no invented city standing in for the missing real one.
+    expect(card).not.toHaveTextContent('BORP ·');
+    expect(card).toHaveTextContent('BORP');
+  });
+
   it('does not leave a dangling separator when the feed sends a blank location', async () => {
     rows = [eventRow({ id: 'e1', title: 'Caregiver MeetUp', location: '   ' })];
 
