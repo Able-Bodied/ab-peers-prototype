@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { RsvpProvider } from '@/lib/rsvps';
@@ -350,5 +350,31 @@ describe('EventPage', () => {
     await userEvent.click(screen.getByRole('button', { name: '← Events' }));
 
     expect(await screen.findByText('Events list')).toBeInTheDocument();
+  });
+
+  it('navigates to the events list with that tag preselected when a tag chip is tapped', async () => {
+    eventRow = baseEvent({ event_tags: [{ tags: { slug: 'kayaking', name: 'Kayaking' } }] });
+
+    function EventsListStub() {
+      const location = useLocation();
+      const state = location.state as { tagSlug?: string } | null;
+      return <p>Events list — tag: {state?.tagSlug ?? 'none'}</p>;
+    }
+
+    render(
+      <MemoryRouter initialEntries={['/event/e1']}>
+        <RsvpProvider>
+          <Routes>
+            <Route path="/event/:id" element={<EventPage />} />
+            <Route path="/events" element={<EventsListStub />} />
+          </Routes>
+        </RsvpProvider>
+      </MemoryRouter>,
+    );
+
+    await screen.findByText('Adaptive handcycle ride');
+    await userEvent.click(screen.getByRole('button', { name: 'Kayaking' }));
+
+    expect(await screen.findByText('Events list — tag: kayaking')).toBeInTheDocument();
   });
 });

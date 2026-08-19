@@ -147,6 +147,17 @@ function renderEvents() {
   );
 }
 
+/** Mirrors arriving from a tag chip tapped on the event detail page (see routes/event/page.tsx). */
+function renderEventsWithTag(tagSlug: string) {
+  return render(
+    <MemoryRouter initialEntries={[{ pathname: '/events', state: { tagSlug } }]}>
+      <RsvpProvider>
+        <EventsPage />
+      </RsvpProvider>
+    </MemoryRouter>,
+  );
+}
+
 describe('EventsPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -315,6 +326,20 @@ describe('EventsPage', () => {
       column: 'data_feeds.organizations.slug',
       value: 'norcal-sci',
     });
+  });
+
+  it('preselects a tag carried as router state from the event detail page', async () => {
+    rows = [eventRow({ id: 'e1', title: 'Event' })];
+
+    renderEventsWithTag('kayaking');
+
+    await screen.findByText('Event');
+    expect(appliedFilters).toContainEqual({
+      method: 'in',
+      column: 'event_tags.tags.slug',
+      value: 'kayaking',
+    });
+    expect(screen.getByRole('button', { name: 'Kayaking' })).toBeInTheDocument();
   });
 
   it('narrows the feed to one city from the filter sheet', async () => {

@@ -5,7 +5,11 @@ import { useRsvps } from '@/lib/rsvps';
 import { getSupabase } from '@/lib/supabase';
 import { cn } from '@/lib/utils';
 import { type MockEventAttributes, mockEventAttributes } from '@/routes/events/event-mocks';
-import { EVENT_FORMAT_LABELS, type EventFormat } from '@/routes/events/filters';
+import {
+  EVENT_FORMAT_LABELS,
+  type EventFormat,
+  type EventListNavState,
+} from '@/routes/events/filters';
 import { GoingDialog } from '@/routes/events/going-dialog';
 
 /**
@@ -132,19 +136,23 @@ function formatDeadline(isoString: string): string {
   });
 }
 
-function Chip({ label, on }: { label: string; on: boolean }) {
-  return (
-    <span
-      className={cn(
-        'inline-flex min-h-8 items-center rounded-full border-2 px-3 text-[12.5px] font-semibold',
-        on
-          ? 'border-primary bg-secondary text-primary'
-          : 'border-border text-muted-foreground border-dashed',
-      )}
-    >
-      {label}
-    </span>
+function Chip({ label, on, onClick }: { label: string; on: boolean; onClick?: () => void }) {
+  const className = cn(
+    'inline-flex min-h-8 items-center rounded-full border-2 px-3 text-[12.5px] font-semibold',
+    on
+      ? 'border-primary bg-secondary text-primary'
+      : 'border-border text-muted-foreground border-dashed',
   );
+
+  if (onClick) {
+    return (
+      <button type="button" onClick={onClick} className={className}>
+        {label}
+      </button>
+    );
+  }
+
+  return <span className={className}>{label}</span>;
 }
 
 export default function EventPage() {
@@ -338,7 +346,15 @@ export default function EventPage() {
 
       <div className="mt-3.5 flex flex-wrap gap-2">
         {tags.map((tag) => (
-          <Chip key={tag.slug} label={tag.name} on />
+          <Chip
+            key={tag.slug}
+            label={tag.name}
+            on
+            onClick={() => {
+              const state: EventListNavState = { tagSlug: tag.slug };
+              void navigate('/events', { state });
+            }}
+          />
         ))}
         {event.event_format && <Chip label={EVENT_FORMAT_LABELS[event.event_format]} on={false} />}
       </div>
