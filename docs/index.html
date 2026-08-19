@@ -7,10 +7,14 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=Public+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <!--
-  PeerConnect demo — PRD v9.
-  All 12 people, 8 events and 6 organizations below are INVENTED. No real person's
-  name, photo or contact details appear anywhere in this file, so it is safe to
-  commit and safe to demo. To show the NorCal seed instead, replace DATA.people.
+  PeerConnect demo — NorCal seed. INTERNAL DEMO ONLY. DO NOT COMMIT TO A PUBLIC REPO.
+
+  The 24 people in Peers are real, published on NorCal SCI's public mentor page
+  (norcalsci.org/peer-mentors). They have not signed up here — in this build they are
+  shown as ordinary members so the flows demo cleanly. At launch these become real
+  members via the org invite link (PRD 11.1), which is also the consent step.
+  Photos are hotlinked from NorCal's CDN and some filenames contain surnames.
+  Events and organizations are invented. No contact details are in this file.
 -->
 <style>
 :root{
@@ -52,6 +56,7 @@ button{font:inherit;cursor:pointer}
 .deck.snap{scroll-snap-type:y mandatory}
 .card{position:relative;width:100%;height:calc(100% - 8px);min-height:430px;border-radius:26px;overflow:hidden;
   scroll-snap-align:center;margin-bottom:14px;display:block;text-align:left;border:0;padding:0;color:#fff}
+.card img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
 .card .init{position:absolute;inset:0;display:grid;place-items:center;font-family:var(--head);font-weight:800;
   font-size:118px;color:rgba(255,255,255,.28)}
 .card .scrim{position:absolute;left:0;right:0;bottom:0;height:58%;
@@ -259,6 +264,71 @@ nav .av{width:22px;height:22px;border-radius:50%;background:var(--pine);color:#f
 </style></head>
 <body><div id="phone"><div id="root"></div></div>
 <script>
+
+/* --------------------------------------------------- placeholder imagery
+   Procedural SVG scenes, inlined as data URIs — no network, no stock photos
+   of people who never agreed to be here. Swap PHOTOS for real image URLs and
+   everything below keeps working; the initials tile stays as the fallback. */
+function scene(kind, a, b, c){
+  /* Horizon sits mid-frame so any crop — tall card, short hero, tiny row
+     tile — still reads as a picture rather than a slab of colour. */
+  const sun = `<circle cx="300" cy="150" r="46" fill="#ffffff40"/>`;
+  const bits = {
+    trail: `${sun}
+      <path d="M0 250 Q110 190 220 245 T400 235 V520 H0Z" fill="${c}" opacity=".55"/>
+      <path d="M0 300 Q140 255 260 300 T400 292 V520 H0Z" fill="${c}"/>
+      <path d="M140 520 Q190 400 205 305 Q222 400 270 520Z" fill="#ffffff33"/>`,
+    water: `${sun}
+      <path d="M0 280 H400 V520 H0Z" fill="${c}"/>
+      <g stroke="#ffffff33" stroke-width="7" fill="none">
+        <path d="M0 330 Q100 314 200 330 T400 330"/><path d="M0 385 Q100 369 200 385 T400 385"/>
+        <path d="M0 445 Q100 429 200 445 T400 445"/></g>`,
+    peaks: `${sun}
+      <path d="M0 300 L110 170 L205 300 L285 200 L400 320 V520 H0Z" fill="${c}" opacity=".6"/>
+      <path d="M0 360 L90 265 L190 360 L280 285 L400 380 V520 H0Z" fill="${c}"/>
+      <path d="M90 265 L128 322 L52 322Z" fill="#ffffff4d"/>`,
+    city:  `${sun}
+      <g fill="${c}"><rect x="10" y="250" width="72" height="270"/><rect x="96" y="190" width="62" height="330"/>
+       <rect x="172" y="280" width="82" height="240"/><rect x="268" y="215" width="66" height="305"/>
+       <rect x="346" y="300" width="54" height="220"/></g>
+      <g fill="#ffffff2e"><rect x="26" y="276" width="15" height="20"/><rect x="55" y="276" width="15" height="20"/>
+       <rect x="112" y="220" width="15" height="20"/><rect x="190" y="310" width="15" height="20"/>
+       <rect x="286" y="245" width="15" height="20"/><rect x="360" y="330" width="15" height="20"/></g>`,
+    garden:`${sun}
+      <path d="M0 320 H400 V520 H0Z" fill="${c}"/>
+      <g stroke="#ffffff3d" stroke-width="7" fill="none"><path d="M80 330 V235"/><path d="M200 330 V200"/><path d="M320 330 V250"/></g>
+      <g fill="#ffffff4d"><circle cx="80" cy="225" r="24"/><circle cx="200" cy="190" r="28"/><circle cx="320" cy="240" r="21"/></g>`,
+    wall:  `<rect width="400" height="520" fill="${b}"/>
+      <g fill="${c}"><circle cx="80" cy="120" r="17"/><circle cx="215" cy="95" r="14"/><circle cx="150" cy="215" r="18"/>
+       <circle cx="310" cy="200" r="13"/><circle cx="95" cy="320" r="16"/><circle cx="250" cy="345" r="17"/>
+       <circle cx="170" cy="430" r="14"/><circle cx="320" cy="460" r="16"/></g>
+      <path d="M0 0 H400 V520 H0Z" fill="url(#f)" opacity=".18"/>`,
+    road:  `${sun}
+      <path d="M0 300 H400 V520 H0Z" fill="${c}"/>
+      <path d="M168 520 L196 300 H206 L236 520Z" fill="#ffffff3d"/>
+      <g fill="#ffffff66"><rect x="197" y="335" width="8" height="22"/><rect x="197" y="385" width="9" height="26"/>
+       <rect x="196" y="445" width="11" height="32"/></g>`,
+    court: `${sun}
+      <path d="M0 290 H400 V520 H0Z" fill="${c}"/>
+      <ellipse cx="200" cy="410" rx="168" ry="72" fill="none" stroke="#ffffff3d" stroke-width="7"/>
+      <path d="M200 338 V482" stroke="#ffffff3d" stroke-width="7"/>
+      <circle cx="200" cy="410" r="26" fill="none" stroke="#ffffff3d" stroke-width="7"/>`
+  }[kind] || "";
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="400" height="520" viewBox="0 0 400 520">
+    <defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="${a}"/><stop offset="1" stop-color="${b}"/></linearGradient>
+      <linearGradient id="f" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000"/></linearGradient></defs>
+    <rect width="400" height="520" fill="url(#g)"/>${bits}</svg>`;
+  return "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg.replace(/\s+/g, " "));
+}
+
+/* Set USE_REMOTE_PHOTOS to true to pull seeded photographs from picsum.photos
+   instead — better for a live demo on a machine with a connection. */
+const USE_REMOTE_PHOTOS = false;
+const photoFor = (id, kind, a, b, c) =>
+  USE_REMOTE_PHOTOS ? `https://picsum.photos/seed/pc-${id}/600/780` : scene(kind, a, b, c);
+
 /* ------------------------------------------------------------------ data
    Everything here is invented. See the comment at the top of the file. */
 const DATA = {
@@ -295,13 +365,13 @@ const DATA = {
      going:6, interested:22, recurring:false, beginner:true, matchLine:"2 going have SCI - para",
      desc:"Rolling 12 miles along the Bay Trail at a conversational pace, with a coffee stop halfway. Loaner handcycles in four sizes — say which you need when you RSVP. Volunteers ride sweep, so nobody finishes alone.",
      access:"Accessible parking, 6 spaces · Loaner handcycles in 4 sizes", accessWarn:"Last 200 m of the trail is gravel",
-     attendees:["p2","p4","p6","p9"]},
+     attendees:["n2","n7","n11","n16"]},
     {id:"e2", title:"AbleBodied monthly", org:"ablebodied", mode:"virtual", genre:"Support & groups",
      activity:"Peer support group", city:"Online", place:"Online", state:"Virtual",
      day:"THU", num:"27", dateLabel:"Thu 27 August", time:"7:00 PM PT", short:"7:00 PM PT · Live captions on",
      going:18, interested:31, recurring:true, beginner:true, matchLine:"5 going are in their first year",
      desc:"Our monthly get-together. Open format, a mix of new folks and old hands. Turn your camera off if you would rather just listen — plenty of people do.",
-     access:"Live captions on", accessWarn:"", attendees:["p3","p5","p7","p10","p11"]},
+     access:"Live captions on", accessWarn:"", attendees:["n5","n9","n12","n18","n21"]},
     {id:"e3", title:"SCI peer support group", org:"scvmc", mode:"in-person", genre:"Support & groups",
      activity:"Peer support group", city:"San Jose, CA", place:"Valley Medical, building C", state:"California",
      day:"MON", num:"24", dateLabel:"Mon 24 August", time:"4:00 PM", short:"4:00 PM · Weekly, drop in",
@@ -313,7 +383,7 @@ const DATA = {
      day:"WED", num:"3", dateLabel:"Wed 3 September", time:"6:00 PM", short:"6:00 PM · Loaner chairs",
      going:8, interested:14, recurring:true, beginner:true, matchLine:"3 going have SCI - quad",
      desc:"Come and try it. Loaner chairs for the night, no commitment, and nobody expects you to be any good on your first evening.",
-     access:"Accessible entrance, changing room with hoist", accessWarn:"", attendees:["p2","p8"]},
+     access:"Accessible entrance, changing room with hoist", accessWarn:"", attendees:["n18","n21"]},
     {id:"e5", title:"Men's SCI group", org:"norcalsci", mode:"virtual", genre:"Support & groups",
      activity:"Peer support group", city:"Online", place:"Online", state:"Virtual",
      day:"TUE", num:"25", dateLabel:"Tue 25 August", time:"6:30 PM PT", short:"6:30 PM PT · Monthly",
@@ -326,69 +396,880 @@ const DATA = {
      going:3, interested:19, recurring:false, beginner:true, matchLine:"1 going has SCI - para",
      desc:"First time on snow? This is the day for it. Instructors, equipment and a very patient team.",
      access:"Accessible lodge and restrooms", accessWarn:"Transfer to the sit-ski happens outdoors — dress warm",
-     attendees:["p6"]},
+     attendees:["n23"]},
     {id:"e7", title:"Adaptive climbing night", org:"ability360", mode:"in-person", genre:"Sports & recreation",
      activity:"Adaptive climbing", city:"Phoenix, AZ", place:"Ability360 Sports Center", state:"Arizona",
      day:"FRI", num:"5", dateLabel:"Fri 5 September", time:"7:00 PM", short:"7:00 PM · All levels",
      going:5, interested:11, recurring:true, beginner:true, matchLine:"",
      desc:"Monthly climb with trained adaptive belayers. All levels, all set-ups.",
-     access:"Accessible restrooms, transfer mats at the wall", accessWarn:"", attendees:["p12"]},
+     access:"Accessible restrooms, transfer mats at the wall", accessWarn:"", attendees:["n25"]},
     {id:"e8", title:"Accessible travel meetup", org:"ablebodied", mode:"virtual", genre:"Social & travel",
      activity:"Travel", city:"Online", place:"Online", state:"Virtual",
      day:"WED", num:"10", dateLabel:"Wed 10 September", time:"5:00 PM PT", short:"5:00 PM PT · Online",
      going:7, interested:24, recurring:false, beginner:true, matchLine:"",
      desc:"Swapping notes on airlines, aisle chairs, hotel bathrooms and which cities are worth the trouble.",
-     access:"Live captions on", accessWarn:"", attendees:["p5","p9"]}
+     access:"Live captions on", accessWarn:"", attendees:["n4","n15"]}
   ],
   people: [
-    {id:"p1", name:"Alex R.", init:"AR", color:"#274B66", injury:"SCI - para", level:"T6", chair:"Manual chair",
-     age:37, city:"San Jose, CA", duration:"3 years post-injury", isMentor:false, org:null,
-     bio:"Bay Area native, three years post. Handcycle most weekends, work in software, dad to two. Happy to talk gear, transfers, and going back to work.",
-     interests:["Handcycling","Travel","Gardening"], topics:["Back to work","Driving & vehicle mods"], you:true},
-    {id:"p2", name:"Marcus R.", init:"MR", color:"#14483C", injury:"SCI - para", level:"T4", chair:"Manual chair",
-     age:41, city:"Oakland, CA", duration:"9 years post-injury", isMentor:true, org:"borp", capacity:"Open",
-     bio:"Nine years in, rugby three nights a week and a very opinionated view on cushions. Ask me anything about getting back on the water.",
-     interests:["Wheelchair rugby","Handcycling","Kayaking"], topics:["Skin & pressure","Adaptive sports","Bladder"]},
-    {id:"p3", name:"Jess T.", init:"JT", color:"#C9491B", injury:"SCI - quad", level:"C6", chair:"Power assist",
-     age:29, city:"Sacramento, CA", duration:"2 years post-injury", isMentor:true, org:"norcalsci", capacity:"Open",
-     bio:"Two years post, back at work as a teacher. I spent my first year convinced nothing would ever be normal again, so ask me about that part.",
-     interests:["Reading & writing","Cooking & food"], topics:["Back to work","Mental health","Dating"]},
-    {id:"p4", name:"Ana L.", init:"AL", color:"#2F6B58", injury:"SCI - para", level:"T10", chair:"Manual chair",
-     age:34, city:"Berkeley, CA", duration:"6 years post-injury", isMentor:false, org:null,
-     bio:"Handcycle, garden, argue about coffee. Six years in and still finding better ways to load the chair.",
-     interests:["Handcycling","Gardening","Cooking & food"], topics:["Driving & vehicle mods"]},
-    {id:"p5", name:"Danny K.", init:"DK", color:"#3B5C86", injury:"SCI - quad", level:"C5", chair:"Power chair",
-     age:52, city:"Fremont, CA", duration:"14 years post-injury", isMentor:true, org:"norcalsci", capacity:"At capacity",
-     bio:"Fourteen years, power chair, travelled to eleven countries since. Happy to talk logistics with anyone who thinks travel is off the table.",
-     interests:["Travel","Music & concerts"], topics:["Travel","Caregivers & PCAs","Home mods"]},
-    {id:"p6", name:"Priya S.", init:"PS", color:"#7A5C2E", injury:"SCI - para", level:"T12", chair:"Manual chair",
-     age:31, city:"San Francisco, CA", duration:"1 year post-injury", isMentor:false, org:null,
-     bio:"One year in. Just started monoskiing, mostly falling over, enjoying it anyway.",
-     interests:["Monoskiing","Travel"], topics:[]},
-    {id:"p7", name:"Tom N.", init:"TN", color:"#1F5E4B", injury:"SCI - quad", level:"C7", chair:"Manual chair",
-     age:45, city:"San Jose, CA", duration:"11 years post-injury", isMentor:true, org:"scvmc", capacity:"Open",
-     bio:"Eleven years post. I run the Monday group at Valley Medical. If you are three months in and reading this, that group is for you.",
-     interests:["Volunteering","Family & pets"], topics:["Bladder","Bowel","Skin & pressure","Mental health"]},
-    {id:"p8", name:"Ruth G.", init:"RG", color:"#8A3413", injury:"Family member", level:null, chair:null,
-     age:58, city:"Oakland, CA", duration:"Parent", isMentor:true, org:"borp", capacity:"Open",
-     bio:"My son was injured at 19, nine years ago. I mentor parents and partners, because that first year is its own thing and nobody hands you a manual.",
-     interests:["Family & pets","Cooking & food"], topics:["Caregivers & PCAs","Mental health"]},
-    {id:"p9", name:"Chris W.", init:"CW", color:"#2A4D3F", injury:"SCI - para", level:"T8", chair:"Manual chair",
-     age:39, city:"Berkeley, CA", duration:"4 years post-injury", isMentor:false, org:null,
-     bio:"Rides, travels, terrible at cooking. Four years in.",
-     interests:["Handcycling","Travel"], topics:[]},
-    {id:"p10", name:"Sam O.", init:"SO", color:"#4A3B6B", injury:"MS", level:null, chair:"Power assist",
-     age:47, city:"Modesto, CA", duration:"8 years since diagnosis", isMentor:false, org:null,
-     bio:"MS, eight years. Different road to most people here but the day-to-day overlaps more than you would think.",
-     interests:["Reading & writing","Gardening"], topics:[]},
-    {id:"p11", name:"Nina B.", init:"NB", color:"#155F63", injury:"SCI - quad", level:"C6", chair:"Power assist",
-     age:26, city:"Boise, ID", duration:"8 months post-injury", isMentor:false, org:null,
-     bio:"Eight months in, nothing local within two hours, so mostly here for the online stuff. Say hi.",
-     interests:["Music & concerts","Reading & writing"], topics:[]},
-    {id:"p12", name:"Hector M.", init:"HM", color:"#6B4226", injury:"SCI - para", level:"T5", chair:"Manual chair",
-     age:36, city:"Phoenix, AZ", duration:"7 years post-injury", isMentor:true, org:"ability360", capacity:"Open",
-     bio:"Climbing, mostly. Seven years post and still surprised by what the wall lets me do.",
-     interests:["Adaptive climbing","Wheelchair sports"], topics:["Adaptive sports","Skin & pressure"]}
+    {
+      "id": "p1",
+      "name": "You",
+      "init": "AR",
+      "color": "#274B66",
+      "injury": "SCI - para",
+      "level": "T6",
+      "chair": "Manual chair",
+      "band": "30-39",
+      "city": "San Jose, CA",
+      "duration": "3 years post-injury",
+      "isMentor": false,
+      "org": null,
+      "unclaimed": false,
+      "work": "Software",
+      "bio": "Bay Area native, three years post. Handcycle most weekends, work in software, dad to two.",
+      "interests": [
+        "Handcycling",
+        "Travel",
+        "Gardening"
+      ],
+      "topics": [],
+      "devices": [],
+      "you": true
+    },
+    {
+      "id": "n1",
+      "name": "Ajay",
+      "init": "A",
+      "color": "#274B66",
+      "photo": "https://images.squarespace-cdn.com/content/v1/639f51bcb6f2d126acbc35ab/76946e11-5bef-4527-999b-9691cf49e418/Ajay.jpg?format=500w",
+      "injury": "SCI - quad",
+      "level": "C7",
+      "chair": "Manual chair",
+      "band": "30-39",
+      "city": "San Jose, CA",
+      "duration": "Time since injury not published",
+      "isMentor": true,
+      "org": "norcalsci",
+      "capacity": "Open",
+      "unclaimed": true,
+      "work": "Student, nutrition",
+      "bio": "Manual chair. Strong upper body, weaker left tricep/lat/chest, impaired hand function. Global spasticity used for hand function, transfers, and walking short distances with spotters. Lives alone.",
+      "interests": [
+        "Water sports",
+        "Fitness & exercise",
+        "Cooking & food",
+        "Music & concerts"
+      ],
+      "topics": [
+        "Adaptive sports",
+        "Back to school",
+        "Suprapubic catheter",
+        "UTIs",
+        "Dating"
+      ],
+      "devices": [
+        "Suprapubic catheter",
+        "Wheelchair assist devices"
+      ]
+    },
+    {
+      "id": "n2",
+      "name": "Bob",
+      "init": "B",
+      "color": "#14483C",
+      "photo": "https://images.squarespace-cdn.com/content/v1/639f51bcb6f2d126acbc35ab/c472dc43-a8b2-48e6-a819-99a7046c8901/Bob+Spisak.jpg?format=500w",
+      "injury": "SCI - quad",
+      "level": "C6/7",
+      "chair": "Manual chair",
+      "band": "70-79",
+      "city": "Aptos, CA",
+      "duration": "Time since injury not published",
+      "isMentor": true,
+      "org": "norcalsci",
+      "capacity": "Open",
+      "unclaimed": true,
+      "work": "Retired — mechanic, truck driver, firefighter",
+      "bio": "Manual chair. Lives alone independently. Volunteers for VMC, CASA, Ride-A-Wave, Day of Discovery and the Christopher Reeve Foundation.",
+      "interests": [
+        "Handcycling",
+        "Volunteering",
+        "Art & making"
+      ],
+      "topics": [
+        "Adaptive equipment",
+        "Adaptive sports",
+        "Driving & vehicle mods"
+      ],
+      "devices": [
+        "Vehicle modifications",
+        "Wheelchair assist devices"
+      ]
+    },
+    {
+      "id": "n3",
+      "name": "Dante",
+      "init": "D",
+      "color": "#C9491B",
+      "photo": "https://images.squarespace-cdn.com/content/v1/639f51bcb6f2d126acbc35ab/c1874d1d-6393-4625-9f20-eeb7ad0ee156/reevefoundationphoto.jpg?format=500w",
+      "injury": "SCI - quad",
+      "level": "C4",
+      "chair": "Walks unaided",
+      "band": "20-29",
+      "city": "Aptos, CA",
+      "duration": "Time since injury not published",
+      "isMentor": true,
+      "org": "norcalsci",
+      "capacity": "Open",
+      "unclaimed": true,
+      "work": "Freelance photographer",
+      "bio": "No assistive devices; sometimes an AFO on the left leg. Good return of function in all four limbs. Lives at home with parents but is physically independent.",
+      "interests": [
+        "Handcycling",
+        "Photography"
+      ],
+      "topics": [
+        "Back to school",
+        "Injured as a teen",
+        "Walking again",
+        "Adaptive cycling"
+      ],
+      "devices": []
+    },
+    {
+      "id": "n4",
+      "name": "Debra",
+      "init": "D",
+      "color": "#2F6B58",
+      "photo": "https://images.squarespace-cdn.com/content/v1/639f51bcb6f2d126acbc35ab/e23dac50-c3c1-4f5f-965d-ab5acd9f7593/unnamed+%282%29.jpg?format=500w",
+      "injury": "SCI - quad",
+      "level": "C4",
+      "chair": "Scooter",
+      "band": "70-79",
+      "city": "San Jose, CA",
+      "duration": "Time since injury not published",
+      "isMentor": true,
+      "org": "norcalsci",
+      "capacity": "Open",
+      "unclaimed": true,
+      "work": "Retired nurse educator",
+      "bio": "Mobility scooter. Walks short distances with a walker. Volunteers with Medical Volunteers for Disaster Relief and presents on emergency preparedness for people with disabilities. Lives independently.",
+      "interests": [
+        "Travel",
+        "Water sports",
+        "Hiking & trails",
+        "Photography"
+      ],
+      "topics": [
+        "Emergency preparedness",
+        "Neural implant",
+        "Ileostomy"
+      ],
+      "devices": [
+        "Wheelchair assist devices"
+      ]
+    },
+    {
+      "id": "n5",
+      "name": "Gretchen",
+      "init": "G",
+      "color": "#3B5C86",
+      "photo": "https://images.squarespace-cdn.com/content/v1/639f51bcb6f2d126acbc35ab/fd970ac9-4ba3-478e-8879-b32440c372ea/Gretchen.JPG?format=500w",
+      "injury": "SCI - quad",
+      "level": "C5/6",
+      "chair": "Power assist",
+      "band": "30-39",
+      "city": "Clovis, CA",
+      "duration": "Time since injury not published",
+      "isMentor": true,
+      "org": "norcalsci",
+      "capacity": "Open",
+      "unclaimed": true,
+      "work": "Medicine — seeking work",
+      "bio": "Manual chair with SmartDrive power assist. Can stand and use a walker for short distances around the house. Lives with parents, working with vocational rehab to find a full-time job.",
+      "interests": [
+        "Travel",
+        "Reading & writing",
+        "Gardening"
+      ],
+      "topics": [
+        "Advocacy",
+        "Travel",
+        "Neurogenic bladder",
+        "Mental health",
+        "Home mods"
+      ],
+      "devices": [
+        "Botox",
+        "Wheelchair assist devices"
+      ]
+    },
+    {
+      "id": "n6",
+      "name": "Isabelle",
+      "init": "I",
+      "color": "#7A5C2E",
+      "photo": "https://images.squarespace-cdn.com/content/v1/639f51bcb6f2d126acbc35ab/359cb954-6695-489b-abad-18ca9a783f6f/Isabelle+Javier.jpg?format=500w",
+      "injury": "Family member",
+      "level": null,
+      "chair": null,
+      "band": "",
+      "city": "Danville, CA",
+      "duration": "Time since injury not published",
+      "isMentor": true,
+      "org": "norcalsci",
+      "capacity": "Open",
+      "unclaimed": true,
+      "work": "Family member",
+      "bio": "Mother of an individual with a C4/5 complete SCI. Was her son's caregiver and encouraged him to return to college.",
+      "interests": [
+        "Volunteering"
+      ],
+      "topics": [
+        "Caregivers & PCAs",
+        "Home mods",
+        "Driving & vehicle mods",
+        "Benefits & grants",
+        "Back to school"
+      ],
+      "devices": [
+        "Vehicle modifications"
+      ]
+    },
+    {
+      "id": "n7",
+      "name": "Jan",
+      "init": "J",
+      "color": "#1F5E4B",
+      "photo": "https://images.squarespace-cdn.com/content/v1/639f51bcb6f2d126acbc35ab/e62b8066-8eb5-4a2b-b1d5-6baa220f7d10/Jan+Edwards.jpeg?format=500w",
+      "injury": "SCI - para",
+      "level": "T12",
+      "chair": "Power assist",
+      "band": "60-69",
+      "city": "Santa Cruz, CA",
+      "duration": "Time since injury not published",
+      "isMentor": true,
+      "org": "norcalsci",
+      "capacity": "Open",
+      "unclaimed": true,
+      "work": "Retired CPA",
+      "bio": "Mostly manual with SmartDrive. Shoulder surgeries and arthritis have led to some upper body weakness. Paralympian and marathon participant post-injury. Board of a camp for kids and adults with disabilities.",
+      "interests": [
+        "Kayaking",
+        "Hiking & trails",
+        "Cooking & food",
+        "Reading & writing"
+      ],
+      "topics": [
+        "Adaptive sports",
+        "Adaptive equipment",
+        "Suprapubic catheter",
+        "Pain",
+        "Pregnancy & parenting"
+      ],
+      "devices": [
+        "Suprapubic catheter",
+        "Intermittent cath",
+        "Wheelchair assist devices",
+        "Service animals"
+      ]
+    },
+    {
+      "id": "n8",
+      "name": "Jake",
+      "init": "J",
+      "color": "#8A3413",
+      "photo": "https://images.squarespace-cdn.com/content/v1/639f51bcb6f2d126acbc35ab/5742046e-62a9-4ad6-ad79-f534cf0ad4ba/IMG_3076.JPG?format=500w",
+      "injury": "SCI - quad",
+      "level": "C6",
+      "chair": "Power assist",
+      "band": "20-29",
+      "city": "Carlsbad, CA",
+      "duration": "Time since injury not published",
+      "isMentor": true,
+      "org": "norcalsci",
+      "capacity": "Open",
+      "unclaimed": true,
+      "work": "Quality engineer",
+      "bio": "Power-assist manual chair; a weak tricep is the lowest level of function.",
+      "interests": [
+        "Wheelchair sports",
+        "Hiking & trails",
+        "Fitness & exercise"
+      ],
+      "topics": [
+        "Adaptive equipment",
+        "Adaptive sports",
+        "Caregivers & PCAs",
+        "Back to work",
+        "Advocacy",
+        "Intimacy"
+      ],
+      "devices": [
+        "Wheelchair assist devices"
+      ]
+    },
+    {
+      "id": "n9",
+      "name": "Joe",
+      "init": "J",
+      "color": "#2A4D3F",
+      "photo": "https://images.squarespace-cdn.com/content/v1/639f51bcb6f2d126acbc35ab/80db4a89-7bfa-4038-8f33-4c62116f9152/image0.jpg?format=500w",
+      "injury": "SCI - quad",
+      "level": "C6",
+      "chair": "Power assist",
+      "band": "50-59",
+      "city": "Campbell, CA",
+      "duration": "Time since injury not published",
+      "isMentor": true,
+      "org": "norcalsci",
+      "capacity": "Open",
+      "unclaimed": true,
+      "work": "Independent living center",
+      "bio": "Manual chair with push assist. No triceps but with functioning tenodesis.",
+      "interests": [
+        "Travel",
+        "Technology",
+        "Food & drink"
+      ],
+      "topics": [
+        "Assistive technology",
+        "Living independently"
+      ],
+      "devices": [
+        "Wheelchair assist devices",
+        "Dictation software"
+      ]
+    },
+    {
+      "id": "n10",
+      "name": "Joseph",
+      "init": "J",
+      "color": "#4A3B6B",
+      "photo": "https://images.squarespace-cdn.com/content/v1/639f51bcb6f2d126acbc35ab/81206dc1-abd7-4cb4-aa41-2a76565d7535/Screenshot_20240408_152935_Instagram.jpg?format=500w",
+      "injury": "SCI - para",
+      "level": "L",
+      "chair": "Scooter",
+      "band": "40-49",
+      "city": "Oakland, CA",
+      "duration": "Time since injury not published",
+      "isMentor": true,
+      "org": "norcalsci",
+      "capacity": "Open",
+      "unclaimed": true,
+      "work": "Federal government",
+      "bio": "Motor scooter; weak leg strength. Lives independently.",
+      "interests": [],
+      "topics": [
+        "Mobility"
+      ],
+      "devices": [
+        "Wheelchair assist devices"
+      ]
+    },
+    {
+      "id": "n11",
+      "name": "Kerry",
+      "init": "K",
+      "color": "#155F63",
+      "photo": "https://images.squarespace-cdn.com/content/v1/639f51bcb6f2d126acbc35ab/f088fb4d-8a29-4ac4-8933-77ef67c90057/image0.jpeg?format=500w",
+      "injury": "SCI - para",
+      "level": "T5",
+      "chair": "Manual chair",
+      "band": "30-39",
+      "city": "San Jose, CA",
+      "duration": "Time since injury not published",
+      "isMentor": true,
+      "org": "norcalsci",
+      "capacity": "Open",
+      "unclaimed": true,
+      "work": "Orthopedic surgery practice",
+      "bio": "Manual chair; no sensation or function from the chest down, full arm and hand function. Lives with a roommate.",
+      "interests": [
+        "Wheelchair sports",
+        "Fitness & exercise",
+        "Travel"
+      ],
+      "topics": [
+        "Adaptive sports",
+        "Living independently",
+        "Driving & vehicle mods",
+        "Back to work"
+      ],
+      "devices": [
+        "Vehicle modifications"
+      ]
+    },
+    {
+      "id": "n12",
+      "name": "Kevin",
+      "init": "K",
+      "color": "#6B4226",
+      "photo": "https://images.squarespace-cdn.com/content/v1/639f51bcb6f2d126acbc35ab/e5e7b48d-3c55-4e07-8643-221d0a883b8a/KevinLee2023.png?format=500w",
+      "injury": "SCI - quad",
+      "level": "C1",
+      "chair": "Crutches or walker",
+      "band": "60-69",
+      "city": "Fremont, CA",
+      "duration": "Time since injury not published",
+      "isMentor": true,
+      "org": "norcalsci",
+      "capacity": "Open",
+      "unclaimed": true,
+      "work": "Retired — computer networking",
+      "bio": "Mobility scooter, or forearm crutches for short distances. Moves slowly with limited strength and significant tone. Board treasurer at ReCARES; weekly volunteer at SCVMC SCI Peer Support.",
+      "interests": [
+        "Art & making",
+        "Technology"
+      ],
+      "topics": [
+        "Most SCI topics — 20 years co-leading peer support groups"
+      ],
+      "devices": [
+        "Wheelchair assist devices"
+      ]
+    },
+    {
+      "id": "n13",
+      "name": "Yazmin",
+      "init": "Y",
+      "color": "#274B66",
+      "photo": "https://images.squarespace-cdn.com/content/v1/639f51bcb6f2d126acbc35ab/8f3e3166-7d97-408c-b1b0-a00f666e1f39/Yazmin+Duran+.JPG?format=500w",
+      "injury": "SCI - para",
+      "level": "T11",
+      "chair": "Crutches or walker",
+      "band": "20-29",
+      "city": "Stockton, CA",
+      "duration": "Time since injury not published",
+      "isMentor": true,
+      "org": "norcalsci",
+      "capacity": "Open",
+      "unclaimed": true,
+      "work": "Student, business",
+      "bio": "Has used manual wheelchairs, walkers and leg braces; uses a cane. Full hand and arm function, thighs most affected. Lives with family.",
+      "interests": [
+        "Reading & writing"
+      ],
+      "topics": [
+        "Pain",
+        "Back to school"
+      ],
+      "devices": [
+        "Wheelchair assist devices"
+      ]
+    },
+    {
+      "id": "n14",
+      "name": "Kim",
+      "init": "K",
+      "color": "#14483C",
+      "photo": "https://images.squarespace-cdn.com/content/v1/639f51bcb6f2d126acbc35ab/7b23562e-9732-4b3f-b671-7582791c8462/Kim+Ezell.jpeg?format=500w",
+      "injury": "Spina Bifida",
+      "level": "L5",
+      "chair": "Power assist",
+      "band": "50-59",
+      "city": "Sacramento, CA",
+      "duration": "Time since injury not published",
+      "isMentor": true,
+      "org": "norcalsci",
+      "capacity": "Open",
+      "unclaimed": true,
+      "work": "Social work",
+      "bio": "Manual and power-assist chair. Spina Bifida since birth. Extensive work experience. Lives alone with cats.",
+      "interests": [
+        "Wheelchair sports",
+        "Art & making",
+        "Volunteering"
+      ],
+      "topics": [
+        "Suprapubic catheter",
+        "Colostomy",
+        "Self-advocacy",
+        "ADA",
+        "Benefits & grants",
+        "Mental health"
+      ],
+      "devices": [
+        "Suprapubic catheter",
+        "Colostomy",
+        "Wheelchair assist devices"
+      ]
+    },
+    {
+      "id": "n15",
+      "name": "Lake",
+      "init": "L",
+      "color": "#C9491B",
+      "photo": "https://images.squarespace-cdn.com/content/v1/639f51bcb6f2d126acbc35ab/23df5b44-8ae0-49e2-b029-da80e79b07f1/Untitled+-+2024-05-16T113047.516.png?format=500w",
+      "injury": "SCI - para",
+      "level": "T11",
+      "chair": "Manual chair",
+      "band": "50-59",
+      "city": "Santa Rosa, CA",
+      "duration": "Time since injury not published",
+      "isMentor": true,
+      "org": "norcalsci",
+      "capacity": "Open",
+      "unclaimed": true,
+      "work": "Construction company owner",
+      "bio": "Manual chair; full function above the belly button. Volunteer art teacher at a women's treatment centre; hosts an SCI online support group. Lives alone, daughter in college.",
+      "interests": [
+        "Art & making",
+        "Volunteering",
+        "Gardening",
+        "Reading & writing"
+      ],
+      "topics": [
+        "Wheelchair sports",
+        "Advocacy",
+        "Pregnancy & parenting",
+        "Business ownership",
+        "Travel"
+      ],
+      "devices": [
+        "Vehicle modifications",
+        "Wheelchair assist devices"
+      ]
+    },
+    {
+      "id": "n16",
+      "name": "Lindsay",
+      "init": "L",
+      "color": "#2F6B58",
+      "photo": "https://images.squarespace-cdn.com/content/v1/639f51bcb6f2d126acbc35ab/8514761c-5be4-41f4-9413-4c3ff8769fa8/LIndsay+Ulrey.jpeg?format=500w",
+      "injury": "SCI - para",
+      "level": "T4",
+      "chair": "Power assist",
+      "band": "40-49",
+      "city": "Livermore, CA",
+      "duration": "Time since injury not published",
+      "isMentor": true,
+      "org": "norcalsci",
+      "capacity": "Open",
+      "unclaimed": true,
+      "work": "Clinical psychologist",
+      "bio": "Manual chair with SmartDrive and a Striker attachment; occasionally a power chair. Board member of Wheel with Me Foundation; runs a support group for wheelie mamas. Married, two kids, dog.",
+      "interests": [
+        "Handcycling",
+        "Hiking & trails",
+        "Cooking & food",
+        "Music & concerts"
+      ],
+      "topics": [
+        "Adaptive biking gear",
+        "Being a mum in a wheelchair",
+        "Driving & vehicle mods",
+        "Home mods",
+        "Cooking"
+      ],
+      "devices": [
+        "Vehicle modifications",
+        "Wheelchair assist devices"
+      ]
+    },
+    {
+      "id": "n17",
+      "name": "Matt",
+      "init": "M",
+      "color": "#3B5C86",
+      "photo": "https://images.squarespace-cdn.com/content/v1/639f51bcb6f2d126acbc35ab/dc49f388-4545-43f2-a287-88e130637678/Leonard_headshot.jpg?format=500w",
+      "injury": "SCI - para",
+      "level": "T4",
+      "chair": "Manual chair",
+      "band": "30-39",
+      "city": "San Francisco, CA",
+      "duration": "Time since injury not published",
+      "isMentor": true,
+      "org": "norcalsci",
+      "capacity": "Open",
+      "unclaimed": true,
+      "work": "Freelance — film and wine",
+      "bio": "Manual chair. No motor or sensation below mid-chest; full strength and feeling above. Very independent, drives with hand controls. Lives alone, dog owner.",
+      "interests": [
+        "Water sports",
+        "Fishing",
+        "Monoskiing",
+        "Food & drink"
+      ],
+      "topics": [
+        "Adaptive equipment",
+        "Most adaptive sports",
+        "Pain"
+      ],
+      "devices": [
+        "Vehicle modifications"
+      ]
+    },
+    {
+      "id": "n18",
+      "name": "Nicole",
+      "init": "N",
+      "color": "#7A5C2E",
+      "photo": "https://images.squarespace-cdn.com/content/v1/639f51bcb6f2d126acbc35ab/d1173043-7784-4c0f-8764-fd15165a7d3d/Nicole+Rosario.JPG?format=500w",
+      "injury": "SCI - quad",
+      "level": "C6",
+      "chair": "Manual chair",
+      "band": "20-29",
+      "city": "Santa Clara, CA",
+      "duration": "Time since injury not published",
+      "isMentor": true,
+      "org": "norcalsci",
+      "capacity": "Open",
+      "unclaimed": true,
+      "work": "Software engineer",
+      "bio": "Mostly manual chair, power chair to travel locally. Some hand and tricep function on the left, some tricep on the right. Lives alone with her dog.",
+      "interests": [
+        "Wheelchair rugby",
+        "Video games",
+        "Technology",
+        "Cooking & food"
+      ],
+      "topics": [
+        "Adaptive equipment",
+        "SmartDrive",
+        "Back to driving",
+        "Wheelchair rugby",
+        "Back to work",
+        "Suprapubic catheter"
+      ],
+      "devices": [
+        "Suprapubic catheter",
+        "Vehicle modifications",
+        "Wheelchair assist devices"
+      ]
+    },
+    {
+      "id": "n19",
+      "name": "Robert",
+      "init": "R",
+      "color": "#1F5E4B",
+      "photo": "https://images.squarespace-cdn.com/content/v1/639f51bcb6f2d126acbc35ab/b3524000-a6e3-44e8-898e-b0bd735c2c27/20240524_075738.jpg?format=500w",
+      "injury": "SCI - quad",
+      "level": "C3",
+      "chair": "Walks unaided",
+      "band": "60-69",
+      "city": "Idaho",
+      "duration": "Time since injury not published",
+      "isMentor": true,
+      "org": "norcalsci",
+      "capacity": "Open",
+      "unclaimed": true,
+      "work": "Underground construction",
+      "bio": "High functioning; can walk but has issues, same with arms and hands. Very self-motivated to improve and to help others. Lives with his wife.",
+      "interests": [
+        "Fitness & exercise",
+        "Music & concerts",
+        "Cooking & food"
+      ],
+      "topics": [
+        "Self-rehabilitation"
+      ],
+      "devices": []
+    },
+    {
+      "id": "n20",
+      "name": "Scott",
+      "init": "S",
+      "color": "#8A3413",
+      "photo": "https://images.squarespace-cdn.com/content/v1/639f51bcb6f2d126acbc35ab/ebc79199-e414-4570-8a14-3feccf1c3977/Scott+Zulewski.jpeg?format=500w",
+      "injury": "SCI - para",
+      "level": "T8",
+      "chair": "Manual chair",
+      "band": "50-59",
+      "city": "Kerman, CA",
+      "duration": "Time since injury not published",
+      "isMentor": true,
+      "org": "norcalsci",
+      "capacity": "Open",
+      "unclaimed": true,
+      "work": "Accountant, CPA",
+      "bio": "Manual chair. Very little leg movement; can wiggle toes and flex the right quad. Hands and arms are normal. Lives with wife, daughter and granddaughter.",
+      "interests": [
+        "Wheelchair sports",
+        "Music & concerts"
+      ],
+      "topics": [
+        "Working with an SCI",
+        "Pain"
+      ],
+      "devices": [
+        "Wheelchair assist devices"
+      ]
+    },
+    {
+      "id": "n21",
+      "name": "Sean",
+      "init": "S",
+      "color": "#2A4D3F",
+      "photo": "https://images.squarespace-cdn.com/content/v1/639f51bcb6f2d126acbc35ab/d4a7315d-d3c1-42fc-8bb6-0b8d52ac3fbf/NorCalSCI+Photo+%281%29.jpg?format=500w",
+      "injury": "SCI - quad",
+      "level": "C6/7",
+      "chair": "Power assist",
+      "band": "40-49",
+      "city": "Fremont, CA",
+      "duration": "Time since injury not published",
+      "isMentor": true,
+      "org": "norcalsci",
+      "capacity": "Open",
+      "unclaimed": true,
+      "work": "Student — culinary and psychology",
+      "bio": "Manual chair, sometimes with power assist. Most tricep function, impaired hand function, no sensation or movement in torso or legs. Lives alone in an apartment.",
+      "interests": [
+        "Wheelchair rugby",
+        "Handcycling",
+        "Travel",
+        "Cooking & food"
+      ],
+      "topics": [
+        "Moving back in with family",
+        "Living independently again",
+        "Relationships",
+        "Adaptive sports",
+        "Driving & vehicle mods",
+        "Benefits & grants"
+      ],
+      "devices": [
+        "Botox",
+        "Vehicle modifications",
+        "Wheelchair assist devices"
+      ]
+    },
+    {
+      "id": "n22",
+      "name": "Tiffany",
+      "init": "T",
+      "color": "#4A3B6B",
+      "photo": "https://images.squarespace-cdn.com/content/v1/639f51bcb6f2d126acbc35ab/7b8f8576-f344-4c67-a9de-3d1650d90039/Poland_Headshot+%281%29.JPG?format=500w",
+      "injury": "SCI - quad",
+      "level": "C5/6",
+      "chair": "Power chair",
+      "band": "50-59",
+      "city": "Sacramento, CA",
+      "duration": "Time since injury not published",
+      "isMentor": true,
+      "org": "norcalsci",
+      "capacity": "Open",
+      "unclaimed": true,
+      "work": "Student — human services",
+      "bio": "Power chair. Has biceps but no triceps; uses typing aids and voice software to write. Runs and attends several peer support groups including a monthly women's group on Zoom.",
+      "interests": [
+        "Music & concerts",
+        "Food & drink"
+      ],
+      "topics": [
+        "Back to school",
+        "Returning to college",
+        "Service animals"
+      ],
+      "devices": [
+        "Dictation software",
+        "Service animals",
+        "Wheelchair assist devices"
+      ]
+    },
+    {
+      "id": "n23",
+      "name": "Todd",
+      "init": "T",
+      "color": "#155F63",
+      "photo": "https://images.squarespace-cdn.com/content/v1/639f51bcb6f2d126acbc35ab/acede200-8379-426d-9c5a-f4d99c787bde/Facetune_20-05-2024-17-21-09.png?format=500w",
+      "injury": "SCI - para",
+      "level": "T12",
+      "chair": "Manual chair",
+      "band": "50-59",
+      "city": "Roseville, CA",
+      "duration": "Time since injury not published",
+      "isMentor": true,
+      "org": "norcalsci",
+      "capacity": "Open",
+      "unclaimed": true,
+      "work": "Urology and rehab, 30 years",
+      "bio": "Manual chair; almost full upper body function. Lives with wife and child.",
+      "interests": [
+        "Monoskiing",
+        "Cooking & food",
+        "Photography"
+      ],
+      "topics": [
+        "Adaptive sports",
+        "Intimacy",
+        "Fertility",
+        "Urology",
+        "Nutrition",
+        "Driving & vehicle mods"
+      ],
+      "devices": [
+        "Intermittent cath",
+        "Vehicle modifications"
+      ]
+    },
+    {
+      "id": "n24",
+      "name": "Vicki",
+      "init": "V",
+      "color": "#6B4226",
+      "photo": "https://images.squarespace-cdn.com/content/v1/639f51bcb6f2d126acbc35ab/d2cf5730-9e60-484d-8fc7-3030b0ded91e/Vicki+Butler.jpeg?format=500w",
+      "injury": "SCI - quad",
+      "level": "C5/6",
+      "chair": "Power chair",
+      "band": "70-79",
+      "city": "Eureka, CA",
+      "duration": "Time since injury not published",
+      "isMentor": true,
+      "org": "norcalsci",
+      "capacity": "Open",
+      "unclaimed": true,
+      "work": "Retired — state road maintenance",
+      "bio": "Power chair; hand and arm function, no grip, no leg function. Retired, lives with her husband of forty years.",
+      "interests": [
+        "Gardening",
+        "Art & making"
+      ],
+      "topics": [
+        "Adaptive equipment",
+        "Suprapubic catheter",
+        "Colostomy",
+        "Aging with SCI"
+      ],
+      "devices": [
+        "Suprapubic catheter",
+        "Colostomy"
+      ]
+    },
+    {
+      "id": "n25",
+      "name": "Victor",
+      "init": "V",
+      "color": "#274B66",
+      "photo": "https://images.squarespace-cdn.com/content/v1/639f51bcb6f2d126acbc35ab/387c5cb2-c4a4-4fb4-b15a-97e0ae0cf498/Victor+Esparanza.jpg?format=500w",
+      "injury": "SCI - para",
+      "level": "T4",
+      "chair": "Manual chair",
+      "band": "30-39",
+      "city": "Sunnyvale, CA",
+      "duration": "Time since injury not published",
+      "isMentor": true,
+      "org": "norcalsci",
+      "capacity": "Open",
+      "unclaimed": true,
+      "work": "Construction and flooring",
+      "bio": "Manual chair. Good arm and hand movement; no feeling below the injury. Lives with his auntie; very close family.",
+      "interests": [
+        "Fitness & exercise",
+        "Adaptive climbing",
+        "Wheelchair sports"
+      ],
+      "topics": [
+        "Skin & pressure",
+        "Working out",
+        "Pain",
+        "Self-catheterisation",
+        "Mental health",
+        "Transfers"
+      ],
+      "devices": [
+        "Intermittent cath"
+      ]
+    }
   ],
   genres: ["Sports & recreation","Support & groups","Skills & services","Social & travel","Advocacy"],
   activitiesByGenre: {
@@ -412,7 +1293,7 @@ const DATA = {
 /* ----------------------------------------------------------------- state */
 const S = {
   tab: "discover", seg: "peers", view: null, sel: null, sheet: null,
-  waves: {}, connections: ["p2","p4","p7"],        // seeded: you have said hi to a few people
+  waves: {}, connections: ["n2","n7","n11"],        // seeded: you have said hi to a few people
   rsvps: { e2: "interested" },                     // seeded so Mine is not empty
   follows: { borp: false, ablebodied: true, norcalsci: true },
   mutes: { orgs: ["ability360"], activities: ["Monoskiing"], genres: [], events: [] },
@@ -421,6 +1302,9 @@ const S = {
   activities: (function(){ const o = {}; Object.values(DATA.activitiesByGenre).flat().forEach(a => o[a] = true); return o; })(),
   toast: null, undo: null,
   flow: null, flowStep: 0,
+  setup: true, step: 0,
+  peerFilter: { topic: null, interest: null }, eventTag: null,
+  new: { phone:"", code:"", name:"", disability:"SCI - para", duration:"3–10 years", state:"California", photo:false },
   me: {
     bio: "", photos: [{tag:"Handcycling", label:"Handcycling, Bay Trail", color:"linear-gradient(160deg,#2F6B58,#14483C)"},
                       {tag:"Travel", label:"Lisbon", color:"#274B66"},
@@ -456,6 +1340,14 @@ function completeness(){
 
 /* ------------------------------------------------------------ event maths */
 function eventVisible(e){
+  if (S.eventTag){                       // an explicit tap beats every other filter
+    const t = S.eventTag;
+    if (t.kind === "genre") return e.genre === t.val;
+    if (t.kind === "activity") return e.activity === t.val;
+    if (t.val === "Online") return e.mode === "virtual";
+    if (t.val === "In person") return e.mode !== "virtual";
+    if (t.val === "Beginner-friendly") return !!e.beginner;
+  }
   if (S.mutes.events.includes(e.id)) return false;
   if (S.mutes.orgs.includes(e.org)) return false;
   if (S.mutes.activities.includes(e.activity)) return false;
@@ -485,23 +1377,28 @@ const HAND = `<svg viewBox="0 0 40 40" fill="none" aria-hidden="true">
 const FILTERICON = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#111A16" stroke-width="2" stroke-linecap="round">
   <path d="M3 7h18M3 12h18M3 17h18"/><circle cx="9" cy="7" r="2.4" fill="#fff"/>
   <circle cx="15" cy="12" r="2.4" fill="#fff"/><circle cx="8" cy="17" r="2.4" fill="#fff"/></svg>`;
+const MAG = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+  stroke-width="2.8" stroke-linecap="round" style="opacity:.55"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>`;
 const PLUS = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 6v12M6 12h12"/></svg>`;
 
 function discover(){
   let list = DATA.people.filter(p => !p.you);
   if (S.seg === "mentors") list = list.filter(p => p.isMentor);
+  if (S.peerFilter.topic) list = list.filter(p => p.topics.includes(S.peerFilter.topic));
+  if (S.peerFilter.interest) list = list.filter(p => p.interests.includes(S.peerFilter.interest));
   const cards = list.map(p => {
     const waved = S.waves[p.id] || S.connections.includes(p.id);
     const bits = [p.injury, p.level, p.chair].filter(Boolean).join("  ·  ");
     return `<button class="card" data-open="${p.id}" style="background:${p.color}">
       <div class="init">${p.init}</div>
+      ${p.photo ? `<img src="${p.photo}" alt="" onerror="this.remove()">` : ""}
       <div class="scrim-top"></div><div class="scrim"></div>
       <div class="head">
         <h3>${esc(p.name)}</h3>
         <div class="l">${esc(bits)}</div>
-        <div class="l">${p.age} · ${esc(p.city)}</div>
-        <span class="pillw">${esc(p.duration)}</span>
-        ${p.isMentor ? `<span class="pillw" style="margin-left:6px">${esc(org(p.org).name)} mentor</span>` : ""}
+        <div class="l">${p.band ? esc(p.band) + " · " : ""}${esc(p.city)}</div>
+        ${p.isMentor ? `<span class="pillw">${esc(org(p.org).name)} mentor</span>` : ""}
+
       </div>
       <div class="foot">
         <p class="bio">${esc(p.bio)}</p>
@@ -511,12 +1408,20 @@ function discover(){
         aria-label="Say hi to ${esc(p.name)}">${HAND}</span>
     </button>`;
   }).join("");
+  const active = [];
+  if (S.peerFilter.topic) active.push(["topic", "Talks about " + S.peerFilter.topic.toLowerCase()]);
+  if (S.peerFilter.interest) active.push(["interest", "Into " + S.peerFilter.interest.toLowerCase()]);
+  const bar = active.length ? `<div class="fbar">${active.map(([k, l]) =>
+      `<button class="fchip on" data-clearpeer="${k}">${esc(l)} ✕</button>`).join("")}</div>` : "";
+  const empty = `<div class="empty"><b>Nobody yet</b>No one in ${S.seg === "mentors" ? "Mentors" : "Peers"} matches that.
+      <div style="margin-top:16px"><button class="btn solid" style="max-width:220px;margin:0 auto" data-clearpeer="all">Clear filter</button></div></div>`;
   return `<div class="top">
       <button class="seg" role="tab" aria-selected="${S.seg === "peers"}" data-seg="peers">Peers</button>
       <button class="seg" role="tab" aria-selected="${S.seg === "mentors"}" data-seg="mentors">Mentors</button>
       <button class="icb" data-act="peerfilters" aria-label="Filters">${FILTERICON}</button>
     </div>
-    <div class="deck snap">${cards}</div>`;
+    ${bar}
+    <div class="deck snap">${list.length ? cards : empty}</div>`;
 }
 
 /* --------------------------------------------------------------- events */
@@ -554,6 +1459,9 @@ function eventCard(e){
 function events(){
   const mine = S.evSeg === "mine";
   const list = mine ? mineEvents() : visibleEvents();
+  const tagBar = S.eventTag ? `<div class="fbar">
+      <button class="fchip on" data-cleartag="1">${esc(S.eventTag.val)} ✕</button>
+    </div>` : "";
   const chips = `<div class="fbar">
       <button class="fchip ${S.feed === "foryou" ? "on" : ""}" data-act="filters">
         ${S.feed === "foryou" ? "For you" : "Everything"}
@@ -573,7 +1481,7 @@ function events(){
       <button class="seg" role="tab" aria-selected="${mine}" data-evseg="mine">Mine</button>
       <button class="icb" data-act="filters" aria-label="Filters">${FILTERICON}</button>
     </div>
-    ${mine ? "" : chips}
+    ${mine ? "" : (S.eventTag ? tagBar : chips)}
     <div class="deck">${body}</div>`;
 }
 
@@ -602,11 +1510,12 @@ function eventPage(){
       <span class="follow ${S.follows[o.id] ? "on" : ""}" data-follow="${o.id}" role="button" tabindex="0">${S.follows[o.id] ? "Following" : "Follow"}</span>
     </button>
 
-    <div class="chips" style="margin-top:13px">
-      <span class="chip on">${esc(e.genre)}</span>
-      <span class="chip on">${esc(e.activity)}</span>
-      <span class="chip dash">${e.mode === "virtual" ? "Online" : "In person"}</span>
-      ${e.beginner ? `<span class="chip dash">Beginner-friendly</span>` : ""}
+    <p class="hint" style="margin:14px 0 7px">Tap a tag to find more like this.</p>
+    <div class="chips">
+      <button class="chip on" data-ftag="genre|${esc(e.genre)}">${esc(e.genre)} ${MAG}</button>
+      <button class="chip on" data-ftag="activity|${esc(e.activity)}">${esc(e.activity)} ${MAG}</button>
+      <button class="chip dash" data-ftag="format|${e.mode === "virtual" ? "Online" : "In person"}">${e.mode === "virtual" ? "Online" : "In person"} ${MAG}</button>
+      ${e.beginner ? `<button class="chip dash" data-ftag="format|Beginner-friendly">Beginner-friendly ${MAG}</button>` : ""}
     </div>
 
     <p class="txt">${esc(e.desc)}</p>
@@ -683,19 +1592,22 @@ function personPage(){
   const connected = S.connections.includes(p.id);
   return `<div class="page"><div class="scroll">
     <button class="back" data-act="close">← Back</button>
-    <div style="height:200px;border-radius:22px;background:${p.color};display:grid;place-items:center;margin-top:6px">
-      <span style="font-family:var(--head);font-weight:800;font-size:64px;color:rgba(255,255,255,.4)">${p.init}</span></div>
+    <div style="position:relative;height:230px;border-radius:22px;overflow:hidden;background:${p.color};display:grid;place-items:center;margin-top:6px">
+      <span style="font-family:var(--head);font-weight:800;font-size:64px;color:rgba(255,255,255,.4)">${p.init}</span>
+      ${p.photo ? `<img src="${p.photo}" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover" onerror="this.remove()">` : ""}</div>
     <h1 style="margin-top:14px">${esc(p.name)}</h1>
     <div class="meta">${[p.injury, p.level, p.chair].filter(Boolean).join("  ·  ")}</div>
-    <div class="meta">${p.age} · ${esc(p.city)} · ${esc(p.duration)}</div>
+    <div class="meta">${p.band ? esc(p.band) + " · " : ""}${esc(p.city)}${p.work ? " · " + esc(p.work) : ""}</div>
+    <div class="meta">${esc(p.duration)}</div>
     ${p.isMentor ? `<div class="chips" style="margin-top:12px"><span class="chip on">${esc(org(p.org).name)} mentor · ${esc(p.capacity)}</span></div>` : ""}
     ${connected ? `<div class="note"><b>Connected.</b> You have said hi to each other.</div>` : ""}
     <p class="txt">${esc(p.bio)}</p>
     ${p.topics.length ? `<h3 class="sec">Ask me about</h3>
       <p class="hint">Tap one to find everyone who talks about it.</p>
-      <div class="chips">${p.topics.map(t => `<span class="chip dash">${esc(t)} 🔍</span>`).join("")}</div>` : ""}
+      <div class="chips">${p.topics.map(t => `<button class="chip dash" data-ftopic="${esc(t)}">${esc(t)} ${MAG}</button>`).join("")}</div>` : ""}
     <h3 class="sec">Interests</h3>
-    <div class="chips">${p.interests.map(t => `<span class="chip">${esc(t)}</span>`).join("")}</div>
+    <p class="hint">Tap one to see everyone else into the same thing.</p>
+    <div class="chips">${p.interests.map(t => `<button class="chip" data-fint="${esc(t)}">${esc(t)} ${MAG}</button>`).join("")}</div>
     <div style="height:8px"></div>
   </div>
   <footer class="cta">
@@ -710,7 +1622,8 @@ function chats(){
     <div class="deck">
       <div class="note" style="margin-top:0">Anybody you have interacted with — a wave either way, or a message. Private to you, and nobody sees a count.</div>
       ${list.length ? list.map(p => `<button class="evrow" data-open="${p.id}">
-          <span class="date" style="background:${p.color};color:#fff"><b>${p.init}</b></span>
+          <span class="date" style="background:${p.color};color:#fff;overflow:hidden;position:relative">
+            <b>${p.init}</b>${p.photo ? `<img src="${p.photo}" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover" onerror="this.remove()">` : ""}</span>
           <span style="flex:1"><span class="t">${esc(p.name)}</span>
             <span class="s">${esc(p.injury)}${p.level ? " · " + p.level : ""} · ${esc(p.city)}</span></span>
         </button>`).join("")
@@ -734,7 +1647,7 @@ function meTab(){
   return `<div class="top"><h2>Me</h2></div>
     <div class="deck">
       <div style="display:flex;align-items:center;gap:14px;margin-top:4px">
-        <span class="avatar">AR</span>
+        <span class="avatar">You</span>
         <span><div style="font-family:var(--head);font-size:23px;font-weight:700">Alex R.</div>
         <div class="hint" style="margin:3px 0 0">SCI - para · T6 · San Jose, CA</div></span>
       </div>
@@ -750,7 +1663,8 @@ function meTab(){
       <button class="row" data-act="noop"><span><span class="nm">Show me in browse</span></span><span class="sw on"><i></i></span></button>
       <button class="row" data-tab="chats"><span><span class="nm">Connections</span><span class="s">Anybody you have interacted with</span></span><span class="pill">${S.connections.length}</span></button>
       <button class="row" data-act="filters"><span><span class="nm">Event filters and mutes</span><span class="s">${S.mutes.orgs.length + S.mutes.activities.length + S.mutes.events.length} hidden</span></span><span class="pill todo">Open</span></button>
-      <div class="note">Demo build. Nothing is saved — reload to start over.</div>
+      <div class="note"><b>About this data.</b> The 24 people in Peers are NorCal SCI's mentors, as published on
+        their public mentor page. Events and organizations are invented. Demo build — nothing is saved.</div>
       <div style="height:10px"></div>
     </div>`;
 }
@@ -1068,6 +1982,7 @@ function nav(){
 
 /* --------------------------------------------------------------- render */
 function render(){
+  if (S.setup){ $("#root").innerHTML = setupView(); return; }
   const body = S.tab === "discover" ? discover()
              : S.tab === "events" ? events()
              : S.tab === "chats" ? chats()
@@ -1099,7 +2014,8 @@ function applyMute(kind, val){
 document.addEventListener("click", e => {
   const t = e.target.closest("[data-act],[data-tab],[data-seg],[data-evseg],[data-open],[data-wave],[data-ev],[data-org]," +
     "[data-rsvp],[data-follow],[data-flow],[data-save],[data-starter],[data-topic],[data-device],[data-feed]," +
-    "[data-place],[data-when],[data-format],[data-activity],[data-genre],[data-orgstate],[data-restore],[data-mute],[data-toggle],[data-notint]");
+    "[data-place],[data-when],[data-format],[data-activity],[data-genre],[data-orgstate],[data-restore],[data-mute],[data-toggle],[data-notint]," +
+    "[data-ftopic],[data-fint],[data-ftag],[data-clearpeer],[data-cleartag]");
   if (!t) return;
   const d = t.dataset;
   const stash = () => { document.querySelectorAll("[data-bind]").forEach(f => { S.me[f.dataset.bind] = f.value; }); };
@@ -1140,10 +2056,33 @@ document.addEventListener("click", e => {
     toast(S.follows[d.follow] ? `Following ${org(d.follow).name}. Their events move to the top of your feed.` : `Unfollowed ${org(d.follow).name}.`);
     return;
   }
+  if (d.ftopic){
+    S.peerFilter = { topic: d.ftopic, interest: null };
+    S.view = null; S.sel = null; S.tab = "discover"; S.seg = "peers"; render();
+    toast(`Showing everyone who talks about ${d.ftopic.toLowerCase()}.`); return;
+  }
+  if (d.fint){
+    S.peerFilter = { topic: null, interest: d.fint };
+    S.view = null; S.sel = null; S.tab = "discover"; S.seg = "peers"; render();
+    toast(`Showing everyone into ${d.fint.toLowerCase()}.`); return;
+  }
+  if (d.clearpeer){
+    if (d.clearpeer === "all") S.peerFilter = { topic: null, interest: null };
+    else S.peerFilter[d.clearpeer] = null;
+    render(); return;
+  }
+  if (d.ftag){
+    const [kind, val] = d.ftag.split("|");
+    S.eventTag = { kind, val };
+    S.view = null; S.sel = null; S.tab = "events"; S.evSeg = "all"; render();
+    const n = visibleEvents().length;
+    toast(`${n} event${n === 1 ? "" : "s"} tagged ${val.toLowerCase()}.`); return;
+  }
+  if (d.cleartag){ S.eventTag = null; render(); return; }
   if (d.open){ S.sel = d.open; S.view = "person"; render(); return; }
   if (d.ev){ S.sel = d.ev; S.view = "event"; render(); return; }
   if (d.org){ S.sel = d.org; S.view = "org"; render(); return; }
-  if (d.tab){ S.tab = d.tab; S.view = null; S.flow = null; S.sheet = null; render(); return; }
+  if (d.tab){ S.tab = d.tab; S.view = null; S.flow = null; S.sheet = null; S.eventTag = null; S.peerFilter = { topic: null, interest: null }; render(); return; }
   if (d.seg){ S.seg = d.seg; render(); return; }
   if (d.evseg){ S.evSeg = d.evseg; render(); return; }
   if (d.feed){ S.feed = d.feed; render(); return; }
@@ -1207,8 +2146,8 @@ document.addEventListener("click", e => {
     case "close": S.view = null; S.sel = null; render(); return;
     case "closeflow": S.flow = null; render(); return;
     case "closesheet": S.sheet = null; render(); return;
-    case "filters": S.sheet = "filters"; render(); return;
-    case "peerfilters": toast("Peer filters are stubbed in this demo — the events filter sheet is the one to look at."); return;
+    case "filters": S.eventTag = null; S.sheet = "filters"; render(); return;
+    case "peerfilters": toast("Peer filters are stubbed — but tapping a topic or interest chip on a profile filters this deck."); return;
     case "reset":
       S.feed = "foryou"; S.when = "month"; S.place = "California"; S.includeOnline = true;
       Object.keys(S.formats).forEach(f => S.formats[f] = f !== "Beginner-friendly");
@@ -1246,5 +2185,153 @@ document.addEventListener("keydown", e => {
 });
 
 S.evSeg = "all";
+/* ---------------------------------------------------------- onboarding
+   Six steps: welcome, phone, code, name, disability + duration, location,
+   photo. The photo is the last screen — Skip takes you straight into the
+   app, and so does adding one. No interests step. */
+const SETUP = ["welcome","phone","code","name","disability","location","photo"];
+
+function setupBody(){
+  const m = S.new;
+  switch (SETUP[S.step]){
+    case "welcome": return `<div style="text-align:center;padding-top:26px">
+      <div style="display:flex;justify-content:center">${LOGO}</div>
+      <h1 style="margin-top:28px;font-size:29px">A community of peers with disabilities.</h1>
+      <p class="sub">Ask the questions you can't ask anyone else, and answer them for someone behind you.</p>
+      <button class="btn link" data-setup="invite" style="text-decoration:underline;width:100%">I have an invite from an organization</button></div>`;
+
+    case "phone": return `<h1>What's your number?</h1>
+      <p class="sub">We use it to sign you in, and it is never shown to other members. It is also the only thing stopping automated signups.</p>
+      <input class="fld" id="ph" data-newbind="phone" type="tel" inputmode="tel" value="${esc(m.phone)}" placeholder="(510) 555-0143">
+      <p class="hint" style="margin-top:10px">Demo — no message is sent. Any ten digits work.</p>
+      <div class="note">On a real device the number autofills and the code is read from the incoming SMS, so both of these screens take about a second.</div>`;
+
+    case "code": return `<h1>Enter your code</h1>
+      <p class="sub">We sent a 6-digit code to ${esc(m.phone || "your phone")}.</p>
+      <input class="fld" id="cd" data-newbind="code" inputmode="numeric" maxlength="6" value="${esc(m.code)}"
+        placeholder="000000" style="letter-spacing:.45em;text-align:center;font-size:23px;font-weight:700">
+      <p class="hint" style="margin-top:12px">Any six digits will do here.</p>`;
+
+    case "name": return `<h1>What should people call you?</h1>
+      <p class="sub">This is the name on your profile.</p>
+      <input class="fld" id="nm" data-newbind="name" value="${esc(m.name)}" placeholder="Alex R.">
+      <p class="hint" style="margin-top:10px">First name and last initial is plenty.</p>`;
+
+    case "disability": return `<h1>What's your disability?</h1>
+      <p class="sub">The most-used filter. Pick the closest match.</p>
+      <div class="chips">${["SCI - para","SCI - quad","TBI","Spina Bifida","Cerebral Palsy","Amputee","MS","Other"]
+        .map(x => `<button class="chip ${m.disability === x ? "on" : ""}" data-newpick="disability|${esc(x)}">${esc(x)}</button>`).join("")}</div>
+      <h3 class="sec">How long have you been disabled?</h3>
+      <div class="chips">${["Since birth","Less than 6 months","6–12 months","1–3 years","3–10 years","10+ years"]
+        .map(x => `<button class="chip ${m.duration === x ? "on" : ""}" data-newpick="duration|${esc(x)}">${esc(x)}</button>`).join("")}</div>`;
+
+    case "location": return `<h1>Where do you live?</h1>
+      <p class="sub">We show peers and events in your state first.</p>
+      <button class="btn solid" style="width:100%;min-height:50px" data-setup="geo">Use my location</button>
+      <p class="hint" style="text-align:center;margin:9px 0 4px">or choose yourself</p>
+      <h3 class="sec">State</h3>
+      <div class="chips">${["California","Arizona","Idaho","Colorado"]
+        .map(x => `<button class="chip ${m.state === x ? "on" : ""}" data-newpick="state|${esc(x)}">${esc(x)}</button>`).join("")}</div>
+      <button class="row" data-act="noop" style="margin-top:14px">
+        <span><span class="nm">Show me in browse</span><span class="s">You can turn this off any time</span></span>
+        <span class="sw on"><i></i></span></button>
+      <div class="note">The location prompt fires from the button, so the reason is on screen when it appears. Coordinates are converted to a city and thrown away.</div>`;
+
+    case "photo": return `<h1>Add a photo?</h1>
+      <p class="sub">Optional, and never required. A face makes it feel like a community rather than a directory.</p>
+      <button class="drop" data-setup="pickphoto" style="width:150px;height:150px;border-radius:44px;border:2.5px dashed var(--pine);
+        margin:22px auto 0;display:grid;place-items:center;background:${m.photo ? "var(--pine)" : "#fff"};color:${m.photo ? "#fff" : "var(--pine)"}">
+        ${m.photo ? `<span style="font-family:var(--head);font-weight:800;font-size:34px">${esc((m.name || "A").slice(0,2).toUpperCase())}</span>` : PLUS}</button>
+      <p class="hint" style="text-align:center;margin-top:16px">Pick one from your camera roll or take a new one. You can add or change it any time.</p>
+      <div class="note">Skipping leaves no visible hole — the generated tile reads as a design choice, not a missing image.</div>`;
+  }
+}
+
+function canNext(){
+  const m = S.new;
+  switch (SETUP[S.step]){
+    case "phone": return (m.phone || "").replace(/\D/g, "").length >= 10;
+    case "code": return (m.code || "").replace(/\D/g, "").length === 6;
+    case "name": return (m.name || "").trim().length > 0;
+    case "disability": return !!m.disability && !!m.duration;
+    case "location": return !!m.state;
+    default: return true;
+  }
+}
+
+function setupView(){
+  const stepNo = S.step - 2, showProg = S.step >= 3, last = SETUP[S.step] === "photo";
+  return `<div class="screen">
+    ${showProg
+      ? `<div class="prog"><div class="r"><span class="nm">PeerConnect</span><span class="ct">Step ${stepNo} of 4</span></div>
+         <div class="track"><i style="width:${stepNo / 4 * 100}%"></i></div></div>`
+      : `<div style="height:18px"></div>`}
+    <div class="scroll" style="padding:0 20px 14px">
+      ${S.step > 0 ? `<button class="back" data-setup="back">← Back</button>` : ""}
+      ${setupBody()}
+      <div style="height:12px"></div>
+    </div>
+    <footer class="cta">
+      <button class="btn solid" data-setup="next" ${canNext() ? "" : "disabled style=opacity:.45"}>
+        ${S.step === 0 ? "Get started" : S.step < 3 ? "Next" : last ? "Finish" : "Continue"}</button>
+    </footer>
+    ${last ? `<div style="padding:0 20px 14px"><button class="btn link" data-setup="skipphoto" style="width:100%">Skip for now</button></div>` : ""}
+  </div>`;
+}
+
+const LOGO = `<svg width="112" height="112" viewBox="0 0 120 120" aria-hidden="true">
+ <circle cx="60" cy="60" r="42" fill="none" stroke="#14483C" stroke-width="4.5"/>
+ <g stroke="#14483C" stroke-width="3.2" stroke-linecap="round">
+  <path d="M80 60h14"/><path d="M74.1 74.1 84 84"/><path d="M60 80v14"/><path d="M45.9 74.1 36 84"/>
+  <path d="M40 60H26"/><path d="M45.9 45.9 36 36"/><path d="M60 40V26"/><path d="M74.1 45.9 84 36"/></g>
+ <g fill="#14483C"><circle cx="102" cy="60" r="6.5"/><circle cx="60" cy="102" r="6.5"/>
+  <circle cx="18" cy="60" r="6.5"/><circle cx="30.3" cy="30.3" r="6.5"/><circle cx="89.7" cy="30.3" r="6.5"/></g>
+ <g fill="#C9491B"><circle cx="60" cy="18" r="7.5"/><circle cx="30.3" cy="89.7" r="7.5"/></g>
+ <rect x="82.4" y="82.4" width="14.6" height="14.6" rx="3.6" fill="#14483C"/>
+ <path d="M60 76s13-11.4 13-21a13 13 0 1 0-26 0c0 9.6 13 21 13 21Z" fill="#C9491B"/>
+ <circle cx="60" cy="54.4" r="4.8" fill="#EFF2EE"/></svg>`;
+
+function finishSetup(msg){
+  S.setup = false;
+  if (S.new.name) me().name = S.new.name;
+  if (S.new.state) S.place = S.new.state === "Arizona" ? "Arizona" : "California";
+  if (["Less than 6 months","6–12 months"].includes(S.new.duration)) S.seg = "mentors";
+  render();
+  toast(msg);
+}
+
+document.addEventListener("click", e => {
+  const t = e.target.closest("[data-setup],[data-newpick]");
+  if (!t) return;
+  const d = t.dataset;
+  const stash = () => document.querySelectorAll("[data-newbind]").forEach(f => { S.new[f.dataset.newbind] = f.value; });
+  if (d.newpick){
+    const [k, v] = d.newpick.split("|");
+    S.new[k] = v; render(); return;
+  }
+  switch (d.setup){
+    case "next":
+      stash();
+      if (SETUP[S.step] === "photo"){ finishSetup("You're in. Add interests any time from Me — or just tag a photo."); return; }
+      S.step++; render(); return;
+    case "back": stash(); S.step = Math.max(0, S.step - 1); render(); return;
+    case "invite":
+      S.new.invitedBy = "NorCal SCI"; S.step = 3; render();
+      toast("Invite from NorCal SCI — phone verification skipped."); return;
+    case "geo": S.new.state = "California"; render(); toast("Converted to San Jose, California. Coordinates discarded."); return;
+    case "pickphoto": S.new.photo = !S.new.photo; render(); return;
+    case "skipphoto":
+      finishSetup("You're in. No photo, no hole — your tile is generated from your initials.");
+      return;
+  }
+});
+
+document.addEventListener("input", e => {
+  const k = e.target.dataset.newbind; if (!k) return;
+  S.new[k] = e.target.value;
+  const b = document.querySelector('[data-setup="next"]');
+  if (b){ b.disabled = !canNext(); b.style.opacity = canNext() ? "" : ".45"; }
+});
+
 render();
 </script></body></html>
