@@ -12,18 +12,31 @@ import { GoingDialog } from '@/routes/events/going-dialog';
  * Event detail — the full-page view reached by tapping a card on the events list, laid out to
  * match docs/screens/event-org.html ("Event page").
  *
- * Title, time, location, description, the primary photo and RSVP counts are real, read from the
- * `events`, `event_photos` and `event_rsvps` tables. The org's verified badge and event count,
- * and the activity/format chips' access notes, are still invented per event by event-mocks.ts, for
- * the same reason the events list invents them: those columns don't exist yet. See
- * src/routes/events/event-mocks.ts for the mapping back to `EventItem`.
+ * Title, time, location, description, the primary photo, RSVP counts and the org badge are real,
+ * read from the `events`, `event_photos`, `event_rsvps` and `organizations` tables. The org's
+ * verified checkmark and event count, and the activity/format chips' access notes, are still
+ * invented per event by event-mocks.ts, for the same reason the events list invents them: those
+ * columns don't exist yet. See src/routes/events/event-mocks.ts for the mapping back to
+ * `EventItem`.
  *
  * TODO(team):
  *  - [x] Real title/time/location/description/photo from Supabase
  *  - [x] "More from this org" using real sibling events
  *  - [x] Persist RSVPs to `event_rsvps`, shared with the events list
+ *  - [x] Real org badge from `organizations`, matching the events list
  *  - [ ] Wire an actual Follow feature (currently a disabled button)
  */
+
+interface OrganizationEmbed {
+  slug: string;
+  name: string;
+  logo_url: string | null;
+}
+
+interface DataFeedEmbed {
+  name: string;
+  organizations: OrganizationEmbed | OrganizationEmbed[] | null;
+}
 
 interface EventDetailRow {
   id: string;
@@ -42,7 +55,8 @@ interface EventDetailRow {
   event_format: EventFormat | null;
   category: string | null;
   feed_id: string;
-  data_feeds?: { name: string } | { name: string }[] | null;
+  /** PostgREST returns an embedded row as an object, or an array on some relationship shapes. */
+  data_feeds?: DataFeedEmbed | DataFeedEmbed[] | null;
   event_tags?: { tags: { slug: string; name: string } | null }[] | null;
 }
 
@@ -53,10 +67,21 @@ interface RelatedEventRow {
   location: string | null;
 }
 
-function orgNameOf(row: EventDetailRow): string | null {
+function feedOf(row: EventDetailRow): DataFeedEmbed | null {
   const feed = row.data_feeds;
   if (!feed) return null;
-  return (Array.isArray(feed) ? feed[0]?.name : feed.name) ?? null;
+  return (Array.isArray(feed) ? feed[0] : feed) ?? null;
+}
+
+function orgNameOf(row: EventDetailRow): string | null {
+  return feedOf(row)?.name ?? null;
+}
+
+/** The org badge shown next to the hosting card — one organization per publishing feed. */
+function orgBadgeOf(row: EventDetailRow): { name: string; logoUrl: string | null } | null {
+  const org = feedOf(row)?.organizations;
+  const orgRow = Array.isArray(org) ? org[0] : org;
+  return orgRow ? { name: orgRow.name, logoUrl: orgRow.logo_url } : null;
 }
 
 function dateTile(isoString: string): { weekday: string; day: string } {
@@ -135,7 +160,7 @@ export default function EventPage() {
         const { data: eventData, error: eventError } = await supabase
           .from('events')
           .select(
-            'id, title, description, description_html, description_clean, description_html_clean, start_time, end_time, location, url, registration_url, registration_deadline, event_format, category, feed_id, data_feeds(name), event_tags(tags(slug, name))',
+            'id, title, description, description_html, description_clean, description_html_clean, start_time, end_time, location, url, registration_url, registration_deadline, event_format, category, feed_id, data_feeds(name, organizations(slug, name, logo_url)), event_tags(tags(slug, name))',
           )
           .eq('id', id)
           .single()
@@ -216,6 +241,7 @@ export default function EventPage() {
 
   const mock: MockEventAttributes = mockEventAttributes(event.id);
   const orgName = orgNameOf(event);
+  const orgBadge = orgBadgeOf(event);
   const venue = event.location?.trim() ?? '';
   const meta = [venue === '' ? null : venue, mock.city].filter(Boolean).join(' · ');
   const rsvp = rsvpFor(event.id);
@@ -237,8 +263,21 @@ export default function EventPage() {
 
       {orgName && (
         <div className="bg-card mt-3.5 flex items-center gap-3 rounded-2xl border p-3">
-          <div className="bg-primary text-primary-foreground flex size-11 shrink-0 items-center justify-center rounded-xl text-sm font-extrabold">
-            {orgName.charAt(0).toUpperCase()}
+          <div
+            className="bg-card flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-xl border"
+            title={orgBadge?.name ?? orgName}
+          >
+            {orgBadge?.logoUrl ? (
+              <img
+                src={orgBadge.logoUrl}
+                alt={orgBadge.name}
+                className="size-full object-contain p-1"
+              />
+            ) : (
+              <span className="text-primary text-sm font-extrabold" aria-hidden="true">
+                {(orgBadge?.name ?? orgName).charAt(0).toUpperCase()}
+              </span>
+            )}
           </div>
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-1.5 text-sm font-bold">

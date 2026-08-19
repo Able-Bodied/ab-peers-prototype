@@ -7,6 +7,12 @@ import { RsvpProvider } from '@/lib/rsvps';
 import EventPage from '@/routes/event/page';
 import { createEventRsvpsMock } from '@/test/rsvp-mock';
 
+interface OrganizationEmbed {
+  slug: string;
+  name: string;
+  logo_url: string | null;
+}
+
 interface EventDetailRow {
   id: string;
   title: string;
@@ -23,7 +29,7 @@ interface EventDetailRow {
   event_format: 'in_person' | 'online' | 'hybrid' | null;
   category: string | null;
   feed_id: string;
-  data_feeds: { name: string } | null;
+  data_feeds: { name: string; organizations: OrganizationEmbed | null } | null;
   event_tags: { tags: { slug: string; name: string } | null }[];
 }
 
@@ -88,7 +94,7 @@ function baseEvent(overrides: Partial<EventDetailRow> = {}): EventDetailRow {
     event_format: null,
     category: null,
     feed_id: 'feed-1',
-    data_feeds: { name: 'BORP' },
+    data_feeds: { name: 'BORP', organizations: null },
     event_tags: [],
     ...overrides,
   };
@@ -139,6 +145,37 @@ describe('EventPage', () => {
 
     await screen.findByText('Adaptive handcycle ride');
     expect(screen.queryByRole('img')).not.toBeInTheDocument();
+  });
+
+  it("shows the organization's logo as a badge in the hosting card", async () => {
+    eventRow = baseEvent({
+      data_feeds: {
+        name: 'Northern California SCI Calendar',
+        organizations: {
+          slug: 'norcal-sci',
+          name: 'NorCal SCI',
+          logo_url: 'https://example.com/norcal-sci-logo.png',
+        },
+      },
+    });
+
+    renderEvent();
+
+    await screen.findByText('Adaptive handcycle ride');
+    const badge = await screen.findByRole('img', { name: 'NorCal SCI' });
+    expect(badge).toHaveAttribute('src', 'https://example.com/norcal-sci-logo.png');
+  });
+
+  it('falls back to an initial in the hosting card when the organization has no logo', async () => {
+    eventRow = baseEvent({
+      data_feeds: { name: 'BORP', organizations: { slug: 'borp', name: 'BORP', logo_url: null } },
+    });
+
+    renderEvent();
+
+    await screen.findByText('Adaptive handcycle ride');
+    expect(screen.queryByRole('img')).not.toBeInTheDocument();
+    expect(screen.getByTitle('BORP')).toHaveTextContent('B');
   });
 
   it('starts a fresh event at zero and increments on RSVP', async () => {
