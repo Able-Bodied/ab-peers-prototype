@@ -1,18 +1,39 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { useEffect } from 'react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { RsvpProvider, rsvpCounts, useRsvps } from '@/lib/rsvps';
+import { RsvpProvider, useRsvps } from '@/lib/rsvps';
+import { createEventRsvpsMock } from '@/test/rsvp-mock';
 
-/** `who` names the buttons so two harnesses on one screen stay individually addressable. */
+const eventRsvps = createEventRsvpsMock();
+
+vi.mock('@/lib/supabase', () => ({
+  getSupabase: () => ({ from: (table: string) => eventRsvps.forTable(table) }),
+}));
+
+/**
+ * `who` names the buttons so two harnesses on one screen stay individually addressable. Fetches
+ * counts on mount, the way every real page does (src/routes/events/page.tsx,
+ * src/routes/event/page.tsx) — the provider itself never fetches for an id nobody asked about.
+ */
 function Harness({ eventId = 'e1', who = 'a' }: { eventId?: string; who?: string }) {
-  const { rsvpFor, setRsvp, respondedCount } = useRsvps();
+  const { rsvpFor, setRsvp, respondedCount, countsFor, ensureCounts } = useRsvps();
+
+  useEffect(() => {
+    ensureCounts([eventId]);
+  }, [eventId, ensureCounts]);
+
   const rsvp = rsvpFor(eventId);
+  const counts = countsFor(eventId);
 
   return (
     <div>
       <p>
         {who} state: {rsvp ?? 'none'}
+      </p>
+      <p>
+        {who} counts: {counts.going} going, {counts.interested} interested
       </p>
       <p>responded: {respondedCount}</p>
       <button
@@ -46,30 +67,35 @@ function Harness({ eventId = 'e1', who = 'a' }: { eventId?: string; who?: string
 describe('RsvpProvider', () => {
   beforeEach(() => {
     globalThis.localStorage.clear();
+    eventRsvps.reset();
   });
 
-  it('starts with nothing marked', () => {
+  it('starts with nothing marked', async () => {
     render(
       <RsvpProvider>
         <Harness />
       </RsvpProvider>,
     );
 
-    expect(screen.getByText('a state: none')).toBeInTheDocument();
+    expect(await screen.findByText('a state: none')).toBeInTheDocument();
     expect(screen.getByText('responded: 0')).toBeInTheDocument();
+    expect(screen.getByText('a counts: 0 going, 0 interested')).toBeInTheDocument();
   });
 
-  it('records a response and counts it', async () => {
+  it('records a response, counts it, and saves it to the database', async () => {
     render(
       <RsvpProvider>
         <Harness />
       </RsvpProvider>,
     );
+    await screen.findByText('a state: none');
 
     await userEvent.click(screen.getByRole('button', { name: 'go a' }));
 
     expect(screen.getByText('a state: going')).toBeInTheDocument();
     expect(screen.getByText('responded: 1')).toBeInTheDocument();
+    expect(screen.getByText('a counts: 1 going, 0 interested')).toBeInTheDocument();
+    expect(eventRsvps.rows).toEqual([expect.objectContaining({ event_id: 'e1', status: 'going' })]);
   });
 
   it('replaces rather than stacks when the viewer changes their mind', async () => {
@@ -78,12 +104,15 @@ describe('RsvpProvider', () => {
         <Harness />
       </RsvpProvider>,
     );
+    await screen.findByText('a state: none');
 
     await userEvent.click(screen.getByRole('button', { name: 'go a' }));
     await userEvent.click(screen.getByRole('button', { name: 'maybe a' }));
 
     expect(screen.getByText('a state: interested')).toBeInTheDocument();
     expect(screen.getByText('responded: 1')).toBeInTheDocument();
+    expect(screen.getByText('a counts: 0 going, 1 interested')).toBeInTheDocument();
+    expect(eventRsvps.rows).toHaveLength(1);
   });
 
   it('drops the event entirely when the response is cleared', async () => {
@@ -92,12 +121,15 @@ describe('RsvpProvider', () => {
         <Harness />
       </RsvpProvider>,
     );
+    await screen.findByText('a state: none');
 
     await userEvent.click(screen.getByRole('button', { name: 'go a' }));
     await userEvent.click(screen.getByRole('button', { name: 'clear a' }));
 
     expect(screen.getByText('a state: none')).toBeInTheDocument();
     expect(screen.getByText('responded: 0')).toBeInTheDocument();
+    expect(screen.getByText('a counts: 0 going, 0 interested')).toBeInTheDocument();
+    expect(eventRsvps.rows).toEqual([]);
   });
 
   it('shares one answer across everything showing that event', async () => {
@@ -108,11 +140,14 @@ describe('RsvpProvider', () => {
         <Harness who="b" />
       </RsvpProvider>,
     );
+    await screen.findByText('a state: none');
 
     await userEvent.click(screen.getByRole('button', { name: 'go a' }));
 
     expect(screen.getByText('a state: going')).toBeInTheDocument();
     expect(screen.getByText('b state: going')).toBeInTheDocument();
+    expect(screen.getByText('a counts: 1 going, 0 interested')).toBeInTheDocument();
+    expect(screen.getByText('b counts: 1 going, 0 interested')).toBeInTheDocument();
   });
 
   it('keeps separate answers for separate events', async () => {
@@ -122,73 +157,35 @@ describe('RsvpProvider', () => {
         <Harness eventId="e2" who="b" />
       </RsvpProvider>,
     );
+    await screen.findByText('a state: none');
 
     await userEvent.click(screen.getByRole('button', { name: 'go a' }));
 
     expect(screen.getByText('a state: going')).toBeInTheDocument();
     expect(screen.getByText('b state: none')).toBeInTheDocument();
+    expect(screen.getByText('a counts: 1 going, 0 interested')).toBeInTheDocument();
+    expect(screen.getByText('b counts: 0 going, 0 interested')).toBeInTheDocument();
   });
 
-  it('survives a reload', async () => {
+  it('survives a reload, because the database — not localStorage — is the source of truth', async () => {
     const { unmount } = render(
       <RsvpProvider>
         <Harness />
       </RsvpProvider>,
     );
+    await screen.findByText('a state: none');
     await userEvent.click(screen.getByRole('button', { name: 'go a' }));
     unmount();
 
+    // Same browser (viewer id persisted to localStorage), same database — a fresh mount has to
+    // fetch its own state back rather than assuming it's remembered anywhere client-side.
     render(
       <RsvpProvider>
         <Harness />
       </RsvpProvider>,
     );
 
-    expect(screen.getByText('a state: going')).toBeInTheDocument();
-  });
-
-  it('ignores a stored value that is not a real state', () => {
-    globalThis.localStorage.setItem('ab-peers:rsvps', JSON.stringify({ e1: 'attending' }));
-
-    render(
-      <RsvpProvider>
-        <Harness />
-      </RsvpProvider>,
-    );
-
-    expect(screen.getByText('a state: none')).toBeInTheDocument();
-  });
-
-  it('starts clean rather than throwing when storage holds junk', () => {
-    globalThis.localStorage.setItem('ab-peers:rsvps', 'not json at all');
-
-    render(
-      <RsvpProvider>
-        <Harness />
-      </RsvpProvider>,
-    );
-
-    expect(screen.getByText('a state: none')).toBeInTheDocument();
-  });
-});
-
-describe('rsvpCounts', () => {
-  const base = { goingCount: 10, interestedCount: 4 };
-
-  it('leaves the tallies alone when the viewer has not responded', () => {
-    expect(rsvpCounts(base, null)).toEqual({ going: 10, interested: 4 });
-  });
-
-  it('adds the viewer to going', () => {
-    expect(rsvpCounts(base, 'going')).toEqual({ going: 11, interested: 4 });
-  });
-
-  it('adds the viewer to interested', () => {
-    expect(rsvpCounts(base, 'interested')).toEqual({ going: 10, interested: 5 });
-  });
-
-  it('never adds the viewer to both at once', () => {
-    const counts = rsvpCounts(base, 'going');
-    expect(counts.going + counts.interested).toBe(base.goingCount + base.interestedCount + 1);
+    expect(await screen.findByText('a state: going')).toBeInTheDocument();
+    expect(screen.getByText('a counts: 1 going, 0 interested')).toBeInTheDocument();
   });
 });

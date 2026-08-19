@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { RsvpProvider } from '@/lib/rsvps';
 import EventsPage from '@/routes/events/page';
+import { createEventRsvpsMock } from '@/test/rsvp-mock';
 
 class MockIntersectionObserver {
   readonly root: Element | Document | null = null;
@@ -87,7 +88,9 @@ function makeBuilder(table: string) {
   return builder;
 }
 
-const mockFrom = vi.fn((table: string) => makeBuilder(table));
+const eventRsvps = createEventRsvpsMock();
+
+const mockFrom = vi.fn((table: string) => eventRsvps.forTable(table) ?? makeBuilder(table));
 
 vi.mock('@/lib/supabase', () => ({
   getSupabase: () => ({ from: mockFrom }),
@@ -123,7 +126,10 @@ describe('EventsPage', () => {
     rows = [];
     appliedFilters = [];
     mockRange.mockImplementation(() => Promise.resolve({ data: rows, error: null }));
-    mockFrom.mockImplementation((table: string) => makeBuilder(table));
+    mockFrom.mockImplementation(
+      (table: string) => eventRsvps.forTable(table) ?? makeBuilder(table),
+    );
+    eventRsvps.reset();
     globalThis.localStorage.clear();
   });
 

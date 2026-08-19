@@ -1,6 +1,6 @@
 import { X } from 'lucide-react';
 
-import { type RsvpState, rsvpCounts } from '@/lib/rsvps';
+import type { RsvpCounts, RsvpState } from '@/lib/rsvps';
 import { cn } from '@/lib/utils';
 import type { MockEventAttributes } from '@/routes/events/event-mocks';
 import { EVENT_FORMAT_LABELS, type EventFormat } from '@/routes/events/filters';
@@ -36,6 +36,8 @@ export interface FeedEvent {
 interface EventListCardProps {
   event: FeedEvent;
   rsvp: RsvpState;
+  /** Real tally from `event_rsvps`, via `useRsvps().countsFor()`. */
+  counts: RsvpCounts;
   onOpen: () => void;
   onRsvp: (next: RsvpState) => void;
   onDismiss: () => void;
@@ -56,7 +58,14 @@ function timeLabel(isoString: string): string {
   });
 }
 
-export function EventListCard({ event, rsvp, onOpen, onRsvp, onDismiss }: EventListCardProps) {
+export function EventListCard({
+  event,
+  rsvp,
+  counts,
+  onOpen,
+  onRsvp,
+  onDismiss,
+}: EventListCardProps) {
   const { mock } = event;
   const { weekday, day } = dateTile(event.startTime);
 
@@ -69,7 +78,7 @@ export function EventListCard({ event, rsvp, onOpen, onRsvp, onDismiss }: EventL
   // line still says something true when the feed gave no venue.
   const secondary = venue === '' ? (event.tags[0]?.name ?? mock.activity) : venue;
 
-  const { going, interested } = rsvpCounts(mock, rsvp);
+  const { going, interested } = counts;
 
   return (
     <article className="bg-card relative flex gap-3 rounded-2xl border p-4">

@@ -16,6 +16,10 @@
  *
  * Values are derived from the event id, so a given event looks the same on every render and across
  * reloads — a card that shuffled its city on each paint would be actively misleading to demo.
+ *
+ * RSVP tallies are not invented here anymore — they come from the real `event_rsvps` table via
+ * `useRsvps().countsFor()` (see src/lib/rsvps.tsx), since a fabricated "6 going" on an event nobody
+ * has actually RSVP'd to is worse than an honest zero.
  */
 
 import type { EventMode } from '@/types/domain';
@@ -88,8 +92,6 @@ export interface MockEventAttributes {
   genre: string;
   recurring: boolean;
   beginner: boolean;
-  goingCount: number;
-  interestedCount: number;
   /** Aggregate phrasing only; null when there is nothing worth surfacing. */
   matchLine: string | null;
   accessNotes: string;
@@ -142,8 +144,6 @@ export function mockEventAttributes(id: string): MockEventAttributes {
     genre,
     recurring: h % 3 !== 0,
     beginner: h % 4 !== 0,
-    goingCount: (h % 24) + 2,
-    interestedCount: (h % 37) + 4,
     matchLine: pick(MATCH_LINES, h, 4),
     accessNotes: pick(ACCESS_NOTES, h, 5),
     accessWarning: pick(ACCESS_WARNINGS, h, 6),

@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { RsvpProvider } from '@/lib/rsvps';
 import EventPage from '@/routes/event/page';
-import { mockEventAttributes } from '@/routes/events/event-mocks';
+import { createEventRsvpsMock } from '@/test/rsvp-mock';
 
 interface EventDetailRow {
   id: string;
@@ -63,7 +63,9 @@ function makeBuilder(table: string) {
   return builder;
 }
 
-const mockFrom = vi.fn((table: string) => makeBuilder(table));
+const eventRsvps = createEventRsvpsMock();
+
+const mockFrom = vi.fn((table: string) => eventRsvps.forTable(table) ?? makeBuilder(table));
 
 vi.mock('@/lib/supabase', () => ({
   getSupabase: () => ({ from: mockFrom }),
@@ -111,6 +113,7 @@ describe('EventPage', () => {
     eventError = null;
     photoRows = [];
     relatedRows = [];
+    eventRsvps.reset();
   });
 
   it('shows the title, organization and location for the loaded event', async () => {
@@ -138,18 +141,28 @@ describe('EventPage', () => {
     expect(screen.queryByRole('img')).not.toBeInTheDocument();
   });
 
-  it('increments the going count and marks the button pressed on RSVP', async () => {
+  it('starts a fresh event at zero and increments on RSVP', async () => {
     renderEvent();
     await screen.findByText('Adaptive handcycle ride');
 
-    const mock = mockEventAttributes('e1');
     const goingButton = screen.getByRole('button', { name: /^Going/ });
-    expect(screen.getByText(`${mock.goingCount} going`, { exact: false })).toBeInTheDocument();
+    expect(screen.getByText('0 going', { exact: false })).toBeInTheDocument();
 
     await userEvent.click(goingButton);
 
     expect(goingButton).toHaveAttribute('aria-pressed', 'true');
-    expect(screen.getByText(`${mock.goingCount + 1} going`, { exact: false })).toBeInTheDocument();
+    expect(screen.getByText('1 going', { exact: false })).toBeInTheDocument();
+  });
+
+  it('reflects RSVPs already saved by this viewer', async () => {
+    eventRsvps.reset([{ event_id: 'e1', viewer_id: 'someone-else', status: 'going' }]);
+
+    renderEvent();
+    await screen.findByText('Adaptive handcycle ride');
+
+    expect(await screen.findByText('1 going', { exact: false })).toBeInTheDocument();
+    // A different viewer's RSVP counts toward the tally but isn't this viewer's own state.
+    expect(screen.getByRole('button', { name: /^Going/ })).toHaveAttribute('aria-pressed', 'false');
   });
 
   it('lists related events from the same organization', async () => {

@@ -40,14 +40,6 @@ describe('mockEventAttributes', () => {
     }
   });
 
-  it('produces plausible non-negative RSVP counts', () => {
-    for (const id of IDS) {
-      const { goingCount, interestedCount } = mockEventAttributes(id);
-      expect(goingCount).toBeGreaterThan(0);
-      expect(interestedCount).toBeGreaterThan(0);
-    }
-  });
-
   it('does not collapse every event onto one activity', () => {
     const activities = new Set(IDS.map((id) => mockEventAttributes(id).activity));
     expect(activities.size).toBeGreaterThan(1);

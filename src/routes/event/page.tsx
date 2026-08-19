@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
-import { rsvpCounts, useRsvps } from '@/lib/rsvps';
+import { useRsvps } from '@/lib/rsvps';
 import { getSupabase } from '@/lib/supabase';
 import { cn } from '@/lib/utils';
 import { type MockEventAttributes, mockEventAttributes } from '@/routes/events/event-mocks';
@@ -12,17 +12,17 @@ import { GoingDialog } from '@/routes/events/going-dialog';
  * Event detail — the full-page view reached by tapping a card on the events list, laid out to
  * match docs/screens/event-org.html ("Event page").
  *
- * Title, time, location, description and the primary photo are real, read from the `events` and
- * `event_photos` tables. Everything else on this page — the org's verified badge and event count,
- * activity/format chips, access notes, and RSVP counts — is invented per event by event-mocks.ts,
- * for the same reason the events list invents it: those columns don't exist yet. See
+ * Title, time, location, description, the primary photo and RSVP counts are real, read from the
+ * `events`, `event_photos` and `event_rsvps` tables. The org's verified badge and event count,
+ * and the activity/format chips' access notes, are still invented per event by event-mocks.ts, for
+ * the same reason the events list invents them: those columns don't exist yet. See
  * src/routes/events/event-mocks.ts for the mapping back to `EventItem`.
  *
  * TODO(team):
  *  - [x] Real title/time/location/description/photo from Supabase
  *  - [x] "More from this org" using real sibling events
+ *  - [x] Persist RSVPs to `event_rsvps`, shared with the events list
  *  - [ ] Wire an actual Follow feature (currently a disabled button)
- *  - [ ] Persist RSVPs — Interested/Going are local state and reset on reload, same as the list
  */
 
 interface EventDetailRow {
@@ -114,7 +114,7 @@ export default function EventPage() {
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const [moreFromOrg, setMoreFromOrg] = useState<RelatedEventRow[]>([]);
   // Shared with the events feed, so the counts here and on the card agree.
-  const { rsvpFor, setRsvp } = useRsvps();
+  const { rsvpFor, setRsvp, countsFor, ensureCounts } = useRsvps();
   const [goingOpen, setGoingOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -180,6 +180,10 @@ export default function EventPage() {
     };
   }, [id]);
 
+  useEffect(() => {
+    if (id) ensureCounts([id]);
+  }, [id, ensureCounts]);
+
   const backButton = (
     <button
       type="button"
@@ -215,7 +219,7 @@ export default function EventPage() {
   const venue = event.location?.trim() ?? '';
   const meta = [venue === '' ? null : venue, mock.city].filter(Boolean).join(' · ');
   const rsvp = rsvpFor(event.id);
-  const { going, interested } = rsvpCounts(mock, rsvp);
+  const { going, interested } = countsFor(event.id);
   const tags = (event.event_tags ?? []).flatMap((link) => (link.tags ? [link.tags] : []));
   // Prefer the CTA-stripped copy once the verification pass has produced it.
   const bodyHtml = event.description_html_clean ?? event.description_html;

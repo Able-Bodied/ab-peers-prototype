@@ -25,17 +25,17 @@ import { GoingDialog } from '@/routes/events/going-dialog';
  * groups and clinics near them, laid out to match the events screen in docs/screens/events.png.
  *
  * Events are real: they come from the `events` table, ingested from partner org calendars by
- * jobs/event-ingest. So are the organization name, the format badge and the tags. The city and the
- * RSVP tallies on each card are still invented per event by event-mocks.ts, because no column
- * carries them.
+ * jobs/event-ingest. So are the organization name, the format badge, the tags and the RSVP tallies
+ * (event_rsvps, via src/lib/rsvps.tsx). The city is still invented per event by event-mocks.ts,
+ * because no column carries it.
  *
  * TODO(team):
  *  - [x] Chronological list of upcoming events with infinite scroll
  *  - [x] Filter sheet matching docs/screens/filter-sheet.png
  *  - [x] Date filtering on `start_time`
  *  - [x] Format and tag filters, applied in the query against real columns
+ *  - [x] Real RSVP counts from `event_rsvps`
  *  - [ ] Wire the place filter — no city column exists, only free-text `location`
- *  - [ ] Move RSVPs from localStorage to an `event_rsvps` table once auth lands (src/lib/rsvps.tsx)
  *  - [ ] Persist dismissals, and give the user a way to restore them (Hidden, in the sheet)
  *  - [ ] "For you" ranking from the peer's signup interests
  */
@@ -123,7 +123,7 @@ export default function EventsPage() {
 
   const [rows, setRows] = useState<EventRow[]>([]);
   // Shared across routes, so the going count on a card and on that event's own page agree.
-  const { rsvps, setRsvp } = useRsvps();
+  const { rsvps, setRsvp, countsFor, ensureCounts } = useRsvps();
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
   // Marking Going opens the hand-off dialog: the host owns registration, so saying Going here is
   // not the same as having a place.
@@ -241,6 +241,10 @@ export default function EventsPage() {
     };
   }, [offset, hasMore, isLoadingMore, loading, fetchPage]);
 
+  useEffect(() => {
+    ensureCounts(rows.map((row) => row.id));
+  }, [rows, ensureCounts]);
+
   const visible = useMemo(() => {
     return rows
       .filter((row) => !dismissed.has(row.id))
@@ -345,6 +349,7 @@ export default function EventsPage() {
             key={event.id}
             event={event}
             rsvp={rsvps[event.id] ?? null}
+            counts={countsFor(event.id)}
             onOpen={() => {
               void navigate(`/event/${event.id}`);
             }}
