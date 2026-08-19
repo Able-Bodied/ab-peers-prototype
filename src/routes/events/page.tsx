@@ -1,6 +1,7 @@
 import { SlidersHorizontal } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useOrganizations } from '@/lib/organizations';
 import { useRsvps } from '@/lib/rsvps';
 import { getSupabase } from '@/lib/supabase';
 import { useTaxonomy } from '@/lib/taxonomy';
@@ -16,6 +17,7 @@ import {
   type EventFilterState,
   type EventFormat,
   selectedFormats,
+  selectedOrganizations,
   selectedTags,
 } from '@/routes/events/filters';
 import { GoingDialog } from '@/routes/events/going-dialog';
@@ -25,9 +27,12 @@ import { GoingDialog } from '@/routes/events/going-dialog';
  * groups and clinics near them, laid out to match the events screen in docs/screens/events.png.
  *
  * Events are real: they come from the `events` table, ingested from partner org calendars by
- * jobs/event-ingest. So are the organization name, the format badge, the tags and the RSVP tallies
- * (event_rsvps, via src/lib/rsvps.tsx). The city is still invented per event by event-mocks.ts,
- * because no column carries it.
+ * jobs/event-ingest. So are the organization badge, the format badge, the tags and the RSVP
+ * tallies (event_rsvps, via src/lib/rsvps.tsx). The city is still invented per event by
+ * event-mocks.ts, because no column carries it. The card shows an organization badge rather than
+ * an event photo — each event's `data_feeds` row maps to one `organizations` row (see
+ * supabase/migrations/20260819120000_organizations.sql), and a scraped photo said less about an
+ * event than knowing which trusted org posted it.
  *
  * TODO(team):
  *  - [x] Chronological list of upcoming events with infinite scroll
@@ -35,12 +40,24 @@ import { GoingDialog } from '@/routes/events/going-dialog';
  *  - [x] Date filtering on `start_time`
  *  - [x] Format and tag filters, applied in the query against real columns
  *  - [x] Real RSVP counts from `event_rsvps`
+ *  - [x] Organization badge and filter, from `organizations`
  *  - [ ] Wire the place filter — no city column exists, only free-text `location`
  *  - [ ] Persist dismissals, and give the user a way to restore them (Hidden, in the sheet)
  *  - [ ] "For you" ranking from the peer's signup interests
  */
 
 const BATCH_SIZE = 12;
+
+interface OrganizationEmbed {
+  slug: string;
+  name: string;
+  logo_url: string | null;
+}
+
+interface DataFeedEmbed {
+  name: string;
+  organizations: OrganizationEmbed | OrganizationEmbed[] | null;
+}
 
 interface EventRow {
   id: string;
@@ -54,38 +71,47 @@ interface EventRow {
   registration_deadline: string | null;
   event_format: EventFormat | null;
   /** PostgREST returns an embedded row as an object, or an array on some relationship shapes. */
-  data_feeds?: { name: string } | { name: string }[] | null;
-  event_photos?: { photo_url: string; is_primary: boolean }[] | null;
+  data_feeds?: DataFeedEmbed | DataFeedEmbed[] | null;
   event_tags?: { tags: { slug: string; name: string } | null }[] | null;
 }
 
 const BASE_COLUMNS =
-  'id, title, description, start_time, end_time, location, url, registration_url, registration_deadline, event_format, data_feeds(name), event_photos(photo_url, is_primary)';
+  'id, title, description, start_time, end_time, location, url, registration_url, registration_deadline, event_format';
 
 /**
- * Narrowing by tag needs an inner join, which also restricts the embedded rows to the matching
- * tags — so a filtered card lists the tags it matched on rather than all of its tags. Without a
- * tag filter the plain embed returns the full set.
+ * Narrowing by tag or organization needs an inner join on that embed, which also restricts the
+ * embedded rows to the match — so a filtered card lists only the tags it matched on rather than
+ * its full set. Without a filter the plain embed returns everything.
  */
-function selectFor(tags: string[] | null): string {
-  return tags
-    ? `${BASE_COLUMNS}, event_tags!inner(tags!inner(slug, name))`
-    : `${BASE_COLUMNS}, event_tags(tags(slug, name))`;
+function selectFor(tags: string[] | null, organizations: string[] | null): string {
+  const tagsPart = tags
+    ? 'event_tags!inner(tags!inner(slug, name))'
+    : 'event_tags(tags(slug, name))';
+  const feedsPart = organizations
+    ? 'data_feeds!inner(name, organizations!inner(slug, name, logo_url))'
+    : 'data_feeds(name, organizations(slug, name, logo_url))';
+  return `${BASE_COLUMNS}, ${feedsPart}, ${tagsPart}`;
 }
 
 function tagsOf(row: EventRow): { slug: string; name: string }[] {
   return (row.event_tags ?? []).flatMap((link) => (link.tags ? [link.tags] : []));
 }
 
-function orgNameOf(row: EventRow): string | null {
+function feedOf(row: EventRow): DataFeedEmbed | null {
   const feed = row.data_feeds;
   if (!feed) return null;
-  return (Array.isArray(feed) ? feed[0]?.name : feed.name) ?? null;
+  return (Array.isArray(feed) ? feed[0] : feed) ?? null;
 }
 
-function primaryPhotoUrl(row: EventRow): string | null {
-  const photos = row.event_photos ?? [];
-  return photos.find((p) => p.is_primary)?.photo_url ?? photos[0]?.photo_url ?? null;
+function orgNameOf(row: EventRow): string | null {
+  return feedOf(row)?.name ?? null;
+}
+
+/** The badge shown in place of an event photo — one organization per publishing feed. */
+function orgBadgeOf(row: EventRow): { name: string; logoUrl: string | null } | null {
+  const org = feedOf(row)?.organizations;
+  const orgRow = Array.isArray(org) ? org[0] : org;
+  return orgRow ? { name: orgRow.name, logoUrl: orgRow.logo_url } : null;
 }
 
 function toFeedEvent(row: EventRow): FeedEvent {
@@ -102,7 +128,7 @@ function toFeedEvent(row: EventRow): FeedEvent {
     format: row.event_format,
     tags: tagsOf(row),
     orgName: orgNameOf(row),
-    photoUrl: primaryPhotoUrl(row),
+    orgBadge: orgBadgeOf(row),
     mock: mockEventAttributes(row.id),
   };
 }
@@ -119,6 +145,12 @@ export default function EventsPage() {
   const tagNames = useMemo(
     () => new Map(categories.flatMap((c) => c.children).map((t) => [t.slug, t.name])),
     [categories],
+  );
+
+  const { organizations } = useOrganizations();
+  const organizationNames = useMemo(
+    () => new Map(organizations.map((org) => [org.slug, org.name])),
+    [organizations],
   );
 
   const [rows, setRows] = useState<EventRow[]>([]);
@@ -140,10 +172,12 @@ export default function EventsPage() {
   // set — a client-side date filter would page through everything and drop most of each batch.
   const formats = selectedFormats(filters);
   const tagSlugs = selectedTags(filters);
+  const orgSlugs = selectedOrganizations(filters);
   // Serialized so the fetch identity tracks the chosen values rather than the array identity, which
   // is new on every render and would refetch in a loop.
   const formatKey = formats?.join(',') ?? '';
   const tagKey = tagSlugs?.join(',') ?? '';
+  const orgKey = orgSlugs?.join(',') ?? '';
 
   const fetchPage = useCallback(
     async (from: number): Promise<EventRow[]> => {
@@ -151,8 +185,9 @@ export default function EventsPage() {
       const range = dateWindowRange(filters.when);
       const activeFormats = formatKey === '' ? null : (formatKey.split(',') as EventFormat[]);
       const activeTags = tagKey === '' ? null : tagKey.split(',');
+      const activeOrgs = orgKey === '' ? null : orgKey.split(',');
 
-      let query = supabase.from('events').select(selectFor(activeTags));
+      let query = supabase.from('events').select(selectFor(activeTags, activeOrgs));
       if (range) {
         query = query.gte('start_time', range.from).lte('start_time', range.to);
       }
@@ -161,6 +196,9 @@ export default function EventsPage() {
       }
       if (activeTags) {
         query = query.in('event_tags.tags.slug', activeTags);
+      }
+      if (activeOrgs) {
+        query = query.in('data_feeds.organizations.slug', activeOrgs);
       }
 
       const { data, error: queryError } = await query
@@ -171,7 +209,7 @@ export default function EventsPage() {
       if (queryError) throw queryError;
       return data;
     },
-    [filters.when, formatKey, tagKey],
+    [filters.when, formatKey, tagKey, orgKey],
   );
 
   // Reloads from scratch whenever the date window changes.
@@ -259,6 +297,7 @@ export default function EventsPage() {
     // Only shown once they narrow something, so the bar doesn't claim a filter that isn't on.
     ...(formats ?? []).map((format) => EVENT_FORMAT_LABELS[format]),
     ...(tagSlugs ?? []).map((slug) => tagNames.get(slug) ?? slug.replace(/-/g, ' ')),
+    ...(orgSlugs ?? []).map((slug) => organizationNames.get(slug) ?? slug.replace(/-/g, ' ')),
   ];
 
   return (
@@ -394,6 +433,7 @@ export default function EventsPage() {
         <FilterSheet
           filters={filters}
           categories={categories}
+          organizations={organizations}
           resultCount={visible.length}
           onChange={setFilters}
           onClose={() => {

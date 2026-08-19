@@ -1,5 +1,6 @@
 import { X } from 'lucide-react';
 
+import type { Organization } from '@/lib/organizations';
 import type { TaxonomyCategory } from '@/lib/taxonomy';
 import { cn } from '@/lib/utils';
 import {
@@ -15,6 +16,8 @@ interface FilterSheetProps {
   filters: EventFilterState;
   /** The tag vocabulary, read from the database rather than hardcoded here. */
   categories: TaxonomyCategory[];
+  /** The organization vocabulary, read from the database rather than hardcoded here. */
+  organizations: Organization[];
   /** Count shown on the confirm button, so the effect of a change is visible before closing. */
   resultCount: number;
   onChange: (next: EventFilterState) => void;
@@ -60,12 +63,13 @@ function Chip({
 export function FilterSheet({
   filters,
   categories,
+  organizations,
   resultCount,
   onChange,
   onClose,
 }: FilterSheetProps) {
   // Feed and Where have no column behind them, so those controls stay disabled rather than
-  // silently doing nothing when tapped. When, Format and Activities are live.
+  // silently doing nothing when tapped. When, Format, Activities and Organization are live.
   const notWired = 'Not filterable yet — the events schema does not carry this field.';
 
   const toggleFormat = (format: (typeof EVENT_FORMATS)[number]) => {
@@ -74,6 +78,13 @@ export function FilterSheet({
 
   const toggleTag = (slug: string) => {
     onChange({ ...filters, tags: { ...filters.tags, [slug]: !filters.tags[slug] } });
+  };
+
+  const toggleOrganization = (slug: string) => {
+    onChange({
+      ...filters,
+      organizations: { ...filters.organizations, [slug]: !filters.organizations[slug] },
+    });
   };
 
   return (
@@ -155,6 +166,23 @@ export function FilterSheet({
               on={filters.formats[format]}
               onClick={() => {
                 toggleFormat(format);
+              }}
+            />
+          ))}
+        </div>
+
+        <Section>Organization</Section>
+        {organizations.length === 0 && (
+          <p className="text-muted-foreground text-xs">Loading organizations…</p>
+        )}
+        <div className="flex flex-wrap gap-2">
+          {organizations.map((org) => (
+            <Chip
+              key={org.slug}
+              label={org.name}
+              on={filters.organizations[org.slug] ?? false}
+              onClick={() => {
+                toggleOrganization(org.slug);
               }}
             />
           ))}

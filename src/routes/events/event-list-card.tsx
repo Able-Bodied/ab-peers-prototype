@@ -26,10 +26,10 @@ export interface FeedEvent {
   format: EventFormat | null;
   /** Real tags from `event_tags`, most specific first as the query returned them. */
   tags: { slug: string; name: string }[];
-  /** Publishing organization, from the event's `data_feeds` row. */
+  /** Publishing organization's name, from the event's `data_feeds` row. */
   orgName: string | null;
-  /** Primary photo from `event_photos`, if the ingest job found one. */
-  photoUrl: string | null;
+  /** The organization badge — one per feed, via `data_feeds.organizations`. */
+  orgBadge: { name: string; logoUrl: string | null } | null;
   mock: MockEventAttributes;
 }
 
@@ -101,8 +101,23 @@ export function EventListCard({
           <span className="text-xl leading-none font-bold">{day}</span>
         </div>
 
-        {event.photoUrl && (
-          <img src={event.photoUrl} alt="" className="h-10 w-14 rounded-lg object-cover" />
+        {event.orgBadge && (
+          <div
+            className="bg-card flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-full border"
+            title={event.orgBadge.name}
+          >
+            {event.orgBadge.logoUrl ? (
+              <img
+                src={event.orgBadge.logoUrl}
+                alt={event.orgBadge.name}
+                className="size-full object-contain p-1"
+              />
+            ) : (
+              <span className="text-primary text-xs font-extrabold" aria-hidden="true">
+                {event.orgBadge.name.charAt(0).toUpperCase()}
+              </span>
+            )}
+          </div>
         )}
       </div>
 

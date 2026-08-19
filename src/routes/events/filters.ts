@@ -37,6 +37,8 @@ export interface EventFilterState {
   formats: Record<EventFormat, boolean>;
   /** Tag slug -> selected. Absent or false means "not selected", not "excluded". */
   tags: Record<string, boolean>;
+  /** Organization slug -> selected. Absent or false means "not selected", not "excluded". */
+  organizations: Record<string, boolean>;
 }
 
 export function defaultFilters(): EventFilterState {
@@ -48,6 +50,7 @@ export function defaultFilters(): EventFilterState {
     // them on makes the sheet read as "everything is included", which is what the feed shows.
     formats: { in_person: true, online: true, hybrid: true },
     tags: {},
+    organizations: {},
   };
 }
 
@@ -71,9 +74,21 @@ export function selectedTags(filters: EventFilterState): string[] | null {
   return on.length === 0 ? null : on.sort();
 }
 
+/** The organization slugs to narrow to, or null for "don't narrow". Selected orgs are OR-ed. */
+export function selectedOrganizations(filters: EventFilterState): string[] | null {
+  const on = Object.entries(filters.organizations)
+    .filter(([, selected]) => selected)
+    .map(([slug]) => slug);
+  return on.length === 0 ? null : on.sort();
+}
+
 /** How many narrowing choices are active, for the chip bar. */
 export function activeFilterCount(filters: EventFilterState): number {
-  return (selectedFormats(filters) ? 1 : 0) + (selectedTags(filters)?.length ?? 0);
+  return (
+    (selectedFormats(filters) ? 1 : 0) +
+    (selectedTags(filters)?.length ?? 0) +
+    (selectedOrganizations(filters)?.length ?? 0)
+  );
 }
 
 export interface DateRange {

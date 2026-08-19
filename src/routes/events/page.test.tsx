@@ -21,6 +21,12 @@ class MockIntersectionObserver {
 
 globalThis.IntersectionObserver = MockIntersectionObserver;
 
+interface OrganizationEmbed {
+  slug: string;
+  name: string;
+  logo_url: string | null;
+}
+
 interface EventRow {
   id: string;
   title: string;
@@ -30,8 +36,7 @@ interface EventRow {
   location: string | null;
   url: string | null;
   registration_url: string | null;
-  data_feeds: { name: string } | null;
-  event_photos: { photo_url: string; is_primary: boolean }[] | null;
+  data_feeds: { name: string; organizations: OrganizationEmbed | null } | null;
 }
 
 /** Rows the fake PostgREST builder will return, settable per test. */
@@ -48,6 +53,12 @@ const tagRows = [
   { id: 't1', slug: 'kayaking', name: 'Kayaking', parent_id: 'c1' },
   { id: 't2', slug: 'handcycling', name: 'Handcycling', parent_id: 'c1' },
   { id: 't3', slug: 'peer-support-group', name: 'Peer support group', parent_id: 'c2' },
+];
+
+/** The vocabulary the filter sheet reads from the `organizations` table. */
+const orgRows = [
+  { slug: 'norcal-sci', name: 'NorCal SCI', logo_url: 'https://example.com/norcal-sci-logo.png' },
+  { slug: 'borp', name: 'BORP', logo_url: null },
 ];
 
 /**
@@ -78,7 +89,12 @@ function makeBuilder(table: string) {
     select: vi.fn(() =>
       table === 'tags' ? settled(() => Promise.resolve({ data: tagRows, error: null })) : builder,
     ),
-    order: vi.fn(() => builder),
+    // The organizations query ends at `order`, one step later than tags.
+    order: vi.fn(() =>
+      table === 'organizations'
+        ? settled(() => Promise.resolve({ data: orgRows, error: null }))
+        : builder,
+    ),
     range: vi.fn((...args: Parameters<typeof mockRange>) => settled(() => mockRange(...args))),
     gte: vi.fn(record('gte')),
     lte: vi.fn(record('lte')),
@@ -105,7 +121,6 @@ function eventRow(overrides: Partial<EventRow> & { id: string; title: string }):
     url: null,
     registration_url: null,
     data_feeds: null,
-    event_photos: null,
     ...overrides,
   };
 }
@@ -151,7 +166,7 @@ describe('EventsPage', () => {
         id: 'e1',
         title: 'Adaptive handcycle ride',
         start_time: '2026-08-22T16:00:00Z',
-        data_feeds: { name: 'BORP' },
+        data_feeds: { name: 'BORP', organizations: null },
       }),
     ];
 
@@ -180,15 +195,19 @@ describe('EventsPage', () => {
     expect(card?.textContent).not.toMatch(/·\s*$/m);
   });
 
-  it('shows the primary photo as a thumbnail when the event has one', async () => {
+  it('shows the organization logo as a badge in place of an event photo', async () => {
     rows = [
       eventRow({
         id: 'e1',
         title: 'Adaptive handcycle ride',
-        event_photos: [
-          { photo_url: '/photos/events/e1/secondary.jpg', is_primary: false },
-          { photo_url: '/photos/events/e1/primary.jpg', is_primary: true },
-        ],
+        data_feeds: {
+          name: 'Northern California SCI Calendar',
+          organizations: {
+            slug: 'norcal-sci',
+            name: 'NorCal SCI',
+            logo_url: 'https://example.com/norcal-sci-logo.png',
+          },
+        },
       }),
     ];
 
@@ -196,18 +215,57 @@ describe('EventsPage', () => {
 
     const title = await screen.findByText('Adaptive handcycle ride');
     const card = title.closest('article');
-    const thumbnail = card?.querySelector('img');
-    expect(thumbnail).toHaveAttribute('src', '/photos/events/e1/primary.jpg');
+    const badge = card?.querySelector('img');
+    expect(badge).toHaveAttribute('src', 'https://example.com/norcal-sci-logo.png');
+    expect(badge).toHaveAttribute('alt', 'NorCal SCI');
   });
 
-  it('renders no thumbnail when the event has no photo', async () => {
-    rows = [eventRow({ id: 'e1', title: 'Adaptive handcycle ride', event_photos: [] })];
+  it('falls back to an initial when the organization has no logo', async () => {
+    rows = [
+      eventRow({
+        id: 'e1',
+        title: 'Adaptive handcycle ride',
+        data_feeds: {
+          name: 'BORP',
+          organizations: { slug: 'borp', name: 'BORP', logo_url: null },
+        },
+      }),
+    ];
 
     renderEvents();
 
     const title = await screen.findByText('Adaptive handcycle ride');
     const card = title.closest('article');
     expect(card?.querySelector('img')).not.toBeInTheDocument();
+    expect(card?.querySelector('[title="BORP"]')).toHaveTextContent('B');
+  });
+
+  it('renders no badge when the event has no known organization', async () => {
+    rows = [eventRow({ id: 'e1', title: 'Adaptive handcycle ride' })];
+
+    renderEvents();
+
+    const title = await screen.findByText('Adaptive handcycle ride');
+    const card = title.closest('article');
+    expect(card?.querySelector('img')).not.toBeInTheDocument();
+  });
+
+  it('narrows the feed to one organization from the filter sheet', async () => {
+    rows = [eventRow({ id: 'e1', title: 'Event' })];
+
+    renderEvents();
+    await screen.findByText('Event');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Filters' }));
+    appliedFilters = [];
+    await userEvent.click(await screen.findByRole('button', { name: 'NorCal SCI' }));
+    await userEvent.click(screen.getByRole('button', { name: /Show \d+ events/ }));
+
+    expect(appliedFilters).toContainEqual({
+      method: 'in',
+      column: 'data_feeds.organizations.slug',
+      value: 'norcal-sci',
+    });
   });
 
   it('applies the default month window as a range on start_time', async () => {
