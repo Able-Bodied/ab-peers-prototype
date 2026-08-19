@@ -5,7 +5,7 @@ Ingests event data from various calendar sources (Squarespace, NeonCRM, etc.) an
 ## What it does
 
 - Scrapes Northern California SCI events from Squarespace JSON API
-- Downloads event photos and stores them in `/public/photos/`
+- Uploads event photos to the `event-photos` Supabase Storage bucket
 - Deduplicates events using UNIQUE(feed_id, external_id) composite key
 - Detects duplicate events across different feed sources
 - Updates event records when re-ingested
@@ -13,18 +13,12 @@ Ingests event data from various calendar sources (Squarespace, NeonCRM, etc.) an
 
 ## Database Setup
 
-Before running the ingestion job, create the database schema:
-
-1. Open Supabase Dashboard for your project
-2. Go to SQL Editor
-3. Copy the entire contents of `supabase/migrations/20260818060000_create_events_schema.sql`
-4. Paste into a new query and execute
-
-This creates:
-- `data_feeds` table (feed source configuration)
-- `events` table (normalized event data)
-- `event_photos` table (photo metadata)
-- Performance indexes on key columns
+Before running the ingestion job, apply every file in `supabase/migrations/` in
+filename order (each is a standalone SQL script — copy into the Supabase SQL
+Editor and execute, or use the Supabase CLI). In particular,
+`20260818110000_event_photos_storage_bucket.sql` creates the `event-photos`
+bucket the ingest job uploads photos to — without it, photo uploads fail with
+a "bucket not found" error while events still ingest fine.
 
 ## Configuration
 
@@ -63,16 +57,20 @@ pnpm -F event-ingest dev
 
 ## Photo Storage
 
-Event photos are downloaded and stored at:
+Event photos are uploaded to the `event-photos` Supabase Storage bucket at:
 
 ```
-/Users/rantaoca/Documents/ab-peers-prototype/public/photos/events/{event-id}/photo-{hash}.ext
+events/{sha256-of-image-bytes}.ext
 ```
+
+The path is derived from the image bytes, not the event or source URL, so two
+events that reference the same photo resolve to the same storage object —
+uploading is a no-op the second time, and no photo is ever stored twice.
 
 The ingest job:
 - Validates image format (JPEG, PNG, GIF, WEBP)
-- Caches photos by MD5 hash to avoid re-downloading
-- Inserts into `event_photos` table with storage path and metadata
+- Uploads to storage with `upsert: true`, so re-ingesting is idempotent
+- Inserts into `event_photos` table with the public URL and storage path
 - Skips invalid or oversized (>10MB) images with warnings
 
 ## Database Schema
@@ -105,10 +103,10 @@ Normalized event data:
 Photo metadata for events:
 - `id`: UUID primary key
 - `event_id`: Reference to events
-- `photo_url`: Relative path to photo (e.g., `/photos/events/{event-id}/photo-{hash}.ext`)
+- `photo_url`: Public URL of the photo in the `event-photos` storage bucket
 - `is_primary`: Whether this is the featured photo
-- `storage_type`: 'local' (filesystem), 'supabase', or 's3'
-- `storage_path`: Path on disk (same as `photo_url` for local storage)
+- `storage_type`: 'local' (filesystem), 'supabase', or 's3' — the ingest job writes 'supabase'
+- `storage_path`: Path within the bucket, e.g. `events/{sha256-of-image-bytes}.ext`
 - `alt_text`, `description`: Photo metadata
 - `uploaded_by`: Who uploaded it (e.g., 'scraper' for automated ingest)
 - `created_at`, `updated_at`: Timestamps

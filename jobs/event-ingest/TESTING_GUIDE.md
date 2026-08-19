@@ -150,15 +150,14 @@ GROUP BY df.id, df.name;
 SELECT * FROM events WHERE category = 'error';
 ```
 
-### Check photos on disk:
+### Check photos in storage:
 
-```bash
-# See downloaded photos
-ls -lah public/photos/
-
-# Count downloaded photos
-find public/photos -type f | wc -l
+```sql
+-- Uploaded event photos
+SELECT event_id, photo_url, storage_type, storage_path FROM event_photos ORDER BY created_at DESC LIMIT 20;
 ```
+
+Or in Supabase Dashboard: Storage → `event-photos` bucket → `events/`.
 
 ## Troubleshooting
 

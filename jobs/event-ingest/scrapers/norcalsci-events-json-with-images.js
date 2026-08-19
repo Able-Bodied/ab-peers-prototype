@@ -1,21 +1,18 @@
 /**
- * NorCal SCI Events — JSON with Image Download
+ * NorCal SCI Events — JSON with Image Upload
  *
- * Extends the base JSON scraper to download and save event images locally.
- * Images are stored after events are upserted (so event IDs are known).
- * Storage: public/photos/events/{event-id}/photo-{hash}.ext
+ * Extends the base JSON scraper to upload event images to the `event-photos`
+ * Supabase Storage bucket. Images are uploaded after events are upserted (so
+ * event IDs are known).
+ * Storage: event-photos bucket, path events/{sha256-of-bytes}.ext
  * Database: event_photos table (not events.image_url)
  */
 
-import crypto from 'crypto';
-import fs from 'fs/promises';
-import path from 'path';
-import { fileURLToPath } from 'url';
+import crypto from 'node:crypto';
+import path from 'node:path';
 import { NorCalSCIEventsJsonScraper } from './norcalsci-events-json.js';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const PHOTOS_DIR = path.join(__dirname, '..', '..', '..', 'public', 'photos', 'events');
+const BUCKET = 'event-photos';
 
 /**
  * Download file from URL using fetch
@@ -55,30 +52,43 @@ async function downloadFile(url, timeout = 15000) {
 }
 
 /**
- * Get file extension from URL
+ * Get file extension and content type from URL
  */
-function getFileExtension(url) {
+function getFileType(url) {
   const urlPath = new URL(url).pathname;
   const ext = path.extname(urlPath).toLowerCase();
-  if (ext && ['.jpg', '.jpeg', '.png', '.gif', '.webp'].includes(ext)) {
-    return ext;
+  const known = {
+    '.jpg': 'image/jpeg',
+    '.jpeg': 'image/jpeg',
+    '.png': 'image/png',
+    '.gif': 'image/gif',
+    '.webp': 'image/webp',
+  };
+  if (ext && known[ext]) {
+    return { extension: ext, contentType: known[ext] };
   }
-  return '.jpg';
+  return { extension: '.jpg', contentType: 'image/jpeg' };
 }
 
 /**
- * Download and save image for an event
+ * Download an image and upload it to the event-photos bucket.
+ *
+ * The storage path is derived from the image bytes (sha256), not the source
+ * URL or event ID: two events that reference the same photo resolve to the
+ * same path, so the upload naturally dedupes instead of storing a second
+ * copy. `upsert: true` makes re-uploading the same bytes to that path a
+ * cheap no-op rather than an error.
  */
-export async function downloadEventImage(sourceUrl, eventId) {
-  if (!sourceUrl || !eventId) {
-    return { success: false, error: 'sourceUrl and eventId required' };
+export async function uploadEventImage(sourceUrl, supabase) {
+  if (!sourceUrl || !supabase) {
+    return { success: false, error: 'sourceUrl and supabase client required' };
   }
 
   try {
     // Normalize protocol-relative URLs
     let finalUrl = sourceUrl;
     if (finalUrl.startsWith('//')) {
-      finalUrl = 'https:' + finalUrl;
+      finalUrl = `https:${finalUrl}`;
     }
 
     // Validate URL
@@ -86,25 +96,6 @@ export async function downloadEventImage(sourceUrl, eventId) {
       new URL(finalUrl);
     } catch {
       return { success: false, error: 'Invalid URL' };
-    }
-
-    // Create event directory
-    const eventPhotoDir = path.join(PHOTOS_DIR, eventId);
-    await fs.mkdir(eventPhotoDir, { recursive: true });
-
-    // Generate filename from URL hash
-    const photoHash = crypto.createHash('md5').update(sourceUrl).digest('hex').substring(0, 8);
-    const extension = getFileExtension(finalUrl);
-    const filename = `photo-${photoHash}${extension}`;
-    const filePath = path.join(eventPhotoDir, filename);
-    const relativePath = `/photos/events/${eventId}/${filename}`;
-
-    // Check if already cached
-    try {
-      await fs.access(filePath);
-      return { success: true, filePath: relativePath, cached: true };
-    } catch {
-      // File doesn't exist, download it
     }
 
     // Download the image
@@ -131,14 +122,27 @@ export async function downloadEventImage(sourceUrl, eventId) {
       return { success: false, error: 'Invalid image format' };
     }
 
-    // Save to disk
-    await fs.writeFile(filePath, photoBuffer);
+    const { extension, contentType } = getFileType(finalUrl);
+    const contentHash = crypto.createHash('sha256').update(photoBuffer).digest('hex');
+    const storagePath = `events/${contentHash}${extension}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from(BUCKET)
+      .upload(storagePath, photoBuffer, { contentType, upsert: true });
+
+    if (uploadError) {
+      return { success: false, error: uploadError.message };
+    }
+
+    const {
+      data: { publicUrl },
+    } = supabase.storage.from(BUCKET).getPublicUrl(storagePath);
 
     return {
       success: true,
-      filePath: relativePath,
+      photoUrl: publicUrl,
+      storagePath,
       size: photoBuffer.length,
-      cached: false,
     };
   } catch (error) {
     return { success: false, error: error.message };
@@ -146,25 +150,20 @@ export async function downloadEventImage(sourceUrl, eventId) {
 }
 
 /**
- * Extended scraper that downloads images
+ * Extended scraper that carries the source image URL through so ingest.js can
+ * upload it after the event row exists.
  */
 export class NorCalSCIEventsJsonWithImagesScraper extends NorCalSCIEventsJsonScraper {
   constructor(eventsUrl, options = {}) {
     super(eventsUrl, options);
     this.skipImages = options.skipImages ?? false;
-    this.imageStats = {
-      attempted: 0,
-      downloaded: 0,
-      cached: 0,
-      failed: 0,
-    };
   }
 
   async normalizeEventWithImage(item, feedId) {
     // Get base event data
     const event = this.normalizeEvent(item, feedId);
 
-    // Carry source image URL for later download (after event is upserted)
+    // Carry source image URL for later upload (after event is upserted)
     // This is a non-column field that will be stripped before DB insert
     if (item.assetUrl && !this.skipImages) {
       event.source_image_url = item.assetUrl;
@@ -199,19 +198,6 @@ export class NorCalSCIEventsJsonWithImagesScraper extends NorCalSCIEventsJsonScr
 
     normalized.sort((a, b) => (a.start_time || '').localeCompare(b.start_time || ''));
     return normalized;
-  }
-
-  getImageStats() {
-    const total = this.imageStats.attempted;
-    const success = this.imageStats.downloaded + this.imageStats.cached;
-    const successRate = total > 0 ? ((success / total) * 100).toFixed(1) : 0;
-
-    return {
-      ...this.imageStats,
-      total,
-      successCount: success,
-      successRate: `${successRate}%`,
-    };
   }
 }
 

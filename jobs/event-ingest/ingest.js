@@ -9,8 +9,8 @@ import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import {
-  downloadEventImage,
   NorCalSCIEventsJsonWithImagesScraper,
+  uploadEventImage,
 } from './scrapers/norcalsci-events-json-with-images.js';
 
 // Load environment configuration in priority order:
@@ -300,18 +300,17 @@ class EventIngestionWorker {
   }
 
   /**
-   * Download images for events and insert into event_photos table
-   * Called after upsert so event IDs are known
-   * Does not fail the event ingest if individual images fail
+   * Upload images for events to the event-photos storage bucket and insert
+   * into event_photos. Called after upsert so event IDs are known.
+   * Does not fail the event ingest if individual images fail.
    */
-  async downloadImagesAndInsertPhotos(eventImageMap, externalIdToDbId) {
+  async uploadImagesAndInsertPhotos(eventImageMap, externalIdToDbId) {
     if (Object.keys(eventImageMap).length === 0) {
-      this.log('  No images to download', 'info');
-      return { downloaded: 0, cached: 0, failed: 0, photosInserted: 0 };
+      this.log('  No images to upload', 'info');
+      return { uploaded: 0, failed: 0, photosInserted: 0 };
     }
 
-    let downloaded = 0;
-    let cached = 0;
+    let uploaded = 0;
     let failed = 0;
     let photosInserted = 0;
 
@@ -324,8 +323,9 @@ class EventIngestionWorker {
       }
 
       try {
-        // Download the image
-        const imageResult = await downloadEventImage(sourceImageUrl, dbEventId);
+        // Upload the image (content-addressed path, so a photo shared with
+        // another event resolves to the same storage object)
+        const imageResult = await uploadEventImage(sourceImageUrl, this.supabase);
 
         if (!imageResult.success) {
           this.log(
@@ -336,30 +336,35 @@ class EventIngestionWorker {
           continue;
         }
 
-        if (imageResult.cached) {
-          cached++;
-        } else {
-          downloaded++;
+        uploaded++;
+
+        // Clear this event's existing photo row before inserting: photo_url
+        // is content-addressed, so a changed source image (or a leftover row
+        // from before this bucket existed) won't match the old row, and the
+        // one-primary-photo-per-event index rejects a second INSERT rather
+        // than updating over it.
+        const { error: deleteError } = await this.supabase
+          .from('event_photos')
+          .delete()
+          .eq('event_id', dbEventId);
+
+        if (deleteError) {
+          this.log(
+            `  Warning: Failed to clear old photo rows for event ${dbEventId}: ${deleteError.message}`,
+            'warning',
+          );
         }
 
-        // Insert into event_photos with upsert on UNIQUE(event_id, photo_url)
-        const photoUrl = imageResult.filePath;
-        const { error: photoError } = await this.supabase.from('event_photos').upsert(
-          {
-            event_id: dbEventId,
-            photo_url: photoUrl,
-            is_primary: true,
-            display_order: 0,
-            storage_type: 'local',
-            storage_path: photoUrl,
-            uploaded_by: 'scraper',
-            alt_text: null,
-          },
-          {
-            onConflict: 'event_id,photo_url',
-            ignoreDuplicates: false, // Update if already exists
-          },
-        );
+        const { error: photoError } = await this.supabase.from('event_photos').insert({
+          event_id: dbEventId,
+          photo_url: imageResult.photoUrl,
+          is_primary: true,
+          display_order: 0,
+          storage_type: 'supabase',
+          storage_path: imageResult.storagePath,
+          uploaded_by: 'scraper',
+          alt_text: null,
+        });
 
         if (photoError) {
           this.log(
@@ -372,14 +377,14 @@ class EventIngestionWorker {
         }
       } catch (error) {
         this.log(
-          `  Warning: Unexpected error downloading image for event ${dbEventId}: ${error.message}`,
+          `  Warning: Unexpected error uploading image for event ${dbEventId}: ${error.message}`,
           'warning',
         );
         failed++;
       }
     }
 
-    return { downloaded, cached, failed, photosInserted };
+    return { uploaded, failed, photosInserted };
   }
 
   /**
@@ -428,14 +433,14 @@ class EventIngestionWorker {
         this.stats.eventsDeduplicated += result.deduplicated || 0;
       }
 
-      // Download images and insert into event_photos (happens after upsert)
+      // Upload images and insert into event_photos (happens after upsert)
       if (result.eventImageMap && Object.keys(result.eventImageMap).length > 0) {
-        const imageResult = await this.downloadImagesAndInsertPhotos(
+        const imageResult = await this.uploadImagesAndInsertPhotos(
           result.eventImageMap,
           result.externalIdToDbId,
         );
         this.log(
-          `  Images: ${imageResult.downloaded} downloaded, ${imageResult.cached} cached, ${imageResult.failed} failed, ${imageResult.photosInserted} inserted`,
+          `  Images: ${imageResult.uploaded} uploaded, ${imageResult.failed} failed, ${imageResult.photosInserted} inserted`,
           'info',
         );
       }
