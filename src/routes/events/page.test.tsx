@@ -24,7 +24,10 @@ interface EventRow {
   title: string;
   description: string | null;
   start_time: string;
+  end_time: string | null;
   location: string | null;
+  url: string | null;
+  registration_url: string | null;
   data_feeds: { name: string } | null;
   event_photos: { photo_url: string; is_primary: boolean }[] | null;
 }
@@ -68,7 +71,10 @@ function eventRow(overrides: Partial<EventRow> & { id: string; title: string }):
   return {
     description: null,
     start_time: '2026-08-20T17:00:00Z',
+    end_time: null,
     location: null,
+    url: null,
+    registration_url: null,
     data_feeds: null,
     event_photos: null,
     ...overrides,
@@ -240,9 +246,97 @@ describe('EventsPage', () => {
 
     await userEvent.click(screen.getByRole('tab', { name: 'All' }));
     await userEvent.click(screen.getByRole('button', { name: /^Going/ }));
+    // Going hands off to the host, so it opens a dialog over the feed.
+    await userEvent.click(screen.getByRole('button', { name: 'Done' }));
     await userEvent.click(screen.getByRole('tab', { name: 'Mine' }));
 
     expect(screen.getByText('Adaptive handcycle ride')).toBeInTheDocument();
+  });
+
+  it('hands off to the host when an event is marked Going', async () => {
+    rows = [
+      eventRow({
+        id: 'e1',
+        title: 'Adaptive handcycle ride',
+        url: 'https://norcalsci.org/events/ride',
+        registration_url: 'https://us02web.zoom.us/meeting/register/abc',
+      }),
+    ];
+
+    renderEvents();
+    await screen.findByText('Adaptive handcycle ride');
+    await userEvent.click(screen.getByRole('button', { name: /^Going/ }));
+
+    const dialog = await screen.findByRole('dialog');
+
+    // The point of the dialog: saying Going here does not reserve a place with the host.
+    expect(within(dialog).getByText(/finish signing up with them/i)).toBeInTheDocument();
+
+    const register = within(dialog).getByRole('link', { name: /Register with the host/i });
+    expect(register).toHaveAttribute('href', 'https://us02web.zoom.us/meeting/register/abc');
+    expect(register).toHaveAttribute('target', '_blank');
+    expect(register).toHaveAttribute('rel', expect.stringContaining('noopener'));
+
+    // Named so someone can tell where a tap goes before they take it.
+    expect(within(dialog).getByText(/zoom\.us/)).toBeInTheDocument();
+
+    const details = within(dialog).getByRole('link', { name: /See the full details/i });
+    expect(details).toHaveAttribute('href', 'https://norcalsci.org/events/ride');
+  });
+
+  it('offers a calendar download named after the event', async () => {
+    rows = [eventRow({ id: 'e1', title: 'Adaptive handcycle ride' })];
+
+    renderEvents();
+    await screen.findByText('Adaptive handcycle ride');
+    await userEvent.click(screen.getByRole('button', { name: /^Going/ }));
+
+    const dialog = await screen.findByRole('dialog');
+    const calendar = within(dialog).getByRole('link', { name: /Add to your calendar/i });
+
+    expect(calendar).toHaveAttribute('download', 'adaptive-handcycle-ride.ics');
+  });
+
+  it('does not repeat one link as both registration and details', async () => {
+    const url = 'https://norcalsci.org/events/ride';
+    rows = [eventRow({ id: 'e1', title: 'Ride', url, registration_url: url })];
+
+    renderEvents();
+    await screen.findByText('Ride');
+    await userEvent.click(screen.getByRole('button', { name: /^Going/ }));
+
+    const dialog = await screen.findByRole('dialog');
+
+    expect(
+      within(dialog).getByRole('link', { name: /Register with the host/i }),
+    ).toBeInTheDocument();
+    expect(within(dialog).queryByRole('link', { name: /See the full details/i })).toBeNull();
+  });
+
+  it('still offers the calendar when a listing carries no links', async () => {
+    rows = [eventRow({ id: 'e1', title: 'Ride' })];
+
+    renderEvents();
+    await screen.findByText('Ride');
+    await userEvent.click(screen.getByRole('button', { name: /^Going/ }));
+
+    const dialog = await screen.findByRole('dialog');
+
+    expect(within(dialog).queryByRole('link', { name: /Register with the host/i })).toBeNull();
+    expect(within(dialog).queryByRole('link', { name: /See the full details/i })).toBeNull();
+    expect(within(dialog).getByRole('link', { name: /Add to your calendar/i })).toBeInTheDocument();
+    // Without a registration link there is nothing to finish, so the copy shouldn't imply there is.
+    expect(within(dialog).getByText(/host runs their own sign-ups/i)).toBeInTheDocument();
+  });
+
+  it('leaves Interested as a quiet save with no hand-off dialog', async () => {
+    rows = [eventRow({ id: 'e1', title: 'Adaptive handcycle ride' })];
+
+    renderEvents();
+    await screen.findByText('Adaptive handcycle ride');
+    await userEvent.click(screen.getByRole('button', { name: /^Interested/ }));
+
+    expect(screen.queryByRole('dialog')).toBeNull();
   });
 
   it('removes a dismissed event from the list', async () => {

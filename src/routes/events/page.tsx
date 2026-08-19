@@ -12,6 +12,7 @@ import {
   defaultFilters,
   type EventFilterState,
 } from '@/routes/events/filters';
+import { GoingDialog } from '@/routes/events/going-dialog';
 
 /**
  * Events discovery — the feed a peer lands on to find adaptive sports sessions, peer support
@@ -39,14 +40,17 @@ interface EventRow {
   title: string;
   description: string | null;
   start_time: string;
+  end_time: string | null;
   location: string | null;
+  url: string | null;
+  registration_url: string | null;
   /** PostgREST returns an embedded row as an object, or an array on some relationship shapes. */
   data_feeds?: { name: string } | { name: string }[] | null;
   event_photos?: { photo_url: string; is_primary: boolean }[] | null;
 }
 
 const SELECT_COLUMNS =
-  'id, title, description, start_time, location, data_feeds(name), event_photos(photo_url, is_primary)';
+  'id, title, description, start_time, end_time, location, url, registration_url, data_feeds(name), event_photos(photo_url, is_primary)';
 
 function orgNameOf(row: EventRow): string | null {
   const feed = row.data_feeds;
@@ -64,7 +68,11 @@ function toFeedEvent(row: EventRow): FeedEvent {
     id: row.id,
     title: row.title,
     startTime: row.start_time,
+    endTime: row.end_time,
+    description: row.description,
     location: row.location,
+    url: row.url,
+    registrationUrl: row.registration_url,
     orgName: orgNameOf(row),
     photoUrl: primaryPhotoUrl(row),
     mock: mockEventAttributes(row.id),
@@ -82,6 +90,9 @@ export default function EventsPage() {
   const [rows, setRows] = useState<EventRow[]>([]);
   const [rsvps, setRsvps] = useState<Record<string, RsvpState>>({});
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
+  // Marking Going opens the hand-off dialog: the host owns registration, so saying Going here is
+  // not the same as having a place.
+  const [goingEvent, setGoingEvent] = useState<FeedEvent | null>(null);
 
   const [loading, setLoading] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
@@ -285,6 +296,7 @@ export default function EventsPage() {
             }}
             onRsvp={(next) => {
               setRsvps((prev) => ({ ...prev, [event.id]: next }));
+              if (next === 'going') setGoingEvent(event);
             }}
             onDismiss={() => {
               setDismissed((prev) => new Set(prev).add(event.id));
@@ -299,6 +311,25 @@ export default function EventsPage() {
           <p className="text-muted-foreground text-sm">No more events to load.</p>
         )}
       </div>
+
+      {goingEvent && (
+        <GoingDialog
+          open
+          event={{
+            id: goingEvent.id,
+            title: goingEvent.title,
+            startTime: goingEvent.startTime,
+            endTime: goingEvent.endTime,
+            description: goingEvent.description,
+            location: goingEvent.location,
+            url: goingEvent.url,
+            registrationUrl: goingEvent.registrationUrl,
+          }}
+          onClose={() => {
+            setGoingEvent(null);
+          }}
+        />
+      )}
 
       {sheetOpen && (
         <FilterSheet

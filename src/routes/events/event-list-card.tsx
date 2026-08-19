@@ -9,8 +9,15 @@ export interface FeedEvent {
   id: string;
   title: string;
   startTime: string;
+  /** Null when the feed omitted it; the calendar entry then assumes an hour. */
+  endTime: string | null;
+  description: string | null;
   /** Free-text venue from the feed, e.g. "Valley Medical, building C". */
   location: string | null;
+  /** The organizer's own event page. */
+  url: string | null;
+  /** Registration link, when the feed carries one separately from `url`. */
+  registrationUrl: string | null;
   /** Publishing organization, from the event's `data_feeds` row. */
   orgName: string | null;
   /** Primary photo from `event_photos`, if the ingest job found one. */
