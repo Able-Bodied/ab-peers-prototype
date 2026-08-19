@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { RsvpProvider } from '@/lib/rsvps';
 import EventPage from '@/routes/event/page';
 import { mockEventAttributes } from '@/routes/events/event-mocks';
 
@@ -16,9 +17,14 @@ interface EventDetailRow {
   location: string | null;
   url: string | null;
   registration_url: string | null;
+  registration_deadline: string | null;
+  description_clean: string | null;
+  description_html_clean: string | null;
+  event_format: 'in_person' | 'online' | 'hybrid' | null;
   category: string | null;
   feed_id: string;
   data_feeds: { name: string } | null;
+  event_tags: { tags: { slug: string; name: string } | null }[];
 }
 
 let eventRow: EventDetailRow | null = null;
@@ -35,11 +41,18 @@ function makeBuilder(table: string) {
     order: vi.fn(() => builder),
     overrideTypes: vi.fn(() => builder),
     limit: vi.fn(() => Promise.resolve({ data: relatedRows, error: null })),
-    single: vi.fn(() =>
-      Promise.resolve(
-        table === 'events' ? { data: eventRow, error: eventError } : { data: null, error: null },
-      ),
-    ),
+    // `.single()` is followed by `.overrideTypes()` on the detail query, so its result has to be
+    // awaitable and chainable both.
+    single: vi.fn(() => {
+      const run = () =>
+        Promise.resolve(
+          table === 'events' ? { data: eventRow, error: eventError } : { data: null, error: null },
+        );
+      return {
+        overrideTypes: () => run(),
+        then: (ok?: (v: unknown) => unknown, err?: (e: unknown) => unknown) => run().then(ok, err),
+      };
+    }),
     // The real event_photos chain (.order().order()) has no terminal call and is awaited
     // directly, so the fake builder has to be a thenable to stand in for it.
     // biome-ignore lint/suspicious/noThenProperty: intentional thenable, see above
@@ -67,9 +80,14 @@ function baseEvent(overrides: Partial<EventDetailRow> = {}): EventDetailRow {
     location: 'Berkeley Aquatic Park',
     url: null,
     registration_url: null,
+    registration_deadline: null,
+    description_clean: null,
+    description_html_clean: null,
+    event_format: null,
     category: null,
     feed_id: 'feed-1',
     data_feeds: { name: 'BORP' },
+    event_tags: [],
     ...overrides,
   };
 }
@@ -77,9 +95,11 @@ function baseEvent(overrides: Partial<EventDetailRow> = {}): EventDetailRow {
 function renderEvent(id = 'e1') {
   return render(
     <MemoryRouter initialEntries={[`/event/${id}`]}>
-      <Routes>
-        <Route path="/event/:id" element={<EventPage />} />
-      </Routes>
+      <RsvpProvider>
+        <Routes>
+          <Route path="/event/:id" element={<EventPage />} />
+        </Routes>
+      </RsvpProvider>
     </MemoryRouter>,
   );
 }
@@ -167,10 +187,12 @@ describe('EventPage', () => {
   it('navigates back to the events list from the back button', async () => {
     render(
       <MemoryRouter initialEntries={['/event/e1']}>
-        <Routes>
-          <Route path="/event/:id" element={<EventPage />} />
-          <Route path="/events" element={<p>Events list</p>} />
-        </Routes>
+        <RsvpProvider>
+          <Routes>
+            <Route path="/event/:id" element={<EventPage />} />
+            <Route path="/events" element={<p>Events list</p>} />
+          </Routes>
+        </RsvpProvider>
       </MemoryRouter>,
     );
 

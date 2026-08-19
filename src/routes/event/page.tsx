@@ -1,9 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
+import { rsvpCounts, useRsvps } from '@/lib/rsvps';
 import { getSupabase } from '@/lib/supabase';
 import { cn } from '@/lib/utils';
 import { type MockEventAttributes, mockEventAttributes } from '@/routes/events/event-mocks';
+import { EVENT_FORMAT_LABELS, type EventFormat } from '@/routes/events/filters';
+import { GoingDialog } from '@/routes/events/going-dialog';
 
 /**
  * Event detail — the full-page view reached by tapping a card on the events list, laid out to
@@ -22,21 +25,25 @@ import { type MockEventAttributes, mockEventAttributes } from '@/routes/events/e
  *  - [ ] Persist RSVPs — Interested/Going are local state and reset on reload, same as the list
  */
 
-type RsvpState = 'interested' | 'going' | null;
-
 interface EventDetailRow {
   id: string;
   title: string;
   description: string | null;
   description_html: string | null;
+  /** CTA-stripped copy from the verification pass; null until that pass has run. */
+  description_clean: string | null;
+  description_html_clean: string | null;
   start_time: string;
   end_time: string | null;
   location: string | null;
   url: string | null;
   registration_url: string | null;
+  registration_deadline: string | null;
+  event_format: EventFormat | null;
   category: string | null;
   feed_id: string;
   data_feeds?: { name: string } | { name: string }[] | null;
+  event_tags?: { tags: { slug: string; name: string } | null }[] | null;
 }
 
 interface RelatedEventRow {
@@ -72,6 +79,18 @@ function formatWhen(startIso: string, endIso: string | null): string {
   return endIso ? `${when} – ${timeLabel(endIso)}` : when;
 }
 
+/** Deadlines are dates people act on, so this spells the day out rather than abbreviating it. */
+function formatDeadline(isoString: string): string {
+  const date = new Date(isoString);
+  return date.toLocaleString('en-US', {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+}
+
 function Chip({ label, on }: { label: string; on: boolean }) {
   return (
     <span
@@ -94,7 +113,9 @@ export default function EventPage() {
   const [event, setEvent] = useState<EventDetailRow | null>(null);
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const [moreFromOrg, setMoreFromOrg] = useState<RelatedEventRow[]>([]);
-  const [rsvp, setRsvp] = useState<RsvpState>(null);
+  // Shared with the events feed, so the counts here and on the card agree.
+  const { rsvpFor, setRsvp } = useRsvps();
+  const [goingOpen, setGoingOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -114,10 +135,12 @@ export default function EventPage() {
         const { data: eventData, error: eventError } = await supabase
           .from('events')
           .select(
-            'id, title, description, description_html, start_time, end_time, location, url, registration_url, category, feed_id, data_feeds(name)',
+            'id, title, description, description_html, description_clean, description_html_clean, start_time, end_time, location, url, registration_url, registration_deadline, event_format, category, feed_id, data_feeds(name), event_tags(tags(slug, name))',
           )
           .eq('id', id)
-          .single();
+          .single()
+          // PostgREST types a nested embed as an array; this relationship returns one row.
+          .overrideTypes<EventDetailRow, { merge: false }>();
         if (eventError) throw eventError;
 
         const { data: photosData, error: photosError } = await supabase
@@ -191,8 +214,12 @@ export default function EventPage() {
   const orgName = orgNameOf(event);
   const venue = event.location?.trim() ?? '';
   const meta = [venue === '' ? null : venue, mock.city].filter(Boolean).join(' · ');
-  const going = mock.goingCount + (rsvp === 'going' ? 1 : 0);
-  const interested = mock.interestedCount + (rsvp === 'interested' ? 1 : 0);
+  const rsvp = rsvpFor(event.id);
+  const { going, interested } = rsvpCounts(mock, rsvp);
+  const tags = (event.event_tags ?? []).flatMap((link) => (link.tags ? [link.tags] : []));
+  // Prefer the CTA-stripped copy once the verification pass has produced it.
+  const bodyHtml = event.description_html_clean ?? event.description_html;
+  const bodyText = event.description_clean ?? event.description;
 
   return (
     <div className="mx-auto flex w-full max-w-xl flex-col">
@@ -237,10 +264,10 @@ export default function EventPage() {
       )}
 
       <div className="mt-3.5 flex flex-wrap gap-2">
-        <Chip label={mock.genre} on />
-        <Chip label={mock.activity} on />
-        <Chip label={mock.mode === 'virtual' ? 'Online' : 'In person'} on={false} />
-        {mock.beginner && <Chip label="Beginner-friendly" on={false} />}
+        {tags.map((tag) => (
+          <Chip key={tag.slug} label={tag.name} on />
+        ))}
+        {event.event_format && <Chip label={EVENT_FORMAT_LABELS[event.event_format]} on={false} />}
       </div>
 
       {photoUrl && (
@@ -251,15 +278,15 @@ export default function EventPage() {
         />
       )}
 
-      {(event.description_html ?? event.description) && (
+      {(bodyHtml ?? bodyText) && (
         <div className="mt-3.5 text-sm leading-relaxed">
-          {event.description_html ? (
+          {bodyHtml ? (
             <div
               // biome-ignore lint/security/noDangerouslySetInnerHtml: content is sanitized in database
-              dangerouslySetInnerHTML={{ __html: event.description_html }}
+              dangerouslySetInnerHTML={{ __html: bodyHtml }}
             />
           ) : (
-            <p className="whitespace-pre-wrap">{event.description}</p>
+            <p className="whitespace-pre-wrap">{bodyText}</p>
           )}
         </div>
       )}
@@ -320,12 +347,18 @@ export default function EventPage() {
         </>
       )}
 
+      {event.registration_deadline && (
+        <p className="text-destructive mt-4 text-sm font-bold">
+          Register by {formatDeadline(event.registration_deadline)}
+        </p>
+      )}
+
       <div className="bg-background sticky bottom-0 mt-5 flex gap-2 py-3">
         <button
           type="button"
           aria-pressed={rsvp === 'interested'}
           onClick={() => {
-            setRsvp(rsvp === 'interested' ? null : 'interested');
+            setRsvp(event.id, rsvp === 'interested' ? null : 'interested');
           }}
           className={cn(
             'border-primary text-primary min-h-13 flex-1 rounded-xl border-2 text-[15px] font-bold',
@@ -338,7 +371,9 @@ export default function EventPage() {
           type="button"
           aria-pressed={rsvp === 'going'}
           onClick={() => {
-            setRsvp(rsvp === 'going' ? null : 'going');
+            const next = rsvp === 'going' ? null : 'going';
+            setRsvp(event.id, next);
+            if (next === 'going') setGoingOpen(true);
           }}
           className={cn(
             'border-primary min-h-13 flex-1 rounded-xl border-2 text-[15px] font-bold',
@@ -358,9 +393,26 @@ export default function EventPage() {
           rel="noopener noreferrer"
           className="text-primary mt-1 text-center text-sm font-bold underline"
         >
-          Register or join on the organizer's site
+          Register or join on the organizer&rsquo;s site
         </a>
       )}
+
+      <GoingDialog
+        open={goingOpen}
+        event={{
+          id: event.id,
+          title: event.title,
+          startTime: event.start_time,
+          endTime: event.end_time,
+          description: bodyText,
+          location: event.location,
+          url: event.url,
+          registrationUrl: event.registration_url,
+        }}
+        onClose={() => {
+          setGoingOpen(false);
+        }}
+      />
     </div>
   );
 }

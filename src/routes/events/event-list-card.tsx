@@ -1,9 +1,11 @@
 import { X } from 'lucide-react';
 
+import { type RsvpState, rsvpCounts } from '@/lib/rsvps';
 import { cn } from '@/lib/utils';
 import type { MockEventAttributes } from '@/routes/events/event-mocks';
+import { EVENT_FORMAT_LABELS, type EventFormat } from '@/routes/events/filters';
 
-export type RsvpState = 'interested' | 'going' | null;
+export type { RsvpState };
 
 export interface FeedEvent {
   id: string;
@@ -18,6 +20,12 @@ export interface FeedEvent {
   url: string | null;
   /** Registration link, when the feed carries one separately from `url`. */
   registrationUrl: string | null;
+  /** Null unless the copy stated a cutoff — most listings don't. */
+  registrationDeadline: string | null;
+  /** Null when the verification pass could not tell from the copy. */
+  format: EventFormat | null;
+  /** Real tags from `event_tags`, most specific first as the query returned them. */
+  tags: { slug: string; name: string }[];
   /** Publishing organization, from the event's `data_feeds` row. */
   orgName: string | null;
   /** Primary photo from `event_photos`, if the ingest job found one. */
@@ -57,10 +65,11 @@ export function EventListCard({ event, rsvp, onOpen, onRsvp, onDismiss }: EventL
   // empty string rather than omitting the field, so blank-but-present has to count as absent —
   // otherwise the line renders a dangling separator with nothing after it.
   const venue = event.location?.trim() ?? '';
-  const secondary = venue === '' ? mock.activity : venue;
+  // Falls back to the event's own first tag rather than an invented activity, so the second meta
+  // line still says something true when the feed gave no venue.
+  const secondary = venue === '' ? (event.tags[0]?.name ?? mock.activity) : venue;
 
-  const going = mock.goingCount + (rsvp === 'going' ? 1 : 0);
-  const interested = mock.interestedCount + (rsvp === 'interested' ? 1 : 0);
+  const { going, interested } = rsvpCounts(mock, rsvp);
 
   return (
     <article className="bg-card relative flex gap-3 rounded-2xl border p-4">
@@ -92,20 +101,22 @@ export function EventListCard({ event, rsvp, onOpen, onRsvp, onDismiss }: EventL
         <button type="button" onClick={onOpen} className="w-full text-left">
           <h3 className="pr-6 text-base leading-tight font-bold">{event.title}</h3>
 
-          {(mock.mode === 'virtual' || mock.recurring) && (
-            <div className="mt-1.5 flex flex-wrap gap-1.5">
-              {mock.mode === 'virtual' && (
-                <span className="bg-accent text-accent-foreground rounded-lg px-2 py-0.5 text-[10px] font-bold">
-                  Online
-                </span>
-              )}
-              {mock.recurring && (
-                <span className="bg-secondary text-primary rounded-lg px-2 py-0.5 text-[10px] font-bold">
-                  Recurring
-                </span>
-              )}
-            </div>
-          )}
+          <div className="mt-1.5 flex flex-wrap gap-1.5">
+            {event.format && (
+              <span className="bg-accent text-accent-foreground rounded-lg px-2 py-0.5 text-[10px] font-bold">
+                {EVENT_FORMAT_LABELS[event.format]}
+              </span>
+            )}
+            {/* Two is what fits on a phone-width card without the row wrapping. */}
+            {event.tags.slice(0, 2).map((tag) => (
+              <span
+                key={tag.slug}
+                className="bg-secondary text-primary rounded-lg px-2 py-0.5 text-[10px] font-bold"
+              >
+                {tag.name}
+              </span>
+            ))}
+          </div>
 
           <p className="text-muted-foreground mt-1 text-[13px] leading-snug">
             {[event.orgName, mock.city].filter(Boolean).join(' · ')}
