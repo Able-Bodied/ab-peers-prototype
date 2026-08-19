@@ -88,6 +88,42 @@ describe('buildIcsFile', () => {
     expect(description).not.toContain('Event details:');
   });
 
+  it('does not print a link the blurb already contains', () => {
+    // Real shape of these listings: the CTA is still in the copy until the verification pass
+    // strips it, so appending the same URL again would show it twice in the calendar entry.
+    const registrationUrl = 'https://us02web.zoom.us/meeting/register/abc';
+    const ics = buildIcsFile(
+      {
+        ...BASE,
+        description: `An hour of chatter.\n\nRegister HERE (${registrationUrl})`,
+        registrationUrl,
+      },
+      NOW,
+    );
+    const description = property(ics, 'DESCRIPTION') ?? '';
+
+    expect(description).not.toContain('Register: ');
+    expect(description.match(/us02web\.zoom\.us/g)).toHaveLength(1);
+  });
+
+  it('still adds the link when the blurb does not mention it', () => {
+    const ics = buildIcsFile(
+      { ...BASE, description: 'An hour of chatter.', registrationUrl: 'https://example.com/r' },
+      NOW,
+    );
+
+    expect(property(ics, 'DESCRIPTION')).toContain('Register: https://example.com/r');
+  });
+
+  it('does not print the event page twice either', () => {
+    const url = 'https://norcalsci.org/events/abc';
+    const ics = buildIcsFile({ ...BASE, description: `Details at ${url}`, url }, NOW);
+    const description = property(ics, 'DESCRIPTION') ?? '';
+
+    expect(description).not.toContain('Event details:');
+    expect(description.match(/norcalsci\.org/g)).toHaveLength(1);
+  });
+
   it('omits properties the feed had nothing for', () => {
     const ics = buildIcsFile(BASE, NOW);
 

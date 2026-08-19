@@ -91,12 +91,17 @@ function buildDescription(event: IcsEventInput): string {
   const blurb = event.description?.trim();
   if (blurb) parts.push(blurb);
 
+  // Most of these listings carry their registration link inline ("Register HERE (https://…)"), and
+  // until the verification pass strips that call to action the raw blurb still has it. Appending
+  // the same URL under its own heading would print it twice in the calendar entry.
+  const alreadyLinked = (url: string) => blurb?.includes(url) ?? false;
+
   const registration = event.registrationUrl?.trim();
-  if (registration) parts.push(`Register: ${registration}`);
+  if (registration && !alreadyLinked(registration)) parts.push(`Register: ${registration}`);
 
   const page = event.url?.trim();
   // Only worth repeating when it isn't the same link as the registration one.
-  if (page && page !== registration) parts.push(`Event details: ${page}`);
+  if (page && page !== registration && !alreadyLinked(page)) parts.push(`Event details: ${page}`);
 
   return parts.join('\n\n');
 }
