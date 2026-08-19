@@ -4,6 +4,7 @@ import {
   activeFilterCount,
   dateWindowRange,
   defaultFilters,
+  selectedCities,
   selectedFormats,
   selectedTags,
 } from '@/routes/events/filters';
@@ -97,6 +98,18 @@ describe('selectedTags', () => {
   });
 });
 
+describe('selectedCities', () => {
+  it('returns null when nothing is picked', () => {
+    expect(selectedCities(defaultFilters())).toBeNull();
+  });
+
+  it('ignores cities toggled back off and sorts the rest', () => {
+    const filters = defaultFilters();
+    filters.cities = { Oakland: true, Berkeley: false, Sacramento: true };
+    expect(selectedCities(filters)).toEqual(['Oakland', 'Sacramento']);
+  });
+});
+
 describe('activeFilterCount', () => {
   it('counts nothing for the defaults', () => {
     expect(activeFilterCount(defaultFilters())).toBe(0);
@@ -107,5 +120,12 @@ describe('activeFilterCount', () => {
     filters.formats = { in_person: true, online: false, hybrid: false };
     filters.tags = { kayaking: true, handcycling: true };
     expect(activeFilterCount(filters)).toBe(3);
+  });
+
+  it('counts an active city and a distance filter', () => {
+    const filters = defaultFilters();
+    filters.cities = { Oakland: true };
+    filters.near = { latitude: 37.8, longitude: -122.27, radiusMiles: 25, label: 'Near me' };
+    expect(activeFilterCount(filters)).toBe(2);
   });
 });

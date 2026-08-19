@@ -2,7 +2,7 @@
 
 You are the scheduled agent that reviews freshly scraped events before the app trusts them.
 The ingest job flags every new or changed event with `needs_ai_verification = true`; your job is
-to derive four things from the scraped copy, write them back, and clear the flag.
+to derive several things from the scraped copy (Phase 3), write them back, and clear the flag.
 
 Work through the phases in order. Do not skip the preflight.
 
@@ -27,6 +27,12 @@ a column to the value it already holds, with `.select()`. If the returned array 
 tables exist. They are created by
 `supabase/migrations/20260818130000_events_ai_enrichment.sql`, which must be applied by hand in
 the Supabase SQL editor.
+
+Also confirm `ai_extracted_start_time`, `ai_extracted_end_time`, `ai_extracted_location` exist
+(from `20260819140000_events_ai_extracted_fields.sql`), and `city`, `postal_code`, `latitude`,
+`longitude`, `location_precision` exist (from `20260819160000_events_geocoding.sql`). Also confirm
+`organizations.default_timezone` exists (from `20260819130000_organizations_default_timezone.sql`)
+— Phase 3.6 needs it.
 
 **If either check fails, switch to DRY RUN.** Do all the analysis, write the results to
 `jobs/event-ingest/out/ai-verification-<ISO8601-date>.json` in the write-back shape below, change
@@ -54,13 +60,19 @@ so running it proves nothing and still hammers the source site.
 
 ## Phase 2 — Collect the work
 
+```sql
+select e.id, e.title, e.description, e.description_html, e.start_time, e.end_time, e.location,
+       e.url, e.registration_url, e.category, o.default_timezone
+from events e
+join data_feeds f on f.id = e.feed_id
+left join organizations o on o.id = f.organization_id
+where e.needs_ai_verification = true
+order by e.start_time
 ```
-select id, title, description, description_html, start_time, end_time, location, url,
-       registration_url, category
-from events
-where needs_ai_verification = true
-order by start_time
-```
+
+`default_timezone` is null when the feed has no organization on file yet — fall back to
+`America/Los_Angeles` in that case (every org this prototype knows about is California-based) and
+say so in `notes` rather than guessing per-event.
 
 Report the count before processing. If it is zero, stop — there is nothing to do, and that is a
 successful run, not a failure.
@@ -86,6 +98,14 @@ exact JSON per event — no prose, no markdown fence:
   "proposed_tags": [],
   "description_clean": "...",
   "description_html_clean": "...",
+  "ai_extracted_start_time": null,
+  "ai_extracted_end_time": null,
+  "ai_extracted_location": null,
+  "city": null,
+  "postal_code": null,
+  "latitude": null,
+  "longitude": null,
+  "location_precision": null,
   "notes": "one short line on anything ambiguous, or empty"
 }
 ```
@@ -150,6 +170,69 @@ So: when the CTA you removed pointed at a registration destination, return that 
 This is a field, not a note. An earlier run recorded these only in `notes`, the notes came back
 empty for all twelve events, and ten of them had their links silently deleted.
 
+### 3.6 `ai_extracted_start_time` / `ai_extracted_end_time`
+
+An ISO 8601 timestamp with an explicit UTC offset, or `null`. **These write to their own columns,
+never to `start_time`/`end_time`.** The scraper's own value is authoritative whenever it has one —
+see the "Never overwrite" guardrail below.
+
+Set these **only when the corresponding scraped column (`start_time`/`end_time` from Phase 2) is
+null** and the copy states an actual date/time: "Time: 4:00-5:30", "every Friday at 3pm",
+"Meet: 3rd Wed of the month" combined with a date the event's `url`/`title`/surrounding copy makes
+concrete. If the copy states only a recurrence rule with no way to pin a specific calendar date for
+*this* row (e.g. "3rd Wed of the month" with nothing saying which month), leave both fields `null`
+— a fabricated date is worse than none, same principle as `registration_deadline` in 3.1.
+
+The copy almost never states a timezone. When it doesn't, resolve the wall-clock time you found
+against this event's `default_timezone` from Phase 2 (falling back to `America/Los_Angeles` per
+that phase's note) and convert to a real UTC instant — do not emit a timestamp with no offset or a
+bare local time.
+
+### 3.7 `ai_extracted_location`
+
+Free text, or `null`. **Writes to its own column, never to `location`.**
+
+Set it **only when `location` (from Phase 2) is empty** and the copy states an actual venue or
+address: "Location: Gino's Pizza, 1761 Monterey St., San Luis Obispo". Do not infer a location from
+an org's usual meeting spot or from anything not stated in this event's own copy.
+
+### 3.8 Geocoding: `city` / `postal_code` / `latitude` / `longitude` / `location_precision`
+
+The ingest job (Phase 1) already geocodes every event whose scraped `location` was non-empty, so
+for most events these five fields are already correct on the row and this step is a no-op — **only
+geocode when you set `ai_extracted_location` in 3.7** (the scraper had nothing to geocode, so
+nothing ran for this event yet).
+
+When you do geocode, **use a tool to do the lookup — do not estimate coordinates yourself.** Call
+Nominatim, the free OpenStreetMap geocoder this project already uses
+(`src/routes/onboarding/location-step.tsx`, `jobs/event-ingest/scrapers/geocode.js`):
+
+```
+GET https://nominatim.openstreetmap.org/search?q=<url-encoded location text>&format=jsonv2&addressdetails=1&limit=1&countrycodes=us
+```
+
+with a real `User-Agent` header (Nominatim rejects generic ones) and no more than one request per
+second if you're geocoding several events. Use whatever HTTP-capable tool you have (e.g. a web
+fetch tool) to issue it. From the top result: `city` = `address.city` (falling back to `town` /
+`village` / `hamlet`), `postal_code` = `address.postcode` (or `null`), `latitude`/`longitude` = the
+result's `lat`/`lon` as numbers. For `location_precision`: `"exact"` when the result's `type` or
+`category` is a building/address/POI-level match (`house`, `building`, `amenity`, `shop`, and
+similar — note the field is `category` in `jsonv2`, not `class`, which is the legacy `format=json`
+name); `"approximate"` for anything resolved only to an area (city, postcode, suburb,
+administrative boundary).
+
+A single literal query regularly returns zero results for copy that jams a venue name against a
+street address with no separating comma ("Gino's Pizza 1761 Monterey Street San Luis Obispo, CA" —
+verified against the live API, not assumed). If the first attempt returns nothing, retry with: the
+text from the first digit onward (drops a jammed venue name), then everything after the first
+comma, then everything before the last comma — stop at the first rewrite that hits. If every
+attempt returns nothing, leave all five fields `null` rather than guessing.
+
+`latitude`/`longitude` are never shown in the app — they exist only so the events feed's distance
+filter can query them server-side. Getting one wrong doesn't misinform a person the way a wrong
+`registration_deadline` would, but it's still real data pretending to be more precise than it is,
+so hold it to the same "don't fabricate" standard as everything else in this phase.
+
 ---
 
 ## Phase 4 — The taxonomy
@@ -174,18 +257,27 @@ Per event, in one transaction's worth of work:
    `description_html_clean`.
    Also set `registration_url` to `extracted_registration_url` **only when the column is currently
    null** — the feed's own value is authoritative and must never be overwritten by an inferred one.
-2. Replace tags: delete this event's `event_tags` rows with `source = 'ai'`, then insert one row
+2. Write `ai_extracted_start_time`, `ai_extracted_end_time`, `ai_extracted_location` whenever you
+   produced a value for them (3.6, 3.7) — unconditionally, since 3.6/3.7 already gate on the
+   scraped column being null before you're allowed to fill these in. Write `city`, `postal_code`,
+   `latitude`, `longitude`, `location_precision` only when you actually geocoded something in 3.8;
+   otherwise leave the row's existing values (set by the ingest job) untouched.
+3. Replace tags: delete this event's `event_tags` rows with `source = 'ai'`, then insert one row
    per returned slug with `source = 'ai'`. Leave `source = 'human'` rows alone — a person's
    correction outranks your guess and must survive a re-run.
-3. Set `ai_verified_at = now()` and `needs_ai_verification = false`.
+4. Set `ai_verified_at = now()` and `needs_ai_verification = false`.
 
-Do all three for an event, or none of them. Only clear the flag once the data is actually stored,
+Do all four for an event, or none of them. Only clear the flag once the data is actually stored,
 and confirm each write returned the row — an empty result means RLS silently rejected it, and
 clearing the flag on top of that would strand the event as permanently unverified.
 
-**Never write to `description` or `description_html`.** Those hold the scraped copy that
-`ingest.js` diffs against to decide what changed. Editing them makes every future ingest see a
-difference from the source, re-flag the event forever, and overwrite your work on the next run.
+**Never write to `description`, `description_html`, `start_time`, `end_time`, or `location`.**
+The first two hold the scraped copy that `ingest.js` diffs against to decide what changed —
+editing them makes every future ingest see a difference from the source and re-flag the event
+forever. The latter three are the scraper's own claim about when and where an event is; your
+inference belongs in `ai_extracted_start_time`/`ai_extracted_end_time`/`ai_extracted_location`
+instead, precisely so it never overwrites a real scraped value and never gets clobbered by one on
+the next ingest either.
 
 Process events independently: one failure skips that event and leaves its flag set for the next
 run. Do not abort the batch.
@@ -199,6 +291,8 @@ run. Do not abort the batch.
 - How many got a deadline, and the format distribution
 - How many registration URLs you recovered from description copy, and how many events had a CTA
   removed while yielding no URL (that combination means a link was lost — call it out)
+- How many events got an `ai_extracted_start_time`/`ai_extracted_end_time`/`ai_extracted_location`,
+  and how many you geocoded (3.8) vs. left untouched because the ingest job already had it
 - Every entry in `proposed_tags`, grouped, as the human's approval queue
 - Any `notes` worth a person's attention
 - If this was a DRY RUN, say so first and name the blocker
@@ -216,3 +310,7 @@ run. Do not abort the batch.
   `registration_deadline` and `event_format`.
 - Do not apply the migration yourself and do not edit `.env` files. If credentials or schema are
   missing, that is a DRY RUN and a line in the report.
+- Nominatim (3.8) is a free, shared service with a strict 1 request/second policy and a
+  requirement for a real `User-Agent`. Only call it for events where 3.7 actually set
+  `ai_extracted_location` — most events in a batch already have geocoding from the ingest job and
+  need no lookup at all — and space out the calls you do make.

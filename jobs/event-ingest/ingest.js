@@ -8,10 +8,16 @@ import { createClient } from '@supabase/supabase-js';
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { geocodeEvents } from './scrapers/geocode.js';
 import {
   NorCalSCIEventsJsonWithImagesScraper,
   uploadEventImage,
 } from './scrapers/norcalsci-events-json-with-images.js';
+import {
+  findSeriesMatch,
+  SERIES_MATCH_THRESHOLD,
+  titleSimilarity,
+} from './scrapers/series-match.js';
 
 // Load environment configuration in priority order:
 // 1. Local .env in event-ingest directory (highest priority)
@@ -212,6 +218,70 @@ class EventIngestionWorker {
   }
 
   /**
+   * Groups this batch's scraped events into series by fuzzy title match
+   * (see scrapers/series-match.js), then resolves each group against
+   * event_series rows already on file for this feed — exact title match
+   * first, falling back to fuzzy — creating a new series row only when
+   * nothing on file is close enough. Mutates `events` in place, setting
+   * `series_id`.
+   *
+   * Batch-local grouping happens before touching the database so a series
+   * with several occurrences in one scrape (a weekly meetup, say) only needs
+   * one round trip to resolve, not one per occurrence.
+   */
+  async resolveEventSeries(feedId, events) {
+    const groups = [];
+    for (const event of events) {
+      const group = groups.find(
+        (g) => titleSimilarity(g.title, event.title) >= SERIES_MATCH_THRESHOLD,
+      );
+      if (group) group.events.push(event);
+      else groups.push({ title: event.title, events: [event] });
+    }
+
+    const { data: existing, error } = await this.supabase
+      .from('event_series')
+      .select('id, title')
+      .eq('feed_id', feedId);
+
+    if (error) {
+      this.log(
+        `  Failed to load existing series, leaving this batch ungrouped: ${error.message}`,
+        'warning',
+      );
+      return events;
+    }
+
+    const candidates = [...(existing || [])];
+
+    for (const group of groups) {
+      const match = findSeriesMatch(group.title, candidates);
+      let seriesId = match?.id;
+
+      if (!seriesId) {
+        const { data: created, error: insertError } = await this.supabase
+          .from('event_series')
+          .insert({ feed_id: feedId, title: group.title })
+          .select('id, title')
+          .single();
+
+        if (insertError) {
+          this.log(`  Failed to create series "${group.title}": ${insertError.message}`, 'warning');
+          continue;
+        }
+        seriesId = created.id;
+        candidates.push(created);
+      }
+
+      for (const event of group.events) {
+        event.series_id = seriesId;
+      }
+    }
+
+    return events;
+  }
+
+  /**
    * Upsert events for a specific feed
    * Uses UNIQUE(feed_id, external_id) for safe deduplication
    * Also checks for title+date duplicates across feeds
@@ -227,11 +297,12 @@ class EventIngestionWorker {
       let dedupCount = 0;
 
       // Load existing rows for this feed so we can tell which scraped events
-      // actually changed vs. which are byte-for-byte re-scrapes.
+      // actually changed vs. which are byte-for-byte re-scrapes, and so
+      // geocoding can be skipped for a `location` that hasn't changed.
       const { data: existingRows, error: existingError } = await this.supabase
         .from('events')
         .select(
-          'external_id, title, description, description_html, start_time, end_time, location, url, registration_url, category, needs_ai_verification',
+          'external_id, title, description, description_html, start_time, end_time, location, url, registration_url, category, needs_ai_verification, city, postal_code, latitude, longitude, location_precision',
         )
         .eq('feed_id', feedId);
 
@@ -246,57 +317,65 @@ class EventIngestionWorker {
         (existingRows || []).map((row) => [row.external_id, row]),
       );
 
-      // Prepare event payloads with validation
+      // Required fields: external_id and title. start_time is *not* required
+      // — an event whose time is only stated in the description prose still
+      // gets a row, with start_time null until the AI verification pass fills
+      // in ai_extracted_start_time (see 20260819140000_events_ai_extracted_fields.sql).
+      const validEvents = events.filter((event) => {
+        if (!event.external_id) {
+          console.warn(`  Skipping event without external_id: ${event.title}`);
+          return false;
+        }
+        if (!event.title) {
+          console.warn(`  Skipping event without title`);
+          return false;
+        }
+        return true;
+      });
+
+      await this.resolveEventSeries(feedId, validEvents);
+      await geocodeEvents(validEvents, existingByExternalId);
+
+      // Prepare event payloads
       // Track source_image_url separately (non-column field for later download)
       const eventImageMap = {};
-      const payloads = events
-        .filter((event) => {
-          // Skip events without required fields
-          if (!event.external_id) {
-            console.warn(`  Skipping event without external_id: ${event.title}`);
-            return false;
-          }
-          if (!event.title) {
-            console.warn(`  Skipping event without title`);
-            return false;
-          }
-          if (!event.start_time) {
-            console.warn(`  Skipping event without start_time: ${event.title}`);
-            return false;
-          }
-          return true;
-        })
-        .map((event) => {
-          // Save source image URL for post-upsert download
-          if (event.source_image_url) {
-            eventImageMap[event.external_id] = event.source_image_url;
-          }
+      const payloads = validEvents.map((event) => {
+        // Save source image URL for post-upsert download
+        if (event.source_image_url) {
+          eventImageMap[event.external_id] = event.source_image_url;
+        }
 
-          const payload = {
-            feed_id: feedId,
-            external_id: event.external_id,
-            title: event.title,
-            description: event.description || '',
-            description_html: event.description_html || '',
-            start_time: event.start_time,
-            end_time: event.end_time || null,
-            location: event.location || '',
-            url: event.url || '',
-            registration_url: event.registration_url || null,
-            category: event.category || null,
-            updated_at: event.updated_at || new Date().toISOString(),
-          };
+        const payload = {
+          feed_id: feedId,
+          external_id: event.external_id,
+          title: event.title,
+          description: event.description || '',
+          description_html: event.description_html || '',
+          start_time: event.start_time || null,
+          end_time: event.end_time || null,
+          location: event.location || '',
+          url: event.url || '',
+          registration_url: event.registration_url || null,
+          category: event.category || null,
+          series_id: event.series_id || null,
+          city: event.city || null,
+          postal_code: event.postal_code || null,
+          latitude: event.latitude ?? null,
+          longitude: event.longitude ?? null,
+          location_precision: event.location_precision || null,
+          updated_at: event.updated_at || new Date().toISOString(),
+        };
 
-          // New or changed events need a human/AI to re-check the scrape;
-          // an unchanged re-scrape keeps whatever verification state it had.
-          const existing = existingByExternalId.get(event.external_id);
-          payload.needs_ai_verification = eventContentChanged(existing, payload)
-            ? true
-            : (existing?.needs_ai_verification ?? false);
-          payload.needs_pii_review = containsPii(payload.description, payload.description_html);
+        // New or changed events need a human/AI to re-check the scrape;
+        // an unchanged re-scrape keeps whatever verification state it had.
+        const existing = existingByExternalId.get(event.external_id);
+        payload.needs_ai_verification = eventContentChanged(existing, payload)
+          ? true
+          : (existing?.needs_ai_verification ?? false);
+        payload.needs_pii_review = containsPii(payload.description, payload.description_html);
 
-          return payload;
-        });
+        return payload;
+      });
 
       this.log(`  Preparing to upsert ${payloads.length} events...`, 'info');
 

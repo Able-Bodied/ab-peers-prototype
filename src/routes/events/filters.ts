@@ -1,12 +1,14 @@
 /**
  * Filter state for the events feed.
  *
- * `when`, `formats` and `tags` all map to real columns and are applied in the Supabase query rather
- * than after the fact, so infinite scroll keeps paging through the filtered set instead of paging
- * the whole table and dropping most of each batch.
+ * `when`, `formats`, `tags`, `organizations` and `cities` all map to real columns and are applied
+ * in the Supabase query rather than after the fact, so infinite scroll keeps paging through the
+ * filtered set instead of paging the whole table and dropping most of each batch. `near` maps to
+ * the `nearby_events` RPC (supabase/migrations/20260819160000_events_geocoding.sql) the same way —
+ * resolved to a set of ids once per filter change, then applied as an `.in('id', ...)` alongside
+ * the rest.
  *
- * `feed` and `place` are still presentational: there is no ranking signal and no city column, so
- * filtering on them would be filtering on noise.
+ * `feed` is still presentational: there is no ranking signal to sort "For you" by.
  */
 
 export const DATE_WINDOWS = ['week', 'month', 'any'] as const;
@@ -30,6 +32,17 @@ export const EVENT_FORMAT_LABELS: Record<EventFormat, string> = {
 
 export type FeedMode = 'foryou' | 'everything';
 
+/** A resolved search origin for the distance filter — "near me" or a geocoded zip/city. */
+export interface NearFilter {
+  latitude: number;
+  longitude: number;
+  radiusMiles: number;
+  /** What to show on the chip — "Near me" or the geocoded city name. */
+  label: string;
+}
+
+export const DISTANCE_OPTIONS_MILES = [10, 25, 50] as const;
+
 export interface EventFilterState {
   feed: FeedMode; // not wired
   place: string; // not wired
@@ -39,6 +52,10 @@ export interface EventFilterState {
   tags: Record<string, boolean>;
   /** Organization slug -> selected. Absent or false means "not selected", not "excluded". */
   organizations: Record<string, boolean>;
+  /** City name -> selected. Absent or false means "not selected", not "excluded". */
+  cities: Record<string, boolean>;
+  /** null means no distance filter is active. */
+  near: NearFilter | null;
 }
 
 export function defaultFilters(): EventFilterState {
@@ -51,6 +68,8 @@ export function defaultFilters(): EventFilterState {
     formats: { in_person: true, online: true, hybrid: true },
     tags: {},
     organizations: {},
+    cities: {},
+    near: null,
   };
 }
 
@@ -82,12 +101,22 @@ export function selectedOrganizations(filters: EventFilterState): string[] | nul
   return on.length === 0 ? null : on.sort();
 }
 
+/** The city names to narrow to, or null for "don't narrow". Selected cities are OR-ed. */
+export function selectedCities(filters: EventFilterState): string[] | null {
+  const on = Object.entries(filters.cities)
+    .filter(([, selected]) => selected)
+    .map(([city]) => city);
+  return on.length === 0 ? null : on.sort();
+}
+
 /** How many narrowing choices are active, for the chip bar. */
 export function activeFilterCount(filters: EventFilterState): number {
   return (
     (selectedFormats(filters) ? 1 : 0) +
     (selectedTags(filters)?.length ?? 0) +
-    (selectedOrganizations(filters)?.length ?? 0)
+    (selectedOrganizations(filters)?.length ?? 0) +
+    (selectedCities(filters)?.length ?? 0) +
+    (filters.near ? 1 : 0)
   );
 }
 

@@ -9,17 +9,15 @@
  *
  * TODO(team): delete this module once the columns land. Most fields below map to one that
  * `EventItem` in src/types/domain.ts already declares, so the swap is a matter of reading the row
- * instead of calling `mockEventAttributes`. `accessNotes`/`accessWarning` match `EventItem.accessNotes`
- * (currently one free-text field there — split however the real data ends up shaped).
- * `orgVerified`/`orgEventsThisYear` stand in for a claimed-org record; nothing today links a
- * `data_feeds` row to an `Org`.
+ * instead of calling `mockEventAttributes`.
  *
  * Values are derived from the event id, so a given event looks the same on every render and across
  * reloads — a card that shuffled its city on each paint would be actively misleading to demo.
  *
  * RSVP tallies are not invented here anymore — they come from the real `event_rsvps` table via
  * `useRsvps().countsFor()` (see src/lib/rsvps.tsx), since a fabricated "6 going" on an event nobody
- * has actually RSVP'd to is worse than an honest zero.
+ * has actually RSVP'd to is worse than an honest zero. Likewise, access notes/warnings and the org
+ * verified badge have been dropped rather than invented — see git history if that data lands later.
  */
 
 import type { EventMode } from '@/types/domain';
@@ -66,23 +64,6 @@ const MATCH_LINES = [
   null,
 ] as const;
 
-/** Mirrors the "accline" field in docs/screens/event-org.html — access provisions, not a promise. */
-const ACCESS_NOTES = [
-  'Accessible parking, 6 spaces · Loaner equipment on request',
-  'Step-free entrance · Accessible restroom on site',
-  'Elevator access to all floors · Reserved accessible seating',
-  'Ground-level venue · Service animals welcome',
-] as const;
-
-/** Mirrors the "accwarn" field — a caveat worth surfacing, not always present. */
-const ACCESS_WARNINGS = [
-  'Last 200 m of the trail is gravel',
-  'Street parking only near the venue',
-  'Second floor has stairs only',
-  null,
-  null,
-] as const;
-
 export interface MockEventAttributes {
   city: string;
   /** "Virtual" for online events — they deliberately bypass the state filter. */
@@ -94,12 +75,6 @@ export interface MockEventAttributes {
   beginner: boolean;
   /** Aggregate phrasing only; null when there is nothing worth surfacing. */
   matchLine: string | null;
-  accessNotes: string;
-  /** Null when there is nothing worth flagging. */
-  accessWarning: string | null;
-  /** Stands in for the host org's claimed/verified status — no `orgs` table behind `data_feeds` yet. */
-  orgVerified: boolean;
-  orgEventsThisYear: number;
 }
 
 /**
@@ -145,9 +120,5 @@ export function mockEventAttributes(id: string): MockEventAttributes {
     recurring: h % 3 !== 0,
     beginner: h % 4 !== 0,
     matchLine: pick(MATCH_LINES, h, 4),
-    accessNotes: pick(ACCESS_NOTES, h, 5),
-    accessWarning: pick(ACCESS_WARNINGS, h, 6),
-    orgVerified: h % 3 !== 0,
-    orgEventsThisYear: (h % 20) + 3,
   };
 }

@@ -50,12 +50,4 @@ describe('mockEventAttributes', () => {
       expect(ALL_ACTIVITIES).toContain(mockEventAttributes(id).activity);
     }
   });
-
-  it('always produces non-empty access notes and a plausible org event count', () => {
-    for (const id of IDS) {
-      const attrs = mockEventAttributes(id);
-      expect(attrs.accessNotes.length).toBeGreaterThan(0);
-      expect(attrs.orgEventsThisYear).toBeGreaterThan(0);
-    }
-  });
 });

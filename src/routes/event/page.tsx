@@ -12,22 +12,28 @@ import { GoingDialog } from '@/routes/events/going-dialog';
  * Event detail — the full-page view reached by tapping a card on the events list, laid out to
  * match docs/screens/event-org.html ("Event page").
  *
- * Title, time, location, description, the primary photo, RSVP counts and the org badge are real,
- * read from the `events`, `event_photos`, `event_rsvps` and `organizations` tables. The org's
- * verified checkmark and event count, and the activity/format chips' access notes, are still
- * invented per event by event-mocks.ts, for the same reason the events list invents them: those
- * columns don't exist yet. See src/routes/events/event-mocks.ts for the mapping back to
- * `EventItem`.
+ * Title, time, location, description, the primary photo, RSVP counts, the org badge and the org's
+ * events-this-year count are real, read from the `events`, `event_photos`, `event_rsvps` and
+ * `organizations` tables. Start/end time and location prefer the scraped column and fall back to
+ * the AI-extracted one only when the scraped column is empty (see
+ * supabase/migrations/20260819140000_events_ai_extracted_fields.sql and
+ * src/routes/events/page.tsx, which does the same thing for the list); the location meta line
+ * falls back further, to "Online" for online events, only once both are exhausted. See
+ * src/routes/events/event-mocks.ts for the attributes (activity/genre/recurring/matchLine/etc.)
+ * that are still invented per event.
  *
  * TODO(team):
  *  - [x] Real title/time/location/description/photo from Supabase
  *  - [x] "More from this org" using real sibling events
  *  - [x] Persist RSVPs to `event_rsvps`, shared with the events list
  *  - [x] Real org badge from `organizations`, matching the events list
+ *  - [x] Real org events-this-year count from `organizations`/`events`
+ *  - [x] AI-extracted start/end time and location as a fallback for the scraped columns
  *  - [ ] Wire an actual Follow feature (currently a disabled button)
  */
 
 interface OrganizationEmbed {
+  id: string;
   slug: string;
   name: string;
   logo_url: string | null;
@@ -46,9 +52,13 @@ interface EventDetailRow {
   /** CTA-stripped copy from the verification pass; null until that pass has run. */
   description_clean: string | null;
   description_html_clean: string | null;
-  start_time: string;
+  start_time: string | null;
   end_time: string | null;
   location: string | null;
+  /** Filled by the AI verification pass only when the scraper found no start_time/end_time/location. */
+  ai_extracted_start_time: string | null;
+  ai_extracted_end_time: string | null;
+  ai_extracted_location: string | null;
   url: string | null;
   registration_url: string | null;
   registration_deadline: string | null;
@@ -82,6 +92,12 @@ function orgBadgeOf(row: EventDetailRow): { name: string; logoUrl: string | null
   const org = feedOf(row)?.organizations;
   const orgRow = Array.isArray(org) ? org[0] : org;
   return orgRow ? { name: orgRow.name, logoUrl: orgRow.logo_url } : null;
+}
+
+function orgIdOf(row: EventDetailRow): string | null {
+  const org = feedOf(row)?.organizations;
+  const orgRow = Array.isArray(org) ? org[0] : org;
+  return orgRow?.id ?? null;
 }
 
 function dateTile(isoString: string): { weekday: string; day: string } {
@@ -138,6 +154,7 @@ export default function EventPage() {
   const [event, setEvent] = useState<EventDetailRow | null>(null);
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const [moreFromOrg, setMoreFromOrg] = useState<RelatedEventRow[]>([]);
+  const [orgEventsThisYear, setOrgEventsThisYear] = useState<number | null>(null);
   // Shared with the events feed, so the counts here and on the card agree.
   const { rsvpFor, setRsvp, countsFor, ensureCounts } = useRsvps();
   const [goingOpen, setGoingOpen] = useState(false);
@@ -160,7 +177,7 @@ export default function EventPage() {
         const { data: eventData, error: eventError } = await supabase
           .from('events')
           .select(
-            'id, title, description, description_html, description_clean, description_html_clean, start_time, end_time, location, url, registration_url, registration_deadline, event_format, category, feed_id, data_feeds(name, organizations(slug, name, logo_url)), event_tags(tags(slug, name))',
+            'id, title, description, description_html, description_clean, description_html_clean, start_time, end_time, location, ai_extracted_start_time, ai_extracted_end_time, ai_extracted_location, url, registration_url, registration_deadline, event_format, category, feed_id, data_feeds(name, organizations(id, slug, name, logo_url)), event_tags(tags(slug, name))',
           )
           .eq('id', id)
           .single()
@@ -187,10 +204,27 @@ export default function EventPage() {
           .limit(2);
         if (relatedError) throw relatedError;
 
+        const orgId = orgIdOf(eventData);
+        let orgEventCount: number | null = null;
+        if (orgId) {
+          const now = new Date();
+          const yearStart = new Date(now.getFullYear(), 0, 1).toISOString();
+          const yearEnd = new Date(now.getFullYear() + 1, 0, 1).toISOString();
+          const { count, error: orgCountError } = await supabase
+            .from('events')
+            .select('id, data_feeds!inner(organization_id)', { count: 'exact', head: true })
+            .eq('data_feeds.organization_id', orgId)
+            .gte('start_time', yearStart)
+            .lt('start_time', yearEnd);
+          if (orgCountError) throw orgCountError;
+          orgEventCount = count ?? 0;
+        }
+
         if (cancelled) return;
         setEvent(eventData);
         setPhotoUrl(photosData[0]?.photo_url ?? null);
         setMoreFromOrg(relatedData);
+        setOrgEventsThisYear(orgEventCount);
       } catch (err) {
         if (cancelled) return;
         setError(err instanceof Error ? err.message : 'Failed to load event');
@@ -242,8 +276,14 @@ export default function EventPage() {
   const mock: MockEventAttributes = mockEventAttributes(event.id);
   const orgName = orgNameOf(event);
   const orgBadge = orgBadgeOf(event);
-  const venue = event.location?.trim() ?? '';
-  const meta = [venue === '' ? null : venue, mock.city].filter(Boolean).join(' · ');
+  const startTime = event.start_time ?? event.ai_extracted_start_time;
+  const endTime = event.end_time ?? event.ai_extracted_end_time;
+  // A blank-but-present location (the feed's own "no venue" sentinel) counts as absent too, so it
+  // still falls back to the AI-extracted one.
+  const venue = event.location?.trim()
+    ? event.location.trim()
+    : (event.ai_extracted_location ?? '');
+  const meta = venue !== '' ? venue : event.event_format === 'online' ? 'Online' : '';
   const rsvp = rsvpFor(event.id);
   const { going, interested } = countsFor(event.id);
   const tags = (event.event_tags ?? []).flatMap((link) => (link.tags ? [link.tags] : []));
@@ -257,7 +297,7 @@ export default function EventPage() {
 
       <h1 className="text-2xl leading-tight font-bold tracking-tight">{event.title}</h1>
       <p className="text-primary mt-1 text-sm font-bold">
-        {formatWhen(event.start_time, event.end_time)}
+        {startTime ? formatWhen(startTime, endTime) : 'Date to be announced'}
       </p>
       {meta !== '' && <p className="text-muted-foreground mt-0.5 text-sm">{meta}</p>}
 
@@ -280,19 +320,9 @@ export default function EventPage() {
             )}
           </div>
           <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-1.5 text-sm font-bold">
-              <span className="truncate">{orgName}</span>
-              {mock.orgVerified && (
-                <span
-                  aria-hidden="true"
-                  className="bg-primary text-primary-foreground grid size-4 shrink-0 place-items-center rounded-full text-[9px]"
-                >
-                  ✓
-                </span>
-              )}
-            </div>
+            <div className="truncate text-sm font-bold">{orgName}</div>
             <div className="text-muted-foreground text-xs">
-              Hosting · {mock.orgEventsThisYear} events this year
+              Hosting{orgEventsThisYear !== null && ` · ${orgEventsThisYear} events this year`}
             </div>
           </div>
           <button
@@ -332,11 +362,6 @@ export default function EventPage() {
             <p className="whitespace-pre-wrap">{bodyText}</p>
           )}
         </div>
-      )}
-
-      <p className="text-muted-foreground mt-3.5 text-sm font-semibold">{mock.accessNotes}</p>
-      {mock.accessWarning && (
-        <p className="text-destructive mt-1 text-sm font-bold">{mock.accessWarning}</p>
       )}
 
       <h2 className="text-muted-foreground mt-5 mb-2 text-[11.5px] font-bold tracking-widest uppercase">
@@ -440,22 +465,24 @@ export default function EventPage() {
         </a>
       )}
 
-      <GoingDialog
-        open={goingOpen}
-        event={{
-          id: event.id,
-          title: event.title,
-          startTime: event.start_time,
-          endTime: event.end_time,
-          description: bodyText,
-          location: event.location,
-          url: event.url,
-          registrationUrl: event.registration_url,
-        }}
-        onClose={() => {
-          setGoingOpen(false);
-        }}
-      />
+      {startTime && (
+        <GoingDialog
+          open={goingOpen}
+          event={{
+            id: event.id,
+            title: event.title,
+            startTime,
+            endTime,
+            description: bodyText,
+            location: venue || null,
+            url: event.url,
+            registrationUrl: event.registration_url,
+          }}
+          onClose={() => {
+            setGoingOpen(false);
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -1,15 +1,19 @@
 import { X } from 'lucide-react';
+import { useState } from 'react';
 
+import { forwardGeocode, getCurrentPosition, reverseGeocode } from '@/lib/geocode';
 import type { Organization } from '@/lib/organizations';
 import type { TaxonomyCategory } from '@/lib/taxonomy';
 import { cn } from '@/lib/utils';
 import {
   DATE_WINDOW_LABELS,
   DATE_WINDOWS,
+  DISTANCE_OPTIONS_MILES,
   defaultFilters,
   EVENT_FORMAT_LABELS,
   EVENT_FORMATS,
   type EventFilterState,
+  type NearFilter,
 } from '@/routes/events/filters';
 
 interface FilterSheetProps {
@@ -18,6 +22,8 @@ interface FilterSheetProps {
   categories: TaxonomyCategory[];
   /** The organization vocabulary, read from the database rather than hardcoded here. */
   organizations: Organization[];
+  /** The city vocabulary, read from `events.city` rather than hardcoded here. */
+  cities: string[];
   /** Count shown on the confirm button, so the effect of a change is visible before closing. */
   resultCount: number;
   onChange: (next: EventFilterState) => void;
@@ -64,13 +70,18 @@ export function FilterSheet({
   filters,
   categories,
   organizations,
+  cities,
   resultCount,
   onChange,
   onClose,
 }: FilterSheetProps) {
-  // Feed and Where have no column behind them, so those controls stay disabled rather than
-  // silently doing nothing when tapped. When, Format, Activities and Organization are live.
+  // Feed has no column behind it, so that control stays disabled rather than silently doing
+  // nothing when tapped. When, Format, Activities, Organization, City and Near are live.
   const notWired = 'Not filterable yet — the events schema does not carry this field.';
+
+  const [nearQuery, setNearQuery] = useState('');
+  const [nearBusy, setNearBusy] = useState(false);
+  const [nearError, setNearError] = useState<string | null>(null);
 
   const toggleFormat = (format: (typeof EVENT_FORMATS)[number]) => {
     onChange({ ...filters, formats: { ...filters.formats, [format]: !filters.formats[format] } });
@@ -86,6 +97,61 @@ export function FilterSheet({
       organizations: { ...filters.organizations, [slug]: !filters.organizations[slug] },
     });
   };
+
+  const toggleCity = (city: string) => {
+    onChange({ ...filters, cities: { ...filters.cities, [city]: !filters.cities[city] } });
+  };
+
+  const setNear = (near: NearFilter | null) => {
+    onChange({ ...filters, near });
+  };
+
+  const setRadius = (radiusMiles: number) => {
+    if (filters.near) setNear({ ...filters.near, radiusMiles });
+  };
+
+  async function handleUseMyLocation() {
+    setNearError(null);
+    setNearBusy(true);
+    try {
+      const position = await getCurrentPosition();
+      const { latitude, longitude } = position.coords;
+      const place = await reverseGeocode(latitude, longitude);
+      setNear({
+        latitude,
+        longitude,
+        radiusMiles: filters.near?.radiusMiles ?? DISTANCE_OPTIONS_MILES[1],
+        label: place ? place.city : 'my location',
+      });
+    } catch {
+      setNearError('Location permission denied — try a zip code or city instead.');
+    } finally {
+      setNearBusy(false);
+    }
+  }
+
+  async function handleSearchNear() {
+    if (nearQuery.trim() === '') return;
+    setNearError(null);
+    setNearBusy(true);
+    try {
+      const result = await forwardGeocode(nearQuery);
+      if (!result) {
+        setNearError("Couldn't find that place — try a different zip code or city.");
+        return;
+      }
+      setNear({
+        latitude: result.latitude,
+        longitude: result.longitude,
+        radiusMiles: filters.near?.radiusMiles ?? DISTANCE_OPTIONS_MILES[1],
+        label: result.city,
+      });
+    } catch {
+      setNearError("Couldn't look that up — try again.");
+    } finally {
+      setNearBusy(false);
+    }
+  }
 
   return (
     // Full-bleed on a phone, which is the target; on a wider screen it stays the width of the list
@@ -140,8 +206,87 @@ export function FilterSheet({
           <Chip label={filters.place} on disabled onClick={() => undefined} />
         </div>
         <p className="text-muted-foreground mt-2 text-xs">
-          Online events are included or excluded under Format below, which is a real column now.
+          Online events are included or excluded under Format below. City and Near, below, narrow by
+          real location.
         </p>
+
+        <Section>Near</Section>
+        {filters.near ? (
+          <>
+            <div className="flex flex-wrap items-center gap-2">
+              <Chip
+                label={`Near ${filters.near.label}`}
+                on
+                onClick={() => {
+                  setNear(null);
+                }}
+              />
+              <span className="text-muted-foreground text-xs">tap to clear</span>
+            </div>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {DISTANCE_OPTIONS_MILES.map((miles) => (
+                <Chip
+                  key={miles}
+                  label={`${miles} mi`}
+                  on={filters.near?.radiusMiles === miles}
+                  onClick={() => {
+                    setRadius(miles);
+                  }}
+                />
+              ))}
+            </div>
+          </>
+        ) : (
+          <>
+            <button
+              type="button"
+              onClick={() => {
+                void handleUseMyLocation();
+              }}
+              disabled={nearBusy}
+              className="bg-card min-h-11 w-full rounded-xl border-2 text-[15px] font-bold disabled:opacity-60"
+            >
+              {nearBusy ? 'Finding you…' : 'Use my location'}
+            </button>
+            <div className="mt-2 flex gap-2">
+              <input
+                type="text"
+                value={nearQuery}
+                onChange={(e) => {
+                  setNearQuery(e.target.value);
+                }}
+                placeholder="Zip code or city"
+                className="border-input min-h-10 flex-1 rounded-xl border-2 bg-transparent px-3 text-sm"
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  void handleSearchNear();
+                }}
+                disabled={nearBusy || nearQuery.trim() === ''}
+                className="bg-card min-h-10 shrink-0 rounded-xl border-2 px-4 text-sm font-bold disabled:opacity-60"
+              >
+                Search
+              </button>
+            </div>
+            {nearError && <p className="text-destructive mt-1.5 text-xs">{nearError}</p>}
+          </>
+        )}
+
+        <Section>City</Section>
+        {cities.length === 0 && <p className="text-muted-foreground text-xs">Loading cities…</p>}
+        <div className="flex flex-wrap gap-2">
+          {cities.map((city) => (
+            <Chip
+              key={city}
+              label={city}
+              on={filters.cities[city] ?? false}
+              onClick={() => {
+                toggleCity(city);
+              }}
+            />
+          ))}
+        </div>
 
         <Section>When</Section>
         <div className="flex flex-wrap gap-2">

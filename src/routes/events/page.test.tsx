@@ -31,9 +31,13 @@ interface EventRow {
   id: string;
   title: string;
   description: string | null;
-  start_time: string;
+  start_time: string | null;
   end_time: string | null;
   location: string | null;
+  ai_extracted_start_time: string | null;
+  ai_extracted_end_time: string | null;
+  ai_extracted_location: string | null;
+  city: string | null;
   url: string | null;
   registration_url: string | null;
   data_feeds: { name: string; organizations: OrganizationEmbed | null } | null;
@@ -43,6 +47,8 @@ interface EventRow {
 let rows: EventRow[] = [];
 /** Records the filters the page applied, so tests can assert on the real date filter. */
 let appliedFilters: { method: string; column: string; value: string }[] = [];
+/** The city vocabulary `useCities()` reads back from `events.city` — settable per test. */
+let cityRows: { city: string }[] = [];
 
 const mockRange = vi.fn(() => Promise.resolve({ data: rows, error: null }));
 
@@ -96,6 +102,8 @@ function makeBuilder(table: string) {
         : builder,
     ),
     range: vi.fn((...args: Parameters<typeof mockRange>) => settled(() => mockRange(...args))),
+    // useCities() ends its `events` query here: select('city').not(...).overrideTypes(...).
+    not: vi.fn(() => settled(() => Promise.resolve({ data: cityRows, error: null }))),
     gte: vi.fn(record('gte')),
     lte: vi.fn(record('lte')),
     in: vi.fn(record('in')),
@@ -118,6 +126,10 @@ function eventRow(overrides: Partial<EventRow> & { id: string; title: string }):
     start_time: '2026-08-20T17:00:00Z',
     end_time: null,
     location: null,
+    ai_extracted_start_time: null,
+    ai_extracted_end_time: null,
+    ai_extracted_location: null,
+    city: null,
     url: null,
     registration_url: null,
     data_feeds: null,
@@ -140,6 +152,7 @@ describe('EventsPage', () => {
     vi.clearAllMocks();
     rows = [];
     appliedFilters = [];
+    cityRows = [];
     mockRange.mockImplementation(() => Promise.resolve({ data: rows, error: null }));
     mockFrom.mockImplementation(
       (table: string) => eventRsvps.forTable(table) ?? makeBuilder(table),
@@ -266,6 +279,68 @@ describe('EventsPage', () => {
       column: 'data_feeds.organizations.slug',
       value: 'norcal-sci',
     });
+  });
+
+  it('narrows the feed to one city from the filter sheet', async () => {
+    rows = [eventRow({ id: 'e1', title: 'Event' })];
+    cityRows = [{ city: 'Berkeley' }, { city: 'Oakland' }];
+
+    renderEvents();
+    await screen.findByText('Event');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Filters' }));
+    appliedFilters = [];
+    await userEvent.click(await screen.findByRole('button', { name: 'Berkeley' }));
+    await userEvent.click(screen.getByRole('button', { name: /Show \d+ events/ }));
+
+    expect(appliedFilters).toContainEqual({ method: 'in', column: 'city', value: 'Berkeley' });
+  });
+
+  it('shows an event using the time the AI verification pass found when the scraper had none', async () => {
+    rows = [
+      eventRow({
+        id: 'e1',
+        title: 'San Luis Obispo Support Group',
+        start_time: null,
+        ai_extracted_start_time: '2026-08-20T23:00:00Z',
+      }),
+    ];
+
+    renderEvents();
+
+    const title = await screen.findByText('San Luis Obispo Support Group');
+    const card = title.closest('article');
+    // 23:00 UTC on the fixed test date — asserting the card rendered a real time rather than
+    // crashing or showing "Invalid Date" is the point; the exact wall-clock is timezone-dependent.
+    expect(card?.textContent).not.toMatch(/Invalid Date/);
+  });
+
+  it('drops an event with neither a scraped nor an AI-extracted start time', async () => {
+    rows = [
+      eventRow({ id: 'e1', title: 'Undated event', start_time: null }),
+      eventRow({ id: 'e2', title: 'Dated event' }),
+    ];
+
+    renderEvents();
+
+    await screen.findByText('Dated event');
+    expect(screen.queryByText('Undated event')).not.toBeInTheDocument();
+  });
+
+  it('falls back to the AI-extracted location when the scraper found no venue', async () => {
+    rows = [
+      eventRow({
+        id: 'e1',
+        title: 'San Luis Obispo Support Group',
+        location: '',
+        ai_extracted_location: "Gino's Pizza, 1761 Monterey St.",
+      }),
+    ];
+
+    renderEvents();
+
+    await screen.findByText('San Luis Obispo Support Group');
+    expect(screen.getByText(/Gino's Pizza/)).toBeInTheDocument();
   });
 
   it('applies the default month window as a range on start_time', async () => {

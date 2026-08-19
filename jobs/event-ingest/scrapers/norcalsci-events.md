@@ -58,7 +58,12 @@ past events only if the feed explicitly needs historical data; default is `inclu
 ```
 
 Fields are **HTML-escaped** (Squarespace convention): `&amp;`, `&#39;`, etc. Decode them to match
-the rendered page. Timestamps are **epoch milliseconds, UTC** — no timezone guessing required.
+the rendered page. Timestamps are **epoch milliseconds** — but not simply UTC-and-done: NorCal
+SCI's Squarespace account timezone is misconfigured to Eastern, so the epoch encodes the wrong
+wall-clock time for a Bay Area org. `norcalsci-events-json.js`'s `toIso()` corrects this by
+reinterpreting the NY wall clock as Pacific (see `timezone.js`), and logs an error if a
+description's stated clock time stops agreeing with the correction — the signal that NorCal SCI
+fixed the underlying misconfiguration and the correction should be removed.
 
 ## Parsing
 

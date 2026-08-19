@@ -8,6 +8,7 @@ import EventPage from '@/routes/event/page';
 import { createEventRsvpsMock } from '@/test/rsvp-mock';
 
 interface OrganizationEmbed {
+  id: string;
   slug: string;
   name: string;
   logo_url: string | null;
@@ -18,9 +19,12 @@ interface EventDetailRow {
   title: string;
   description: string | null;
   description_html: string | null;
-  start_time: string;
+  start_time: string | null;
   end_time: string | null;
   location: string | null;
+  ai_extracted_start_time: string | null;
+  ai_extracted_end_time: string | null;
+  ai_extracted_location: string | null;
   url: string | null;
   registration_url: string | null;
   registration_deadline: string | null;
@@ -37,6 +41,8 @@ let eventRow: EventDetailRow | null = null;
 let eventError: Error | null = null;
 let photoRows: { photo_url: string; is_primary: boolean }[] = [];
 let relatedRows: { id: string; title: string; start_time: string; location: string | null }[] = [];
+/** Count returned for the org's events-this-year query, keyed off the same `events` table. */
+let orgEventCount: number | null = 0;
 
 function makeBuilder(table: string) {
   const builder = {
@@ -44,6 +50,7 @@ function makeBuilder(table: string) {
     eq: vi.fn(() => builder),
     neq: vi.fn(() => builder),
     gte: vi.fn(() => builder),
+    lt: vi.fn(() => builder),
     order: vi.fn(() => builder),
     overrideTypes: vi.fn(() => builder),
     limit: vi.fn(() => Promise.resolve({ data: relatedRows, error: null })),
@@ -59,11 +66,16 @@ function makeBuilder(table: string) {
         then: (ok?: (v: unknown) => unknown, err?: (e: unknown) => unknown) => run().then(ok, err),
       };
     }),
-    // The real event_photos chain (.order().order()) has no terminal call and is awaited
-    // directly, so the fake builder has to be a thenable to stand in for it.
+    // Two real chains have no terminal call and are awaited directly, so the fake builder has to be
+    // a thenable to stand in for either: the event_photos chain (.order().order()) and the org
+    // events-this-year count chain (.select(..., {head:true}).eq().gte().lt()), both on `events`.
     // biome-ignore lint/suspicious/noThenProperty: intentional thenable, see above
-    then: (resolve: (result: { data: unknown; error: null }) => void) => {
-      resolve({ data: photoRows, error: null });
+    then: (resolve: (result: { data: unknown; count?: number | null; error: null }) => void) => {
+      if (table === 'events') {
+        resolve({ data: null, count: orgEventCount, error: null });
+      } else {
+        resolve({ data: photoRows, error: null });
+      }
     },
   };
   return builder;
@@ -86,6 +98,9 @@ function baseEvent(overrides: Partial<EventDetailRow> = {}): EventDetailRow {
     start_time: '2026-08-22T16:00:00Z',
     end_time: '2026-08-22T19:00:00Z',
     location: 'Berkeley Aquatic Park',
+    ai_extracted_start_time: null,
+    ai_extracted_end_time: null,
+    ai_extracted_location: null,
     url: null,
     registration_url: null,
     registration_deadline: null,
@@ -119,6 +134,7 @@ describe('EventPage', () => {
     eventError = null;
     photoRows = [];
     relatedRows = [];
+    orgEventCount = 0;
     eventRsvps.reset();
   });
 
@@ -152,6 +168,7 @@ describe('EventPage', () => {
       data_feeds: {
         name: 'Northern California SCI Calendar',
         organizations: {
+          id: 'org-1',
           slug: 'norcal-sci',
           name: 'NorCal SCI',
           logo_url: 'https://example.com/norcal-sci-logo.png',
@@ -168,7 +185,10 @@ describe('EventPage', () => {
 
   it('falls back to an initial in the hosting card when the organization has no logo', async () => {
     eventRow = baseEvent({
-      data_feeds: { name: 'BORP', organizations: { slug: 'borp', name: 'BORP', logo_url: null } },
+      data_feeds: {
+        name: 'BORP',
+        organizations: { id: 'org-2', slug: 'borp', name: 'BORP', logo_url: null },
+      },
     });
 
     renderEvent();
@@ -176,6 +196,86 @@ describe('EventPage', () => {
     await screen.findByText('Adaptive handcycle ride');
     expect(screen.queryByRole('img')).not.toBeInTheDocument();
     expect(screen.getByTitle('BORP')).toHaveTextContent('B');
+  });
+
+  it("shows the organization's real events-this-year count once known", async () => {
+    eventRow = baseEvent({
+      data_feeds: {
+        name: 'BORP',
+        organizations: { id: 'org-2', slug: 'borp', name: 'BORP', logo_url: null },
+      },
+    });
+    orgEventCount = 7;
+
+    renderEvent();
+
+    await screen.findByText('Adaptive handcycle ride');
+    expect(await screen.findByText('Hosting · 7 events this year')).toBeInTheDocument();
+  });
+
+  it('shows just "Hosting" with no count when the org is not linked yet', async () => {
+    renderEvent();
+
+    await screen.findByText('Adaptive handcycle ride');
+    expect(await screen.findByText('Hosting')).toBeInTheDocument();
+    expect(screen.queryByText(/events this year/)).not.toBeInTheDocument();
+  });
+
+  it('no longer shows a verified checkmark, access notes, or an access warning', async () => {
+    eventRow = baseEvent({
+      data_feeds: {
+        name: 'BORP',
+        organizations: { id: 'org-2', slug: 'borp', name: 'BORP', logo_url: null },
+      },
+    });
+
+    renderEvent();
+
+    await screen.findByText('Adaptive handcycle ride');
+    expect(screen.queryByText('✓')).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(
+        /Accessible parking|Step-free entrance|Elevator access|Ground-level venue/,
+      ),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/gravel|Street parking only|Second floor has stairs/),
+    ).not.toBeInTheDocument();
+  });
+
+  it('shows the real location, or "Online" for an online event with no location', async () => {
+    eventRow = baseEvent({ location: null, event_format: 'online' });
+
+    renderEvent();
+
+    expect(await screen.findByText('Adaptive handcycle ride')).toBeInTheDocument();
+    // Appears twice: once as the location meta line, once as the format chip.
+    expect(screen.getAllByText('Online')).toHaveLength(2);
+  });
+
+  it('uses the AI-extracted time and location when the scraper found neither', async () => {
+    eventRow = baseEvent({
+      start_time: null,
+      end_time: null,
+      location: null,
+      ai_extracted_start_time: '2026-08-22T16:00:00Z',
+      ai_extracted_location: "Gino's Pizza, 1761 Monterey St.",
+    });
+
+    renderEvent();
+
+    expect(await screen.findByText('Adaptive handcycle ride')).toBeInTheDocument();
+    expect(screen.getByText(/Gino's Pizza/)).toBeInTheDocument();
+    expect(screen.queryByText('Date to be announced')).not.toBeInTheDocument();
+  });
+
+  it('shows "Date to be announced" rather than crashing when no time is known at all', async () => {
+    eventRow = baseEvent({ start_time: null, end_time: null });
+
+    renderEvent();
+
+    expect(await screen.findByText('Adaptive handcycle ride')).toBeInTheDocument();
+    expect(screen.getByText('Date to be announced')).toBeInTheDocument();
   });
 
   it('starts a fresh event at zero and increments on RSVP', async () => {
