@@ -325,6 +325,26 @@ describe('EventPage', () => {
     expect(screen.queryByText(/More from/)).not.toBeInTheDocument();
   });
 
+  it('links to the original event listing when a source url is known', async () => {
+    eventRow = baseEvent({ url: 'https://example.org/events/handcycle-ride' });
+
+    renderEvent();
+
+    await screen.findByText('Adaptive handcycle ride');
+    const link = screen.getByRole('link', { name: 'See original event listing' });
+    expect(link).toHaveAttribute('href', 'https://example.org/events/handcycle-ride');
+    expect(link).toHaveAttribute('target', '_blank');
+  });
+
+  it('does not render a link to the original listing when no source url is known', async () => {
+    renderEvent();
+
+    await screen.findByText('Adaptive handcycle ride');
+    expect(
+      screen.queryByRole('link', { name: 'See original event listing' }),
+    ).not.toBeInTheDocument();
+  });
+
   it('shows an error when the event fails to load', async () => {
     eventRow = null;
     eventError = new Error('Fetch failed');

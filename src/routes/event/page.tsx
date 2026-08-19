@@ -380,6 +380,17 @@ export default function EventPage() {
         </div>
       )}
 
+      {event.url && (
+        <a
+          href={event.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="border-primary text-primary mt-3.5 flex min-h-11 items-center justify-center rounded-xl border-2 text-[13px] font-bold"
+        >
+          See original event listing
+        </a>
+      )}
+
       <h2 className="text-muted-foreground mt-5 mb-2 text-[11.5px] font-bold tracking-widest uppercase">
         Who's going
       </h2>
