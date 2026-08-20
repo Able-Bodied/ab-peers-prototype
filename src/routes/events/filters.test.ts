@@ -60,6 +60,10 @@ describe('defaultFilters', () => {
     expect(selectedFormats(defaultFilters())).toBeNull();
     expect(selectedTags(defaultFilters())).toBeNull();
   });
+
+  it('starts with dismissed events hidden', () => {
+    expect(defaultFilters().showHidden).toBe(false);
+  });
 });
 
 describe('selectedFormats', () => {
