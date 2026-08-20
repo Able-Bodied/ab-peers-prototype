@@ -32,6 +32,17 @@ const viewer: AccountMember = {
   state: 'California',
   interests: ['Reading'],
   photoUrl: null,
+  bio: '',
+  mentorInterest: false,
+  completeness: null,
+  injuryMechanism: null,
+  independence: null,
+  relationshipStatus: null,
+  children: null,
+  employment: null,
+  languages: [],
+  topics: [],
+  lifeNowVisible: false,
 };
 
 function counterpart(id: string, displayName: string, type: 'peer' | 'mentor') {
