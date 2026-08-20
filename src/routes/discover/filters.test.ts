@@ -21,7 +21,7 @@ const browsable: BrowseMember[] = MEMBERS.map(
 );
 
 describe('defaultDiscoverFilters', () => {
-  it('starts with both bar filters on All and nothing else set', () => {
+  it('starts with state and disability on All and nothing else set', () => {
     expect(defaultDiscoverFilters).toEqual({ state: 'All', disability: 'All' });
   });
 
@@ -65,7 +65,7 @@ describe('activeFilterCount', () => {
     expect(activeFilterCount({ state: 'All', disability: 'All' })).toBe(0);
   });
 
-  it('counts a bar filter', () => {
+  it('counts a state or disability filter', () => {
     expect(activeFilterCount({ state: 'California', disability: 'All' })).toBe(1);
   });
 
@@ -150,7 +150,7 @@ describe('setDisability', () => {
 });
 
 describe('clearFilter', () => {
-  it('puts a bar filter back to All rather than removing it', () => {
+  it('puts state or disability back to All rather than removing it', () => {
     expect(clearFilter({ state: 'Texas', disability: 'All' }, 'state').state).toBe('All');
   });
 
