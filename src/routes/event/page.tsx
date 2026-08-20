@@ -56,7 +56,11 @@ interface EventDetailRow {
   title: string;
   description: string | null;
   description_html: string | null;
-  /** CTA-stripped copy from the verification pass; null until that pass has run. */
+  /**
+   * The verification pass's copy of the description; null until that pass has run, and '' if it
+   * ran while the event had no body text. It no longer edits the copy — see 3.4 of
+   * jobs/event-ingest/prompts/ai-verify-events.md — so this now mirrors `description`.
+   */
   description_clean: string | null;
   description_html_clean: string | null;
   start_time: string | null;
@@ -106,6 +110,16 @@ function orgIdOf(row: EventDetailRow): string | null {
 
 function orgSlugOf(row: EventDetailRow): string | null {
   return orgOf(row)?.slug ?? null;
+}
+
+/**
+ * The first value that actually has text in it, or null.
+ *
+ * Distinct from `??` on purpose: a blank column here means "nothing to show", not a deliberate
+ * blank, so it must not shadow a later value that does have copy.
+ */
+function firstNonBlank(...values: (string | null | undefined)[]): string | null {
+  return values.find((value) => value != null && value.trim() !== '') ?? null;
 }
 
 function dateTile(isoString: string): { weekday: string; day: string } {
@@ -306,9 +320,12 @@ export default function EventPage() {
   const tags = (event.event_tags ?? []).flatMap((link) => (link.tags ? [link.tags] : []));
   // Pulled out of `event` so the chip's onClick closure keeps the non-null narrowing.
   const format = event.event_format;
-  // Prefer the CTA-stripped copy once the verification pass has produced it.
-  const bodyHtml = event.description_html_clean ?? event.description_html;
-  const bodyText = event.description_clean ?? event.description;
+  // Prefer the verification pass's copy once it has produced some. A pass that ran while an event
+  // had no body text stores '' here, and a later scrape that finally finds the real description
+  // must not stay invisible behind that stale empty value until the next pass — hence firstNonBlank
+  // rather than `??`.
+  const bodyHtml = firstNonBlank(event.description_html_clean, event.description_html);
+  const bodyText = firstNonBlank(event.description_clean, event.description);
 
   return (
     <div className="mx-auto flex w-full max-w-xl flex-col">

@@ -307,10 +307,14 @@ class EventIngestionWorker {
     // scrape's events costs one lookup rather than six.
     const slugToId = new Map();
     for (const slug of slugsNeeded) {
+      // The org's page on the hub, from the list card's program link. It's the only route to the
+      // org's actual website, so the AI pass starts there when backfilling a logo (Phase 6).
+      const sourceUrl = events.find((e) => e.organization_slug === slug)?.organization_url || null;
+
       // maybeSingle(): "no such org yet" is the expected case on a first scrape, not an error.
       const { data: existing, error: lookupError } = await this.supabase
         .from('organizations')
-        .select('id')
+        .select('id, source_url')
         .eq('slug', slug)
         .maybeSingle();
 
@@ -321,6 +325,20 @@ class EventIngestionWorker {
 
       if (existing) {
         slugToId.set(slug, existing.id);
+        // Backfill only. An org row that predates this column — or that a human has since
+        // corrected — keeps what it has; we never overwrite with a freshly scraped guess.
+        if (!existing.source_url && sourceUrl) {
+          const { error: backfillError } = await this.supabase
+            .from('organizations')
+            .update({ source_url: sourceUrl })
+            .eq('id', existing.id);
+          if (backfillError) {
+            this.log(
+              `  Warning: Failed to set source_url for "${slug}": ${backfillError.message}`,
+              'warning',
+            );
+          }
+        }
         continue;
       }
 
@@ -329,7 +347,7 @@ class EventIngestionWorker {
       const orgName = events.find((e) => e.organization_slug === slug)?.organization_name || slug;
       const { data: created, error: createError } = await this.supabase
         .from('organizations')
-        .insert({ name: orgName, slug })
+        .insert({ name: orgName, slug, source_url: sourceUrl })
         .select('id')
         .single();
 
@@ -438,6 +456,14 @@ class EventIngestionWorker {
           longitude: event.longitude ?? null,
           location_precision: event.location_precision || null,
           updated_at: event.updated_at || new Date().toISOString(),
+          // Detail-page freshness (20260819210000_event_source_tracking.sql). Scrapers that don't
+          // read a per-event page leave both undefined, and the row keeps whatever it had.
+          ...(event.source_last_modified === undefined
+            ? {}
+            : { source_last_modified: event.source_last_modified }),
+          ...(event.detail_fetched_at === undefined
+            ? {}
+            : { detail_fetched_at: event.detail_fetched_at }),
         };
 
         // New or changed events need a human/AI to re-check the scrape;
@@ -645,13 +671,46 @@ class EventIngestionWorker {
   }
 
   /**
+   * What we already hold for a feed's events, keyed by `external_id`, for scrapers that fetch a
+   * per-event detail page.
+   *
+   * Two jobs. `source_last_modified` lets the scraper compare against the source's own sitemap and
+   * skip pages that haven't changed. The copy fields let it carry a skipped event's stored
+   * description forward — without them the upsert would overwrite a description scraped from an
+   * event's page with the far thinner one derived from its list card, undoing the fetch every time
+   * it was correctly skipped.
+   *
+   * A failure here is not fatal: an empty map means "nothing on file", which makes every page look
+   * stale and costs a slow-but-correct full pass.
+   */
+  async loadDetailFetchState(feedId) {
+    const { data, error } = await this.supabase
+      .from('events')
+      .select('external_id, source_last_modified, description, description_html, registration_url')
+      .eq('feed_id', feedId);
+
+    if (error) {
+      this.log(
+        `  Failed to load detail-fetch state, re-fetching every event page: ${error.message}`,
+        'warning',
+      );
+      return new Map();
+    }
+
+    return new Map((data ?? []).map((row) => [row.external_id, row]));
+  }
+
+  /**
    * Dispatch to the appropriate scraper based on feed_type
    */
   async scrapeFeed(feed) {
     switch (feed.feed_type) {
       case 'adaptiverechub-events': {
         this.log('  Using AdaptiveRecHub Events scraper', 'info');
-        return await new AdaptiveRecHubEventsScraper().scrape(feed.id);
+        // The scraper needs to know what we already hold before it decides which event pages are
+        // worth a 10-second crawl slot — and, for the ones it skips, what copy to carry forward.
+        const priorByExternalId = await this.loadDetailFetchState(feed.id);
+        return await new AdaptiveRecHubEventsScraper().scrape(feed.id, { priorByExternalId });
       }
       case 'squarespace':
       case 'norcalsci-events-json':
