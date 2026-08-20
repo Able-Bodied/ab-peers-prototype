@@ -9,11 +9,9 @@ import { ageBandFor, ageFromBirthDate } from '@/routes/onboarding/age';
 export function BirthdayStep({
   birthDate,
   onNext,
-  onBack,
 }: {
   birthDate: string;
   onNext: (birthDate: string, age: number) => void;
-  onBack: () => void;
 }) {
   const [value, setValue] = useState(birthDate);
   const [blocked, setBlocked] = useState(false);
@@ -32,9 +30,6 @@ export function BirthdayStep({
             programme — Craig, Triumph and Ability360 all run them with proper supervision.
           </p>
         </div>
-        <Button variant="outline" className="w-full" onClick={onBack}>
-          Back
-        </Button>
       </div>
     );
   }

@@ -44,8 +44,8 @@ export const PROFILE_STEP_IDS = [
   'birthday',
   'disability',
   'location',
-  'interests',
   'photo',
+  'interests',
 ] as const;
 export type ProfileStepId = (typeof PROFILE_STEP_IDS)[number];
 

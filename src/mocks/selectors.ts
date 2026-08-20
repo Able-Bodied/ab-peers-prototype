@@ -73,7 +73,9 @@ export function filterMembers<T extends BrowseMember>(
     if (f.duration && f.duration !== 'All' && currentDuration(m) !== f.duration) return false;
     if (f.language && f.language !== 'All' && !m.languages.includes(f.language)) return false;
     if (f.topic && f.topic !== 'All' && !m.topics.includes(f.topic)) return false;
-    if (f.level && f.level !== 'All' && m.level !== f.level) return false;
+    if (f.interest && f.interest !== 'All' && !m.interests.includes(f.interest)) return false;
+    if (f.level && f.level.length > 0 && (m.level === null || !f.level.includes(m.level)))
+      return false;
     if (f.ageBand && f.ageBand !== 'All' && m.ageBand !== f.ageBand) return false;
     return true;
   });

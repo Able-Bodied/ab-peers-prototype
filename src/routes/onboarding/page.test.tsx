@@ -15,6 +15,9 @@ vi.mock('react-router-dom', async (importOriginal) => {
 const mockMaybeSingle = vi.fn();
 const mockEq = vi.fn(() => ({ maybeSingle: mockMaybeSingle }));
 const mockSelect = vi.fn(() => ({ eq: mockEq }));
+const mockGetPublicUrl = vi.fn(() => ({ data: { publicUrl: 'https://example.com/photo.jpg' } }));
+const mockUpload = vi.fn();
+const mockStorageFrom = vi.fn(() => ({ upload: mockUpload, getPublicUrl: mockGetPublicUrl }));
 
 const mockClient = {
   auth: {
@@ -26,7 +29,7 @@ const mockClient = {
     signOut: vi.fn(),
   },
   from: vi.fn(),
-  storage: { from: vi.fn() },
+  storage: { from: mockStorageFrom },
 };
 
 vi.mock('@/lib/supabase', () => ({
@@ -102,10 +105,13 @@ async function driveToPhotoStep(user: ReturnType<typeof userEvent.setup>) {
   await selectOption('State', 'California', user);
   await user.type(screen.getByLabelText('City or town'), 'San Jose');
   await user.click(screen.getByRole('button', { name: 'Continue' }));
+}
 
-  await user.click(screen.getByRole('button', { name: 'Reading' }));
-  await user.click(screen.getByRole('button', { name: 'Travel' }));
-  await user.click(screen.getByRole('button', { name: 'Cooking' }));
+async function driveToInterestsStep(user: ReturnType<typeof userEvent.setup>) {
+  await driveToPhotoStep(user);
+
+  const file = new File(['fake-image-bytes'], 'photo.jpg', { type: 'image/jpeg' });
+  await user.upload(screen.getByLabelText('Profile photo'), file);
   await user.click(screen.getByRole('button', { name: 'Continue' }));
 }
 
@@ -122,10 +128,11 @@ describe('OnboardingPage', () => {
       .fn<(payload: Record<string, unknown>) => Promise<{ error: null }>>()
       .mockResolvedValue({ error: null });
     mockFrom.mockReset().mockReturnValue({ upsert: mockUpsert, select: mockSelect });
+    mockUpload.mockReset().mockResolvedValue({ error: null });
     mockNavigate.mockReset();
   });
 
-  it('walks a new member through the whole flow and saves the profile to Supabase', async () => {
+  it('skipping the photo also skips interests, saving the profile with neither', async () => {
     const user = userEvent.setup();
     renderOnboarding();
 
@@ -138,6 +145,8 @@ describe('OnboardingPage', () => {
       expect(mockNavigate).toHaveBeenCalledWith('/profile', { replace: true });
     });
 
+    // Never reached the interests screen.
+    expect(screen.queryByRole('heading', { name: 'What are you into?' })).not.toBeInTheDocument();
     expect(mockFrom).toHaveBeenCalledWith('members');
     expect(mockUpsert).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -151,12 +160,75 @@ describe('OnboardingPage', () => {
         duration: '3 - 10 years',
         city: 'San Jose',
         state: 'California',
-        // expect.arrayContaining is typed as `any` by vitest itself.
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-        interests: expect.arrayContaining(['Reading', 'Travel', 'Cooking']),
+        interests: [],
         photo_url: null,
       }),
     );
+  }, 15000);
+
+  it('adding a photo unlocks interests, saving both', async () => {
+    const user = userEvent.setup();
+    renderOnboarding();
+
+    await driveToInterestsStep(user);
+
+    expect(
+      screen.getByRole('heading', { level: 1, name: 'What are you into?' }),
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Reading' }));
+    await user.click(screen.getByRole('button', { name: 'Travel' }));
+    await user.click(screen.getByRole('button', { name: 'Cooking' }));
+    await user.click(screen.getByRole('button', { name: 'Continue' }));
+
+    await waitFor(() => {
+      expect(mockNavigate).toHaveBeenCalledWith('/profile', { replace: true });
+    });
+
+    expect(mockUpload).toHaveBeenCalled();
+    expect(mockUpsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: 'user-1',
+        display_name: 'Jamie',
+        // expect.arrayContaining is typed as `any` by vitest itself.
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+        interests: expect.arrayContaining(['Reading', 'Travel', 'Cooking']),
+        photo_url: 'https://example.com/photo.jpg',
+      }),
+    );
+  });
+
+  it('lets a member skip interests after adding a photo', async () => {
+    const user = userEvent.setup();
+    renderOnboarding();
+
+    await driveToInterestsStep(user);
+
+    await user.click(screen.getByRole('button', { name: 'Skip for now' }));
+
+    await waitFor(() => {
+      expect(mockNavigate).toHaveBeenCalledWith('/profile', { replace: true });
+    });
+
+    expect(mockUpsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        interests: [],
+        photo_url: 'https://example.com/photo.jpg',
+      }),
+    );
+  });
+
+  it('lets a user go back a step from the shared header', async () => {
+    const user = userEvent.setup();
+    renderOnboarding();
+
+    await verifyPhone(user);
+    await user.type(await screen.findByLabelText('Display name'), 'Jamie');
+    await user.click(screen.getByRole('button', { name: 'Continue' }));
+
+    expect(screen.getByLabelText('Date of birth')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Back' }));
+
+    expect(await screen.findByLabelText('Display name')).toBeInTheDocument();
   });
 
   it('sends a returning member straight to their profile, skipping profile creation', async () => {
@@ -224,25 +296,15 @@ describe('OnboardingPage', () => {
     expect(screen.getByRole('button', { name: 'Back' })).toBeInTheDocument();
   });
 
-  it('requires at least 3 interests before continuing', async () => {
+  it('requires at least 3 interests before continuing, but Skip for now bypasses that', async () => {
     const user = userEvent.setup();
     renderOnboarding();
 
-    await verifyPhone(user);
-    await user.type(await screen.findByLabelText('Display name'), 'Jamie');
-    await user.click(screen.getByRole('button', { name: 'Continue' }));
-    fireEvent.change(screen.getByLabelText('Date of birth'), { target: { value: '1990-01-01' } });
-    await user.click(screen.getByRole('button', { name: 'Continue' }));
-    await user.click(screen.getByRole('button', { name: 'SCI - para' }));
-    await selectOption('Level of injury', 'T6', user);
-    await selectOption('How long have you been disabled?', '3 - 10 years', user);
-    await user.click(screen.getByRole('button', { name: 'Continue' }));
-    await selectOption('State', 'California', user);
-    await user.type(screen.getByLabelText('City or town'), 'San Jose');
-    await user.click(screen.getByRole('button', { name: 'Continue' }));
+    await driveToInterestsStep(user);
 
     const interestsContinue = screen.getByRole('button', { name: 'Continue' });
     expect(interestsContinue).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Skip for now' })).toBeEnabled();
 
     await user.click(screen.getByRole('button', { name: 'Reading' }));
     await user.click(screen.getByRole('button', { name: 'Travel' }));

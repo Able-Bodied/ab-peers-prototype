@@ -1,10 +1,13 @@
+import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { fetchMemberPhotos } from '@/lib/member-photos';
 import { useSession } from '@/lib/session';
+import type { MemberPhoto } from '@/types/domain';
 
 function initials(name: string): string {
   return name
@@ -16,6 +19,16 @@ function initials(name: string): string {
 export default function ProfilePage() {
   const { member, loading, signOut, deleteMember } = useSession();
   const navigate = useNavigate();
+  const [photos, setPhotos] = useState<MemberPhoto[]>([]);
+
+  useEffect(() => {
+    if (!member) return;
+    fetchMemberPhotos(member.id)
+      .then(setPhotos)
+      .catch(() => {
+        // Best-effort — the profile just shows no gallery photos if this fails.
+      });
+  }, [member]);
 
   async function handleDeleteProfile() {
     if (!confirm('Delete your profile and go through onboarding again?')) return;
@@ -64,6 +77,9 @@ export default function ProfilePage() {
               <Badge>{member.type === 'mentor' ? 'Mentor' : 'Peer'}</Badge>
               <Badge variant="outline">{member.disability}</Badge>
               {member.level ? <Badge variant="outline">{member.level}</Badge> : null}
+              {member.mentorInterest && member.type !== 'mentor' ? (
+                <Badge variant="secondary">Interested in mentoring</Badge>
+              ) : null}
             </div>
           </div>
           <Button
@@ -76,19 +92,127 @@ export default function ProfilePage() {
           </Button>
         </CardHeader>
         <CardContent>
-          <dl className="grid grid-cols-2 gap-y-2 text-sm">
+          {member.bio.trim() && <p className="text-sm">{member.bio}</p>}
+
+          <dl className="mt-4 grid grid-cols-2 gap-y-2 text-sm">
             <dt className="text-muted-foreground">Age range</dt>
             <dd>{member.ageBand}</dd>
             <dt className="text-muted-foreground">Time since injury</dt>
             <dd>{member.duration}</dd>
+            {member.injuryMechanism && (
+              <>
+                <dt className="text-muted-foreground">How it happened</dt>
+                <dd>{member.injuryMechanism}</dd>
+              </>
+            )}
           </dl>
-          <div className="mt-4 flex flex-wrap gap-1.5">
-            {member.interests.map((interest) => (
-              <Badge key={interest} variant="secondary" className="font-normal">
-                {interest}
-              </Badge>
-            ))}
+
+          {member.interests.length > 0 && (
+            <div className="mt-4 flex flex-wrap gap-1.5">
+              {member.interests.map((interest) => (
+                <Badge key={interest} variant="secondary" className="font-normal">
+                  {interest}
+                </Badge>
+              ))}
+            </div>
+          )}
+
+          {member.topics.length > 0 && (
+            <div className="mt-4">
+              <h3 className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
+                Ask me about
+              </h3>
+              <div className="mt-1.5 flex flex-wrap gap-1.5">
+                {member.topics.map((topic) => (
+                  <Badge key={topic} variant="outline" className="font-normal">
+                    {topic}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {photos.length > 0 && (
+            <div className="mt-4">
+              <h3 className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
+                Photos
+              </h3>
+              <div className="mt-1.5 grid grid-cols-3 gap-2">
+                {photos.map((photo) => (
+                  <img
+                    key={photo.id}
+                    src={photo.url}
+                    alt={photo.alt ?? ''}
+                    className="aspect-square w-full rounded-lg object-cover"
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {member.lifeNowVisible &&
+        (member.independence ??
+          member.relationshipStatus ??
+          member.children ??
+          member.employment ??
+          member.languages.length > 0) && (
+          <Card className="mt-6">
+            <CardHeader>
+              <CardTitle className="text-base">Life now</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <dl className="grid grid-cols-2 gap-y-2 text-sm">
+                {member.independence && (
+                  <>
+                    <dt className="text-muted-foreground">Independence</dt>
+                    <dd>{member.independence}</dd>
+                  </>
+                )}
+                {member.relationshipStatus && (
+                  <>
+                    <dt className="text-muted-foreground">Relationship</dt>
+                    <dd>{member.relationshipStatus}</dd>
+                  </>
+                )}
+                {member.children && (
+                  <>
+                    <dt className="text-muted-foreground">Children</dt>
+                    <dd>{member.children}</dd>
+                  </>
+                )}
+                {member.employment && (
+                  <>
+                    <dt className="text-muted-foreground">Work</dt>
+                    <dd>{member.employment}</dd>
+                  </>
+                )}
+              </dl>
+              {member.languages.length > 0 && (
+                <div className="mt-4 flex flex-wrap gap-1.5">
+                  {member.languages.map((language) => (
+                    <Badge key={language} variant="secondary" className="font-normal">
+                      {language}
+                    </Badge>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+      <Card className="mt-6">
+        <CardContent className="flex items-center justify-between gap-4 pt-6">
+          <div>
+            <p className="font-medium">Complete your profile</p>
+            <p className="text-muted-foreground text-sm">
+              Bio, photos, interests, and more — everything's optional and editable.
+            </p>
           </div>
+          <Button asChild variant="outline">
+            <Link to="/profile/edit">Start</Link>
+          </Button>
         </CardContent>
       </Card>
 
@@ -119,9 +243,10 @@ export default function ProfilePage() {
               that flow exists.
         - [ ] Respect privacy settings once they exist: some fields (exact contact info) may be
               hidden until a connection is accepted — never show raw contact data by default.
-        - [ ] Richer profile fields (bio, languages, affiliations, topics, mentoring capacity)
-              aren't collected by the onboarding wizard yet — this page only shows what's
-              actually in the members table until that exists.
+        - [x] Richer profile fields (bio, photos, topics, life-now) are now collected via
+              src/routes/profile/edit/ and shown here. Life now has its own visibility toggle
+              (`lifeNowVisible`) — everything else currently always shows once set; per-field
+              privacy for bio/photos/topics doesn't exist yet.
       */}
     </div>
   );

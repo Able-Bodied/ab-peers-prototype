@@ -4,20 +4,16 @@ import { Button } from '@/components/ui/button';
 import { Chip } from '@/routes/onboarding/chip';
 import { INTERESTS, type Interest } from '@/types/domain';
 
-const MIN_INTERESTS = 3;
-
 export function InterestsStep({
   interests,
-  submitting,
-  submitError,
-  onNext,
-  onSkip,
+  saving,
+  error,
+  onSave,
 }: {
   interests: Interest[];
-  submitting: boolean;
-  submitError: string | null;
-  onNext: (interests: Interest[]) => void;
-  onSkip: () => void;
+  saving: boolean;
+  error: string | null;
+  onSave: (interests: Interest[]) => void;
 }) {
   const [selected, setSelected] = useState<Interest[]>(interests);
 
@@ -27,20 +23,12 @@ export function InterestsStep({
     );
   }
 
-  const canContinue = selected.length >= MIN_INTERESTS;
-
   return (
-    <form
-      className="grid gap-6"
-      onSubmit={(e) => {
-        e.preventDefault();
-        if (canContinue) onNext(selected);
-      }}
-    >
+    <div className="grid gap-6">
       <div className="space-y-1">
-        <h1 className="text-xl font-semibold">What are you into?</h1>
+        <h1 className="text-xl font-semibold">Interests &amp; activities</h1>
         <p className="text-muted-foreground text-sm">
-          Pick at least {MIN_INTERESTS}. Shared interests are what people tap on.
+          Add or remove as many as you like — no minimum here.
         </p>
       </div>
 
@@ -57,14 +45,16 @@ export function InterestsStep({
         ))}
       </div>
 
-      {submitError && <p className="text-destructive text-sm">{submitError}</p>}
+      {error && <p className="text-destructive text-sm">{error}</p>}
 
-      <Button type="submit" disabled={!canContinue || submitting}>
-        Continue
+      <Button
+        onClick={() => {
+          onSave(selected);
+        }}
+        disabled={saving}
+      >
+        {saving ? 'Saving…' : 'Save'}
       </Button>
-      <Button type="button" variant="ghost" onClick={onSkip} disabled={submitting}>
-        {submitting ? 'Setting up your profile…' : 'Skip for now'}
-      </Button>
-    </form>
+    </div>
   );
 }
