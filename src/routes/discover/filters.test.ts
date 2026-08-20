@@ -8,10 +8,10 @@ import {
   clearFilter,
   defaultDiscoverFilters,
   EQUIPMENT_FILTER_OPTIONS,
+  interestsIn,
   languagesIn,
   levelApplies,
   setDisability,
-  topicsIn,
 } from '@/routes/discover/filters';
 import type { BrowseMember, MemberFilters } from '@/types/domain';
 
@@ -55,7 +55,8 @@ describe('activeFilterCount', () => {
         duration: 'All',
         language: 'All',
         topic: 'All',
-        level: 'All',
+        interest: 'All',
+        level: [],
         ageBand: 'All',
       }),
     ).toBe(0);
@@ -78,10 +79,11 @@ describe('activeFilterCount', () => {
       duration: '1 - 3 years',
       language: 'Spanish',
       topic: 'Transfers',
-      level: 'C5',
+      interest: 'Cooking',
+      level: ['C5'],
       ageBand: '30-39',
     };
-    expect(activeFilterCount(filters)).toBe(9);
+    expect(activeFilterCount(filters)).toBe(10);
   });
 
   it('ignores an empty string, which narrows nothing either', () => {
@@ -121,27 +123,30 @@ describe('levelApplies', () => {
 describe('setDisability', () => {
   it('keeps a level that still applies', () => {
     const next = setDisability(
-      { state: 'All', disability: 'SCI - para', level: 'T6' },
+      { state: 'All', disability: 'SCI - para', level: ['T6'] },
       'SCI - quad',
     );
-    expect(next.level).toBe('T6');
+    expect(next.level).toEqual(['T6']);
     expect(next.disability).toBe('SCI - quad');
   });
 
   it('drops a level that no longer applies rather than leaving it hidden', () => {
-    const next = setDisability({ state: 'All', disability: 'SCI - para', level: 'T6' }, 'Amputee');
+    const next = setDisability(
+      { state: 'All', disability: 'SCI - para', level: ['T6'] },
+      'Amputee',
+    );
     expect(next.level).toBeUndefined();
     expect(activeFilterCount(next)).toBe(1);
   });
 
   it('drops the level when the disability goes back to All', () => {
-    const next = setDisability({ state: 'All', disability: 'SCI - quad', level: 'C5' }, 'All');
+    const next = setDisability({ state: 'All', disability: 'SCI - quad', level: ['C5'] }, 'All');
     expect(next.level).toBeUndefined();
   });
 
   it('leaves the other filters alone', () => {
     const next = setDisability(
-      { state: 'Colorado', disability: 'SCI - quad', level: 'C5', topic: 'Transfers' },
+      { state: 'Colorado', disability: 'SCI - quad', level: ['C5'], topic: 'Transfers' },
       'TBI',
     );
     expect(next.state).toBe('Colorado');
@@ -163,7 +168,10 @@ describe('clearFilter', () => {
   });
 
   it('takes the level with it when the disability is cleared', () => {
-    const next = clearFilter({ state: 'All', disability: 'SCI - para', level: 'T6' }, 'disability');
+    const next = clearFilter(
+      { state: 'All', disability: 'SCI - para', level: ['T6'] },
+      'disability',
+    );
     expect(next.disability).toBe('All');
     expect(next.level).toBeUndefined();
   });
@@ -203,10 +211,15 @@ describe('activeFilterChips', () => {
     const chips = activeFilterChips({
       state: 'All',
       disability: 'SCI - quad',
-      level: 'C5',
+      level: ['C5'],
       ageBand: '30-39',
     });
     expect(chips.map((c) => c.label)).toEqual(['SCI - quad', 'Level C5', 'Age 30-39']);
+  });
+
+  it('joins multiple picked levels into one chip', () => {
+    const chips = activeFilterChips({ state: 'All', disability: 'All', level: ['C5', 'C6'] });
+    expect(chips).toEqual([{ key: 'level', label: 'Level C5, C6' }]);
   });
 
   it('lists the chips in a stable order regardless of key order', () => {
@@ -249,25 +262,25 @@ describe('languagesIn', () => {
   });
 });
 
-describe('topicsIn', () => {
+describe('interestsIn', () => {
   it('dedupes and sorts', () => {
     const members = [
-      { topics: ['Transfers' as const, 'Bowel program' as const] },
-      { topics: ['Transfers' as const] },
-      { topics: ['Pressure sores' as const] },
+      { interests: ['Reading' as const, 'Cooking' as const] },
+      { interests: ['Reading' as const] },
+      { interests: ['Baking' as const] },
     ];
-    expect(topicsIn(members)).toEqual(['Bowel program', 'Pressure sores', 'Transfers']);
+    expect(interestsIn(members)).toEqual(['Baking', 'Cooking', 'Reading']);
   });
 
-  it('returns nothing when nobody has listed a topic', () => {
-    expect(topicsIn([{ topics: [] }, { topics: [] }])).toEqual([]);
+  it('returns nothing when nobody has listed an interest', () => {
+    expect(interestsIn([{ interests: [] }, { interests: [] }])).toEqual([]);
   });
 
-  it('never offers a topic that would return nobody (PRD §8.2)', () => {
-    const topics = topicsIn(browsable);
-    expect(topics.length).toBeGreaterThan(0);
-    for (const topic of topics) {
-      expect(browsable.some((m) => m.topics.includes(topic))).toBe(true);
+  it('never offers an interest that would return nobody (PRD §8.2)', () => {
+    const interests = interestsIn(browsable);
+    expect(interests.length).toBeGreaterThan(0);
+    for (const interest of interests) {
+      expect(browsable.some((m) => m.interests.includes(interest))).toBe(true);
     }
   });
 });

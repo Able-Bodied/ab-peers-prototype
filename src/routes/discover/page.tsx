@@ -14,9 +14,10 @@ import {
   clearedFilters,
   clearFilter,
   defaultDiscoverFilters,
+  discoverOrganizations,
+  interestsIn,
   languagesIn,
   setFilter,
-  topicsIn,
 } from '@/routes/discover/filters';
 import { MemberCard } from '@/routes/discover/member-card';
 import { MemberDetail } from '@/routes/discover/member-detail';
@@ -358,9 +359,9 @@ export default function DiscoverPage() {
         onOpenChange={setSheetOpen}
         filters={filters}
         onChange={setFilters}
-        organizations={organizations}
+        organizations={discoverOrganizations(organizations)}
         languages={languagesIn(members)}
-        topics={topicsIn(members)}
+        interests={interestsIn(members)}
         resultCount={visible.length}
       />
 

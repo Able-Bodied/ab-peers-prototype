@@ -9,9 +9,15 @@
  *
  * State and Disability live in the Filters sheet along with everything else, keeping the top row
  * to the three buttons in docs/screens/events-screen.html's `.top` bar (Peers, Mentors, Filters).
- * PRD §8.2 is why `languagesIn`/`topicsIn` exist rather than a hardcoded vocabulary — a chip that
- * returns nobody is a broken promise, so the sheet offers only values someone in the loaded set
- * actually has.
+ * PRD §8.2 is why `languagesIn`/`interestsIn` exist rather than a hardcoded vocabulary — a chip
+ * that returns nobody is a broken promise, so the sheet offers only values someone in the loaded
+ * set actually has.
+ *
+ * Location and Organization are hardcoded down to California / NorCal SCI for now — this
+ * prototype only has one launch org, so there is nothing else worth offering yet. The Topics
+ * section (the standalone chip picker, not the "Ask me about" taps on a card, which keep working
+ * off `topic` regardless) is likewise swapped for Interests, since onboarding's `interests` step
+ * is the only one of the two vocabularies this flow actually collects today.
  */
 
 import {
@@ -19,8 +25,9 @@ import {
   type Disability,
   EQUIPMENT,
   type Equipment,
+  type Interest,
   type MemberFilters,
-  type Topic,
+  type UsState,
 } from '@/types/domain';
 
 /**
@@ -48,6 +55,7 @@ export const OPTIONAL_FILTER_KEYS = [
   'duration',
   'language',
   'topic',
+  'interest',
   'ageBand',
 ] as const;
 
@@ -67,6 +75,17 @@ export const EQUIPMENT_FILTER_OPTIONS: Equipment[] = EQUIPMENT.filter(
   (item) => item !== 'Prefer not to say',
 );
 
+/** The only state this prototype launches with. Narrow, not global — see the note at the top. */
+export const DISCOVER_STATE_OPTIONS: UsState[] = ['California'];
+
+/** The only org this prototype launches with. Narrow, not global — see the note at the top. */
+export const DISCOVER_ORG_SLUGS: string[] = ['norcal-sci'];
+
+/** `organizations`, cut down to the ones Discover offers for now. */
+export function discoverOrganizations<T extends { slug: string }>(orgs: T[]): T[] {
+  return orgs.filter((org) => DISCOVER_ORG_SLUGS.includes(org.slug));
+}
+
 /**
  * Level is asked only of SCI and Combo (PRD §6.1), so it is only ever a meaningful filter once
  * the disability chip has narrowed to one of those. With disability on 'All' the level control
@@ -78,9 +97,14 @@ export function levelApplies(disability: Disability | 'All'): boolean {
   return disability !== 'All' && LEVEL_DISABILITIES.includes(disability);
 }
 
-/** A filter value only narrows if it is set and is not the "everything" sentinel. */
-function isNarrowing(value: string | undefined): boolean {
-  return value !== undefined && value !== 'All' && value.trim() !== '';
+/**
+ * A filter value only narrows if it is set and is not the "everything" sentinel — or, for the
+ * multi-select level filter, if at least one level is picked.
+ */
+function isNarrowing(value: MemberFilters[DiscoverFilterKey]): boolean {
+  if (value === undefined) return false;
+  if (Array.isArray(value)) return value.length > 0;
+  return value !== 'All' && value.trim() !== '';
 }
 
 /**
@@ -140,6 +164,10 @@ export function setFilter<K extends OptionalFilterKey>(
       const { topic: _dropped, ...rest } = f;
       return rest;
     }
+    case 'interest': {
+      const { interest: _dropped, ...rest } = f;
+      return rest;
+    }
     default: {
       const { ageBand: _dropped, ...rest } = f;
       return rest;
@@ -190,13 +218,13 @@ export function activeFilterChips(
   for (const key of DISCOVER_FILTER_KEYS) {
     const value = f[key];
     if (!isNarrowing(value) || value === undefined) continue;
-    if (key === 'orgId') {
+    if (key === 'orgId' && typeof value === 'string') {
       chips.push({ key, label: orgName?.(value) ?? value });
-    } else if (key === 'level') {
-      chips.push({ key, label: `Level ${value}` });
-    } else if (key === 'ageBand') {
+    } else if (key === 'level' && Array.isArray(value)) {
+      chips.push({ key, label: `Level ${value.join(', ')}` });
+    } else if (key === 'ageBand' && typeof value === 'string') {
       chips.push({ key, label: `Age ${value}` });
-    } else {
+    } else if (typeof value === 'string') {
       chips.push({ key, label: value });
     }
   }
@@ -209,6 +237,6 @@ export function languagesIn(members: Pick<BrowseMember, 'languages'>[]): string[
 }
 
 /** Deduped, sorted vocabulary actually present in the loaded set — see the note at the top. */
-export function topicsIn(members: Pick<BrowseMember, 'topics'>[]): Topic[] {
-  return [...new Set(members.flatMap((m) => m.topics))].sort((a, b) => a.localeCompare(b));
+export function interestsIn(members: Pick<BrowseMember, 'interests'>[]): Interest[] {
+  return [...new Set(members.flatMap((m) => m.interests))].sort((a, b) => a.localeCompare(b));
 }

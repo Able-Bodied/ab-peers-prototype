@@ -392,7 +392,9 @@ export interface MemberFilters {
   /** 'All' is a valid value here too — it's just not distinguishable from any other language at the type level. */
   language?: string;
   topic?: Topic | 'All';
-  level?: InjuryLevel | 'All';
+  interest?: Interest | 'All';
+  /** Multi-select: absent or empty means every level. */
+  level?: InjuryLevel[];
   ageBand?: AgeBand | 'All';
 }
 
