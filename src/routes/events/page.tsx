@@ -20,6 +20,7 @@ import {
   type EventFilterState,
   type EventFormat,
   type EventListNavState,
+  onlyFormat,
   selectedCities,
   selectedFormats,
   selectedOrganizations,
@@ -175,12 +176,16 @@ export default function EventsPage() {
   const sentinelRef = useRef<HTMLDivElement>(null);
 
   const [segment, setSegment] = useState<'all' | 'following' | 'mine'>('all');
-  // A tag chip tapped on the event detail page arrives here as router state (see filters.ts and
-  // routes/event/page.tsx), so this list opens with that tag already narrowing the feed.
+  // A tag or format chip tapped on the event detail page arrives here as router state (see
+  // filters.ts and routes/event/page.tsx), so this list opens with that chip already narrowing
+  // the feed.
   const [filters, setFilters] = useState<EventFilterState>(() => {
     const navState = location.state as EventListNavState | null;
-    if (!navState?.tagSlug) return defaultFilters();
-    return { ...defaultFilters(), tags: { [navState.tagSlug]: true } };
+    return {
+      ...defaultFilters(),
+      ...(navState?.tagSlug ? { tags: { [navState.tagSlug]: true } } : {}),
+      ...(navState?.format ? { formats: onlyFormat(navState.format) } : {}),
+    };
   });
   const [sheetOpen, setSheetOpen] = useState(false);
 

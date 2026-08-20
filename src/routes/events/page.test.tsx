@@ -159,10 +159,10 @@ function renderEvents() {
   );
 }
 
-/** Mirrors arriving from a tag chip tapped on the event detail page (see routes/event/page.tsx). */
-function renderEventsWithTag(tagSlug: string) {
+/** Mirrors arriving from a chip tapped on the event detail page (see routes/event/page.tsx). */
+function renderEventsWithNavState(state: { tagSlug?: string; format?: string }) {
   return render(
-    <MemoryRouter initialEntries={[{ pathname: '/events', state: { tagSlug } }]}>
+    <MemoryRouter initialEntries={[{ pathname: '/events', state }]}>
       <RsvpProvider>
         <FollowsProvider>
           <DismissalsProvider>
@@ -343,7 +343,7 @@ describe('EventsPage', () => {
   it('preselects a tag carried as router state from the event detail page', async () => {
     rows = [eventRow({ id: 'e1', title: 'Event' })];
 
-    renderEventsWithTag('kayaking');
+    renderEventsWithNavState({ tagSlug: 'kayaking' });
 
     await screen.findByText('Event');
     expect(appliedFilters).toContainEqual({
@@ -352,6 +352,20 @@ describe('EventsPage', () => {
       value: 'kayaking',
     });
     expect(screen.getByRole('button', { name: 'Kayaking' })).toBeInTheDocument();
+  });
+
+  it('preselects a format carried as router state from the event detail page', async () => {
+    rows = [eventRow({ id: 'e1', title: 'Event' })];
+
+    renderEventsWithNavState({ format: 'online' });
+
+    await screen.findByText('Event');
+    expect(appliedFilters).toContainEqual({
+      method: 'in',
+      column: 'event_format',
+      value: 'online',
+    });
+    expect(screen.getByRole('button', { name: 'Online' })).toBeInTheDocument();
   });
 
   it('deselects "All" when a specific activity tag is picked, and vice versa', async () => {

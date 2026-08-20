@@ -60,9 +60,23 @@ export interface EventFilterState {
   showHidden: boolean;
 }
 
-/** Router state carried from the event detail page's tag chips to preselect that tag on arrival. */
+/**
+ * Router state carried from the event detail page's chips, to preselect what was tapped on
+ * arrival. A chip sets exactly one of these; the events list treats an absent field as
+ * "don't narrow by that".
+ */
 export interface EventListNavState {
-  tagSlug: string;
+  tagSlug?: string;
+  format?: EventFormat;
+}
+
+/** The `formats` map that narrows to a single format, for a format chip tapped on a detail page. */
+export function onlyFormat(format: EventFormat): Record<EventFormat, boolean> {
+  return {
+    in_person: format === 'in_person',
+    online: format === 'online',
+    hybrid: format === 'hybrid',
+  };
 }
 
 export function defaultFilters(): EventFilterState {

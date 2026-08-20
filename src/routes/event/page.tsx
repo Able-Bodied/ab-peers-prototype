@@ -140,23 +140,17 @@ function formatDeadline(isoString: string): string {
   });
 }
 
-function Chip({ label, on, onClick }: { label: string; on: boolean; onClick?: () => void }) {
-  const className = cn(
-    'inline-flex min-h-8 items-center rounded-full border-2 px-3 text-[12.5px] font-semibold',
-    on
-      ? 'border-primary bg-secondary text-primary'
-      : 'border-border text-muted-foreground border-dashed',
+/** Every chip here searches the events list for what it says, so they all look and act alike. */
+function Chip({ label, onClick }: { label: string; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="border-primary bg-secondary text-primary inline-flex min-h-8 items-center rounded-full border-2 px-3 text-[12.5px] font-semibold"
+    >
+      {label}
+    </button>
   );
-
-  if (onClick) {
-    return (
-      <button type="button" onClick={onClick} className={className}>
-        {label}
-      </button>
-    );
-  }
-
-  return <span className={className}>{label}</span>;
 }
 
 export default function EventPage() {
@@ -310,6 +304,8 @@ export default function EventPage() {
   const rsvp = rsvpFor(event.id);
   const { going, interested } = countsFor(event.id);
   const tags = (event.event_tags ?? []).flatMap((link) => (link.tags ? [link.tags] : []));
+  // Pulled out of `event` so the chip's onClick closure keeps the non-null narrowing.
+  const format = event.event_format;
   // Prefer the CTA-stripped copy once the verification pass has produced it.
   const bodyHtml = event.description_html_clean ?? event.description_html;
   const bodyText = event.description_clean ?? event.description;
@@ -371,14 +367,21 @@ export default function EventPage() {
           <Chip
             key={tag.slug}
             label={tag.name}
-            on
             onClick={() => {
               const state: EventListNavState = { tagSlug: tag.slug };
               void navigate('/events', { state });
             }}
           />
         ))}
-        {event.event_format && <Chip label={EVENT_FORMAT_LABELS[event.event_format]} on={false} />}
+        {format && (
+          <Chip
+            label={EVENT_FORMAT_LABELS[format]}
+            onClick={() => {
+              const state: EventListNavState = { format };
+              void navigate('/events', { state });
+            }}
+          />
+        )}
       </div>
 
       {photoUrl && (
