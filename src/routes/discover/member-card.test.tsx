@@ -15,8 +15,12 @@ function fixture(id: string): BrowseMember {
 
 const orgName = (slug: string) => ORGS.find((o) => o.id === slug)?.name;
 
-/** Neve B. — peer, no photo, likes wheelchair tennis. */
-const peer = fixture('p_001');
+/**
+ * Neve B. — peer, no photo, likes wheelchair tennis. `open_to_messages` is overridden on: the
+ * seed fixture has it off, same as most of the demo peer population, but these tests are about
+ * the wave button's own mechanics — a peer who is actually reachable is covered separately below.
+ */
+const peer: BrowseMember = { ...fixture('p_001'), openToMessages: true };
 /** Elias B. — peer who shares wheelchair tennis with Neve. */
 const otherPeer = fixture('p_002');
 /** Ilse V. — mentor, verified by Triumph Foundation, capacity open. */
@@ -152,6 +156,15 @@ describe('MemberCard', () => {
         name: 'Say hi to Felix F. — at capacity, may take a while to hear back',
       }),
     ).toBeVisible();
+  });
+
+  it('offers no wave at all on a peer who has turned off unsolicited contact', () => {
+    // `chat_assert_contact_allowed()` refuses any wave, peer or mentor, once
+    // `open_to_messages` is off — see contactPolicy() in member-card.tsx.
+    renderCard({ member: { ...peer, openToMessages: false } });
+
+    expect(screen.queryByRole('button', { name: /Say hi/ })).not.toBeInTheDocument();
+    expect(screen.getByText('Neve B. is not taking new messages right now.')).toBeVisible();
   });
 
   it('offers no wave at all on a paused mentor', () => {

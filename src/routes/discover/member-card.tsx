@@ -26,16 +26,21 @@ export interface MemberCardProps {
 /**
  * Whether this person is reachable right now.
  *
- * Peers are always wave-able — a wave back is what opens the thread (PRD §8), so
- * `canMessageDirectly` being false for them is normal rather than a closed door. Mentors are the
- * ones who set capacity, and a mentor who is paused (or has switched unsolicited contact off)
- * must not be shown a button that pretends contact is available.
+ * `openToMessages` gates everyone the same way: it is the one switch
+ * `chat_assert_contact_allowed()` checks before any wave, peer or mentor, is allowed to land — the
+ * database will refuse it either way, so a peer who has turned contact off must read as closed
+ * here too rather than opening a dialog that only fails once submitted. A reachable peer stays
+ * always wave-able beyond that — a wave back is what opens the thread (PRD §8), so
+ * `canMessageDirectly` being false for one is normal rather than a closed door. Mentors are the
+ * ones who set capacity on top of that, and a mentor who is paused must not be shown a button that
+ * pretends contact is available.
  */
 export type ContactPolicy = 'available' | 'delayed' | 'closed';
 
 export function contactPolicy(member: BrowseMember): ContactPolicy {
+  if (!member.openToMessages) return 'closed';
   if (member.type !== 'mentor') return 'available';
-  if (!member.openToMessages || member.capacity === 'paused') return 'closed';
+  if (member.capacity === 'paused') return 'closed';
   if (member.capacity === 'at capacity') return 'delayed';
   return canMessageDirectly(member) ? 'available' : 'closed';
 }

@@ -39,18 +39,20 @@ function triggerLoadMore() {
 }
 
 import type { BrowseMemberRow } from '@/lib/browse-members';
-import { WavesProvider } from '@/lib/waves';
+import { ChatProvider } from '@/lib/chat';
 import DiscoverPage from '@/routes/discover/page';
 import {
   browseMemberRow,
   createBrowseMembersMock,
   permissionDeniedError,
 } from '@/test/browse-members-mock';
-import { createWavesMock } from '@/test/waves-mock';
+import type { ChatWave } from '@/types/domain';
 
 /**
- * Discover, wired end to end against stand-ins for the three tables it reads: the
- * `browse_members` view, `organizations`, and `waves`. Nothing here touches the network.
+ * Discover, wired end to end against stand-ins for the two views it browses with (`browse_members`
+ * and `organizations`) and, for waving, the same `@/lib/chat-api` stand-in Connect's own test uses
+ * — Discover's "say hi" opens the identical compose dialog and sends through the identical
+ * `ChatProvider`, so a wave here has to show up the same way it would there.
  *
  * The load-bearing assertions are the product decisions that are easy to reverse by accident —
  * that a topic chip filters rather than sends (PRD §8.1), that a swipe does exactly what the
@@ -58,8 +60,57 @@ import { createWavesMock } from '@/test/waves-mock';
  * deck (§5.1).
  */
 
+const api = vi.hoisted(() => ({
+  fetchConversations: vi.fn(),
+  fetchWaves: vi.fn(),
+  fetchChatMembers: vi.fn(),
+  fetchLimits: vi.fn(),
+  fetchMessages: vi.fn(),
+  sendWave: vi.fn(),
+  respondToWave: vi.fn(),
+  startConversation: vi.fn(),
+  sendMessage: vi.fn(),
+  retractMessage: vi.fn(),
+  markConversationRead: vi.fn(),
+  setConversationFlags: vi.fn(),
+  blockMember: vi.fn(),
+  unblockMember: vi.fn(),
+  reportMember: vi.fn(),
+  setOpenToMessages: vi.fn(),
+  demoReply: vi.fn(),
+  subscribeToMessages: vi.fn(() => () => undefined),
+}));
+
+vi.mock('@/lib/chat-api', () => ({
+  ...api,
+  chatErrorMessage: (error: unknown) =>
+    error instanceof Error ? error.message : 'Something went wrong. Try again.',
+}));
+
+function outboundWave(counterpartId: string, displayName: string): ChatWave {
+  return {
+    id: `wave-to-${counterpartId}`,
+    direction: 'outbox',
+    status: 'pending',
+    topic: null,
+    message: null,
+    createdAt: '2026-08-19T00:00:00.000Z',
+    conversationId: null,
+    counterpart: {
+      id: counterpartId,
+      type: 'peer',
+      displayName,
+      photoUrl: null,
+      city: 'Denver',
+      state: 'Colorado',
+      capacity: null,
+      isSynthetic: true,
+      isBot: false,
+    },
+  };
+}
+
 const browseMembers = createBrowseMembersMock();
-const waves = createWavesMock();
 
 const orgRows = [
   { slug: 'craig-hospital', name: 'Craig Hospital', logo_url: null },
@@ -79,7 +130,7 @@ vi.mock('@/lib/supabase', () => ({
   getSupabase: () => ({
     from: (table: string) => {
       if (table === 'organizations') return organizationsBuilder();
-      return browseMembers.forTable(table) ?? waves.forTable(table);
+      return browseMembers.forTable(table);
     },
   }),
 }));
@@ -118,6 +169,9 @@ const PEER_ROW = browseMemberRow({
   disability: 'SCI - para',
   interests: ['Cooking', 'Kayaking'],
   topics: [],
+  // Reachable, so the "saying hi" tests exercise the real send rather than the
+  // "not accepting messages" reason — see chatMemberFor()/toChatMember() in page.tsx.
+  open_to_messages: true,
 });
 
 const OTHER_STATE_PEER = browseMemberRow({
@@ -161,9 +215,9 @@ function renderPage(rows: BrowseMemberRow[]) {
   browseMembers.reset(rows);
   return render(
     <MemoryRouter>
-      <WavesProvider>
+      <ChatProvider>
         <DiscoverPage />
-      </WavesProvider>
+      </ChatProvider>
     </MemoryRouter>,
   );
 }
@@ -172,8 +226,18 @@ beforeEach(() => {
   session.member = { id: 'viewer', duration: '3 - 10 years' };
   session.loading = false;
   browseMembers.reset([]);
-  waves.reset([]);
   observers = [];
+
+  api.fetchConversations.mockReset().mockResolvedValue([]);
+  api.fetchWaves.mockReset().mockResolvedValue([]);
+  api.fetchChatMembers.mockReset().mockResolvedValue([]);
+  api.fetchLimits.mockReset().mockResolvedValue({
+    waveDailyLimit: 20,
+    wavesSentToday: 0,
+    conversationDailyLimit: 5,
+    conversationsStartedToday: 0,
+  });
+  api.sendWave.mockReset().mockResolvedValue({ waveId: 'wave-1', conversationId: null });
 });
 
 describe('signed out', () => {
@@ -279,25 +343,45 @@ describe('ask me about', () => {
       expect(screen.queryByText('Mentor Two')).not.toBeInTheDocument();
     });
     expect(screen.getByText('Mentor One')).toBeInTheDocument();
-    expect(waves.rows).toHaveLength(0);
+    expect(api.sendWave).not.toHaveBeenCalled();
   });
 });
 
 describe('saying hi', () => {
-  it('records a wave against the person it was sent to', async () => {
+  it('opens the same compose dialog Connect uses, and sends the wave through it', async () => {
     const user = userEvent.setup();
     renderPage([VIEWER_ROW, PEER_ROW]);
 
     await screen.findByText('Peer One');
     await user.click(screen.getByRole('button', { name: /^say hi to Peer One/i }));
 
-    await waitFor(() => {
-      expect(waves.rows).toHaveLength(1);
-    });
-    expect(waves.rows[0]).toMatchObject({ from_member_id: 'viewer', to_member_id: 'peer-1' });
+    // The Connect compose dialog, reused rather than reimplemented.
+    expect(await screen.findByText('Say hi to Peer One')).toBeInTheDocument();
+
+    // Once sent, a refresh picks the wave up — this is what makes it show up in Messages' Waves
+    // section too, since both surfaces read the same ChatProvider state.
+    api.fetchWaves.mockResolvedValue([outboundWave('peer-1', 'Peer One')]);
+    await user.click(screen.getByRole('button', { name: 'Send hello' }));
+
+    expect(await screen.findByText('Your hello is on its way')).toBeInTheDocument();
+    expect(api.sendWave).toHaveBeenCalledWith('peer-1', null, null);
+
+    await user.click(screen.getByRole('button', { name: 'Done' }));
     expect(
       await screen.findByRole('button', { name: /you said hi to Peer One/i }),
     ).toBeInTheDocument();
+  });
+
+  it('shows the reason rather than a dead button for somebody who has turned off unsolicited contact', async () => {
+    // The database's own contact-allowed check refuses a wave to anyone with `open_to_messages`
+    // off, peer or mentor alike, so the card must say so up front rather than opening a dialog
+    // that can only fail — the same rule Connect's MemberRow already applies.
+    renderPage([VIEWER_ROW, browseMemberRow({ ...PEER_ROW, open_to_messages: false })]);
+
+    expect(
+      await screen.findByText('Peer One is not taking new messages right now.'),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /say hi to Peer One/i })).not.toBeInTheDocument();
   });
 });
 

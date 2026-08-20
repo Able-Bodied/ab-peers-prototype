@@ -423,17 +423,6 @@ export interface EventItem {
   rosterVisibility: RosterVisibility;
 }
 
-export interface Wave {
-  id: string;
-  fromMemberId: string;
-  toMemberId: string;
-  /** Null for a plain wave; set when sent from an "Ask me about" chip. */
-  topic: Topic | null;
-  message: string | null;
-  createdAt: string;
-  wavedBack: boolean;
-}
-
 export interface Rsvp {
   eventId: string;
   memberId: string;

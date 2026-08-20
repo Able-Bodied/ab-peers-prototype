@@ -2,11 +2,13 @@ import { SlidersHorizontal, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { useBrowseMembers } from '@/lib/browse-members';
+import { useChat } from '@/lib/chat';
+import { wavesRemaining } from '@/lib/chat-rules';
 import { useOrganizations } from '@/lib/organizations';
 import { useSession } from '@/lib/session';
 import { cn } from '@/lib/utils';
-import { useWaves } from '@/lib/waves';
 import { defaultTabFor, filterMembers } from '@/mocks/selectors';
+import { ComposeDialog } from '@/routes/connect/compose-dialog';
 import { DiscoverFilterSheet } from '@/routes/discover/filter-sheet';
 import {
   activeFilterChips,
@@ -30,11 +32,41 @@ import {
 } from '@/routes/discover/swipe';
 import {
   type BrowseMember,
+  type ChatMember,
   DISCOVER_SEGMENTS,
   type DiscoverSegment,
   type MemberFilters,
   type Topic,
 } from '@/types/domain';
+
+/**
+ * A `BrowseMember` shaped as the `ChatMember` the compose dialog needs, for
+ * somebody the chat system does not already know about (see `chatMemberFor`
+ * below). `isSynthetic`/`isBot` are the two fields `browse_members` never
+ * carried in the first place — false is the honest default for a real member,
+ * and neither the dialog nor `chat-rules.ts`'s contactability check reads
+ * either field, so a wrong guess here changes nothing about what the dialog
+ * does or says.
+ */
+function toChatMember(member: BrowseMember): ChatMember {
+  return {
+    id: member.id,
+    type: member.type,
+    displayName: member.displayName,
+    photoUrl: member.photoUrl,
+    city: member.city,
+    state: member.state,
+    capacity: member.capacity,
+    isSynthetic: false,
+    isBot: false,
+    disability: member.disability,
+    level: member.level,
+    ageBand: member.ageBand,
+    duration: member.duration,
+    interests: member.interests,
+    openToMessages: member.openToMessages,
+  };
+}
 
 /**
  * Discover — the surface a member browses people on, and the first thing they see after signing
@@ -94,12 +126,34 @@ export default function DiscoverPage() {
   const { member: account, loading: sessionLoading } = useSession();
   const { members, loading, error, requiresSignIn, reload } = useBrowseMembers();
   const { organizations } = useOrganizations();
-  const { hasWaved, sendWave, sendingTo, error: waveError, remainingToday } = useWaves();
+  const { members: chatMembers, waves: chatWaves, limits, error: chatError } = useChat();
 
   const [segment, setSegment] = useState<DiscoverSegment | null>(null);
   const [filters, setFilters] = useState<MemberFilters>({ ...defaultDiscoverFilters });
   const [sheetOpen, setSheetOpen] = useState(false);
   const [detailId, setDetailId] = useState<string | null>(null);
+  const [composeMember, setComposeMember] = useState<BrowseMember | null>(null);
+
+  /**
+   * Prefer the real `ChatMember` the chat system already knows about — it carries the true
+   * `isSynthetic`/`isBot` — and fall back to `toChatMember` for someone found only through browse
+   * (nobody has waved at or messaged them yet, so `chat_members` has never had a reason to include
+   * them).
+   */
+  const chatMemberFor = useCallback(
+    (member: BrowseMember): ChatMember =>
+      chatMembers.find((candidate) => candidate.id === member.id) ?? toChatMember(member),
+    [chatMembers],
+  );
+
+  const wavedIds = useMemo(
+    () =>
+      new Set(
+        chatWaves.filter((wave) => wave.direction === 'outbox').map((wave) => wave.counterpart.id),
+      ),
+    [chatWaves],
+  );
+  const wavesLeft = wavesRemaining(limits);
 
   /**
    * The viewer as other members see them. The session carries only the subset onboarding collects
@@ -344,14 +398,16 @@ export default function DiscoverPage() {
         </div>
       ) : null}
 
-      {waveError ? (
+      {/* Hidden while the compose panel is open — same reasoning as Connect: the panel
+          renders this error over its own overlay, so there is only one place to read it. */}
+      {chatError && composeMember === null ? (
         <p className="text-destructive mt-3 text-sm" role="alert">
-          {waveError}
+          {chatError}
         </p>
       ) : null}
-      {remainingToday <= 3 && remainingToday > 0 ? (
+      {wavesLeft <= 3 && wavesLeft > 0 ? (
         <p className="text-muted-foreground mt-3 text-xs" role="status">
-          {remainingToday} more {remainingToday === 1 ? 'hi' : 'his'} today.
+          {wavesLeft} more {wavesLeft === 1 ? 'hi' : 'his'} today.
         </p>
       ) : null}
 
@@ -388,10 +444,10 @@ export default function DiscoverPage() {
               member={member}
               viewer={viewer}
               orgName={orgName}
-              waved={hasWaved(member.id)}
-              sending={sendingTo === member.id}
+              waved={wavedIds.has(member.id)}
+              sending={false}
               onWave={() => {
-                void sendWave(member.id);
+                setComposeMember(member);
               }}
               onTopicSelect={onTopicSelect}
               onOpenDetail={() => {
@@ -433,16 +489,28 @@ export default function DiscoverPage() {
         member={detailMember}
         viewer={viewer}
         orgName={orgName}
-        waved={detailMember ? hasWaved(detailMember.id) : false}
-        sending={detailMember ? sendingTo === detailMember.id : false}
+        waved={detailMember ? wavedIds.has(detailMember.id) : false}
+        sending={false}
         onWave={() => {
-          if (detailMember) void sendWave(detailMember.id);
+          if (detailMember) setComposeMember(detailMember);
         }}
         onTopicSelect={onTopicSelect}
         onOpenChange={(open) => {
           if (!open) setDetailId(null);
         }}
       />
+
+      {/* Keyed on the member so switching people starts from a clean panel rather than
+          inheriting the last person's half-written note — same reasoning as Connect's. */}
+      {composeMember !== null ? (
+        <ComposeDialog
+          key={composeMember.id}
+          member={chatMemberFor(composeMember)}
+          onClose={() => {
+            setComposeMember(null);
+          }}
+        />
+      ) : null}
     </div>
   );
 }
