@@ -1,14 +1,9 @@
-import { Users } from 'lucide-react';
-
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
 export function WelcomeStep({ onNext, onLogIn }: { onNext: () => void; onLogIn: () => void }) {
   return (
     <div className="flex flex-col items-center gap-6 py-8 text-center">
-      <div className="bg-secondary text-primary flex size-20 items-center justify-center rounded-full">
-        <Users className="size-9" />
-      </div>
       <div className="space-y-2">
         <h1 className="text-2xl font-bold text-balance">A community of peers with disabilities.</h1>
         <p className="text-muted-foreground text-sm text-balance">
