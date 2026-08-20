@@ -7,7 +7,8 @@
  * how many filters are narrowing (the badge on the Filters button), how to clear them, and which
  * option values are worth offering at all.
  *
- * PRD §7.1 puts State and Disability on the bar and everything else behind the Filters button;
+ * State and Disability live in the Filters sheet along with everything else, keeping the top row
+ * to the three buttons in docs/screens/events-screen.html's `.top` bar (Peers, Mentors, Filters).
  * PRD §8.2 is why `languagesIn`/`topicsIn` exist rather than a hardcoded vocabulary — a chip that
  * returns nobody is a broken promise, so the sheet offers only values someone in the loaded set
  * actually has.
@@ -23,8 +24,8 @@ import {
 } from '@/types/domain';
 
 /**
- * State and Disability are the two bar chips and are always present, so they carry an explicit
- * 'All'. Every other filter is absent until someone opens the sheet and picks something.
+ * State and Disability are always present, so they carry an explicit 'All' rather than being
+ * absent like the rest of the sheet's filters.
  *
  * Frozen because it is a module-level constant that route state will spread from — an accidental
  * mutation here would follow the app around for the rest of the session. Use `clearedFilters()`
@@ -52,7 +53,7 @@ export const OPTIONAL_FILTER_KEYS = [
 
 export type OptionalFilterKey = (typeof OPTIONAL_FILTER_KEYS)[number];
 
-/** Every field of `MemberFilters`, in the order the UI presents them (bar first, then sheet). */
+/** Every field of `MemberFilters`, in the order the sheet presents them. */
 export const DISCOVER_FILTER_KEYS = ['state', 'disability', ...OPTIONAL_FILTER_KEYS] as const;
 
 export type DiscoverFilterKey = (typeof DISCOVER_FILTER_KEYS)[number];
@@ -148,7 +149,7 @@ export function setFilter<K extends OptionalFilterKey>(
 
 /**
  * Clear one filter without touching the rest — what the X on a chip does.
- * The two bar filters return to 'All'; the sheet filters go back to unset.
+ * State and Disability return to 'All'; every other filter goes back to unset.
  */
 export function clearFilter(f: MemberFilters, key: DiscoverFilterKey): MemberFilters {
   if (key === 'state') return { ...f, state: 'All' };

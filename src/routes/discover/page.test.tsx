@@ -196,12 +196,14 @@ describe('the deck', () => {
 });
 
 describe('filters', () => {
-  it('narrows the deck from the bar and says how to get back', async () => {
+  it('narrows the deck from the sheet and says how to get back', async () => {
     const user = userEvent.setup();
     renderPage([VIEWER_ROW, PEER_ROW, OTHER_STATE_PEER]);
 
     await screen.findByText('Peer One');
-    await user.selectOptions(screen.getByLabelText('State'), 'Texas');
+    await user.click(screen.getByRole('button', { name: 'Filters' }));
+    await user.click(screen.getByRole('button', { name: 'Texas' }));
+    await user.click(screen.getByRole('button', { name: 'Close filters' }));
 
     expect(await screen.findByText('Peer Two')).toBeInTheDocument();
     expect(screen.queryByText('Peer One')).not.toBeInTheDocument();
@@ -215,7 +217,9 @@ describe('filters', () => {
     renderPage([VIEWER_ROW, PEER_ROW]);
 
     await screen.findByText('Peer One');
-    await user.selectOptions(screen.getByLabelText('State'), 'Vermont');
+    await user.click(screen.getByRole('button', { name: 'Filters' }));
+    await user.click(screen.getByRole('button', { name: 'Vermont' }));
+    await user.click(screen.getByRole('button', { name: 'Close filters' }));
 
     expect(await screen.findByText(/no peers match these filters/i)).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: /clear filters/i }));

@@ -10,6 +10,7 @@ import { WavesProvider } from '@/lib/waves';
 import ActivityPage from '@/routes/activity/page';
 import ConnectPage from '@/routes/connect/page';
 import CoordinatorPage from '@/routes/coordinator/page';
+import DevLoginPage from '@/routes/dev-login/page';
 import DiscoverPage from '@/routes/discover/page';
 import EventPage from '@/routes/event/page';
 import EventsPage from '@/routes/events/page';
@@ -36,6 +37,9 @@ export function App() {
                 <main className="min-w-0 flex-1 overflow-y-auto p-4 pb-28 md:p-8">
                   <Routes>
                     <Route path="/" element={<RootRedirect />} />
+                    {/* Unlisted — not in `flows`, so it never shows in the sidebar. See
+                    src/routes/dev-login/page.tsx and AGENTS.md for the test user it logs in. */}
+                    <Route path="/dev-login" element={<DevLoginPage />} />
                     <Route path="/onboarding" element={<OnboardingPage />} />
                     <Route
                       path="/discover"

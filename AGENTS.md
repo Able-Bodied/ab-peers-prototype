@@ -38,6 +38,62 @@ to exist.
 | `pnpm fix`         | `biome check --write` + `eslint --fix`. Auto-fixes what it safely can.   |
 | `pnpm preview`     | Serve the production build locally, for a final look before a demo.      |
 
+## Running the dev server from a worktree
+
+`preview_start` with a `name` resolves `.claude/launch.json` against the main repo root, not the
+worktree you're actually in — even if you drop a `launch.json` inside the worktree's own
+`.claude/`, it's ignored. Calling it by name from a worktree silently starts (or reuses) the
+**main** branch's server, which then also eats the default port, and you end up verifying the
+wrong branch. This has bitten multiple worktree sessions.
+
+To preview a worktree, don't use `name` — start the server yourself and open it by URL instead:
+
+```bash
+cd .claude/worktrees/<worktree-name>
+./node_modules/.bin/vite --port <unique-port> --strictPort
+```
+
+Run that via Bash with `run_in_background: true`. Notes on getting the port right, since this has
+gone wrong in more than one way:
+
+- **Don't run it as `pnpm dev -- --port <n> --strictPort`.** The extra `--` sometimes reaches vite
+  literally (visible in the background task's own echoed command line, e.g. `$ vite -- --port
+  5175 ...`), which makes vite ignore the flags that follow and fall back to its default port —
+  silently landing you on 5173 (or bumped to whatever's next free) instead of the port you asked
+  for. Call the local `vite` binary directly with the flags, as above, to sidestep pnpm's arg
+  forwarding entirely.
+- **Always pass `--strictPort`.** Without it, vite silently bumps to the next free port when your
+  chosen one is taken, instead of failing — so the port you *asked for* and the port it's actually
+  *listening on* can silently diverge.
+- **Before opening the browser, verify the port yourself — don't trust the requested port or the
+  tool's own summary.** Read the background task's output file (or grep its logs) for the actual
+  `Local: http://localhost:PORT` line vite printed, and cross-check with
+  `lsof -iTCP:<port> -sTCP:LISTEN -n -P` that the PID holding it is the one you just spawned (its
+  `COMMAND`/args should point at the worktree's own `node_modules`). Only then call `preview_start`
+  with `{ "url": "http://localhost:<that-port>" }` — never `{ "name": ... }`. Opening a port
+  without checking risks silently attaching to an unrelated, already-running server (yours from an
+  earlier attempt, another worktree's, or main's) and testing the wrong code.
+- Pick a port no other active worktree is already using — check `lsof -iTCP -sTCP:LISTEN -n -P` up
+  front if unsure.
+
+## Test login, for agents
+
+Discover, Profile, and other signed-in routes gate on a real Supabase auth session (phone + OTP
+via `signInWithOtp`/`verifyOtp`) — there's no local mock for that part. Clicking through the phone
+number and 6-digit code screens every time you want to check a signed-in flow is slow, so
+`/dev-login` runs those same two Supabase calls programmatically instead of through the wizard UI.
+It is unlisted (not in `App.tsx`'s sidebar `flows`) but not a bypass: a wrong phone or code fails
+exactly the way it would in the UI, because it's the same credential check.
+
+The hosted project this repo's `.env.local` points at has a fixed test user for this: phone
+`1111111111`, code `111111`. To land signed in on any route:
+
+```
+/dev-login?phone=1111111111&code=111111&next=/discover
+```
+
+`next` defaults to `/discover` if omitted. See `src/routes/dev-login/page.tsx`.
+
 ## Conventions
 
 - TypeScript strict; no default exports except route components (`src/routes/*/page.tsx`); named

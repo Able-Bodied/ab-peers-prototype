@@ -15,7 +15,6 @@ import {
   clearFilter,
   defaultDiscoverFilters,
   languagesIn,
-  setDisability,
   setFilter,
   topicsIn,
 } from '@/routes/discover/filters';
@@ -30,14 +29,10 @@ import {
 } from '@/routes/discover/swipe';
 import {
   type BrowseMember,
-  DISABILITIES,
   DISCOVER_SEGMENTS,
-  type Disability,
   type DiscoverSegment,
   type MemberFilters,
   type Topic,
-  US_STATES,
-  type UsState,
 } from '@/types/domain';
 
 /**
@@ -67,7 +62,7 @@ import {
  * TODO(team):
  *  - [x] Peers / Mentors segments, by pill and by horizontal swipe
  *  - [x] Full-bleed cards from real member rows, one per screen
- *  - [x] State and disability on the bar, everything else behind Filters
+ *  - [x] State and disability in the Filters sheet, alongside everything else it holds
  *  - [x] "Ask me about" chips filter the deck rather than sending a message
  *  - [x] Say hi, rate limited, with the mentor-capacity rules applied
  *  - [ ] Waves inbox — the other half of §8, and where a wave back opens a thread
@@ -83,41 +78,6 @@ const SEGMENT_EMPTY_COPY: Record<DiscoverSegment, string> = {
   peers: 'No peers match these filters yet.',
   mentors: 'No mentors match these filters yet.',
 };
-
-function BarSelect<T extends string>({
-  label,
-  value,
-  options,
-  onChange,
-}: {
-  label: string;
-  value: T | 'All';
-  options: readonly T[];
-  onChange: (next: T | 'All') => void;
-}) {
-  return (
-    <label className="min-w-0 flex-1">
-      <span className="sr-only">{label}</span>
-      <select
-        value={value}
-        onChange={(event) => {
-          onChange(event.target.value as T | 'All');
-        }}
-        className={cn(
-          'bg-card focus-visible:ring-ring min-h-[46px] w-full rounded-full border-2 px-4 text-sm font-semibold focus-visible:ring-2 focus-visible:outline-none',
-          value !== 'All' && 'border-primary bg-secondary text-primary',
-        )}
-      >
-        <option value="All">{label}</option>
-        {options.map((option) => (
-          <option key={option} value={option}>
-            {option}
-          </option>
-        ))}
-      </select>
-    </label>
-  );
-}
 
 export default function DiscoverPage() {
   const { member: account, loading: sessionLoading } = useSession();
@@ -262,56 +222,41 @@ export default function DiscoverPage() {
     <div className="mx-auto w-full max-w-xl">
       <h1 className="sr-only">Discover</h1>
 
-      {/* Segment pills. The swipe below does exactly this, never more (PRD §7.2). */}
-      <div
-        role="tablist"
-        aria-label="Browse peers or mentors"
-        className="bg-secondary flex gap-1 rounded-full p-1"
-      >
-        {DISCOVER_SEGMENTS.map((option) => (
-          <button
-            key={option}
-            type="button"
-            role="tab"
-            aria-selected={activeSegment === option}
-            onClick={() => {
-              setSegment(option);
-            }}
-            className={cn(
-              'focus-visible:ring-ring min-h-[46px] flex-1 rounded-full text-sm font-bold focus-visible:ring-2 focus-visible:outline-none',
-              activeSegment === option ? 'bg-card text-primary shadow-sm' : 'text-muted-foreground',
-            )}
-          >
-            {SEGMENT_LABELS[option]}
-          </button>
-        ))}
-      </div>
-
-      {/* PRD §7.1: State and disability on the bar, because that is all a phone has room for. */}
-      <div className="mt-3 flex items-center gap-2">
-        <BarSelect<UsState>
-          label="State"
-          value={filters.state}
-          options={US_STATES}
-          onChange={(next) => {
-            setFilters((current) => ({ ...current, state: next }));
-          }}
-        />
-        <BarSelect<Disability>
-          label="Disability"
-          value={filters.disability}
-          options={DISABILITIES}
-          onChange={(next) => {
-            setFilters((current) => setDisability(current, next));
-          }}
-        />
+      {/*
+        Peers, Mentors, and the Filters button — three standalone pills, matching
+        docs/screens/events-screen.html's `.top` bar rather than a joined segmented track. The
+        swipe below does exactly what the segment pills do, never more (PRD §7.2); State and
+        Disability moved into the sheet so this row stays exactly three buttons.
+      */}
+      <div className="flex items-center gap-2">
+        <div role="tablist" aria-label="Browse peers or mentors" className="flex gap-2">
+          {DISCOVER_SEGMENTS.map((option) => (
+            <button
+              key={option}
+              type="button"
+              role="tab"
+              aria-selected={activeSegment === option}
+              onClick={() => {
+                setSegment(option);
+              }}
+              className={cn(
+                'focus-visible:ring-ring min-h-[46px] rounded-full border-2 px-6 text-base font-bold focus-visible:ring-2 focus-visible:outline-none',
+                activeSegment === option
+                  ? 'border-primary bg-primary text-primary-foreground'
+                  : 'bg-card text-foreground',
+              )}
+            >
+              {SEGMENT_LABELS[option]}
+            </button>
+          ))}
+        </div>
         <button
           type="button"
           onClick={() => {
             setSheetOpen(true);
           }}
           aria-label={filterCount > 0 ? `Filters, ${filterCount} active` : 'Filters'}
-          className="bg-card focus-visible:ring-ring relative grid size-[46px] shrink-0 place-items-center rounded-full border-2 focus-visible:ring-2 focus-visible:outline-none"
+          className="bg-card focus-visible:ring-ring relative ml-auto grid size-[46px] shrink-0 place-items-center rounded-full border-2 focus-visible:ring-2 focus-visible:outline-none"
         >
           <SlidersHorizontal className="size-5" aria-hidden="true" />
           {filterCount > 0 ? (
