@@ -373,6 +373,19 @@ export function FilterSheet({
         <p className="text-muted-foreground mt-3 text-xs">
           Picking no activity shows every event; picking several shows events matching any of them.
         </p>
+
+        <Section>Hidden</Section>
+        <Chip
+          label="Show hidden events"
+          on={filters.showHidden}
+          onClick={() => {
+            onChange({ ...filters, showHidden: !filters.showHidden });
+          }}
+        />
+        <p className="text-muted-foreground mt-2 text-xs">
+          Events you marked Not interested (the X on a card) stay out of the feed. Turn this on to
+          see them again — each one still shows an Undo so you can bring it back for good.
+        </p>
       </div>
 
       <div className="px-5 pt-2.5 pb-4">

@@ -1,4 +1,4 @@
-import { X } from 'lucide-react';
+import { RotateCcw, X } from 'lucide-react';
 
 import type { RsvpCounts, RsvpState } from '@/lib/rsvps';
 import { cn } from '@/lib/utils';
@@ -40,9 +40,13 @@ interface EventListCardProps {
   rsvp: RsvpState;
   /** Real tally from `event_rsvps`, via `useRsvps().countsFor()`. */
   counts: RsvpCounts;
+  /** True when this card is only showing because "Show hidden events" is on — see filter-sheet.tsx. */
+  dismissed: boolean;
   onOpen: () => void;
   onRsvp: (next: RsvpState) => void;
   onDismiss: () => void;
+  /** Undoes the dismissal. Only ever invoked while `dismissed` is true. */
+  onRestore: () => void;
 }
 
 function dateTile(isoString: string): { weekday: string; day: string } {
@@ -64,9 +68,11 @@ export function EventListCard({
   event,
   rsvp,
   counts,
+  dismissed,
   onOpen,
   onRsvp,
   onDismiss,
+  onRestore,
 }: EventListCardProps) {
   const { mock } = event;
   const { weekday, day } = dateTile(event.startTime);
@@ -83,14 +89,23 @@ export function EventListCard({
   const { going, interested } = counts;
 
   return (
-    <article className="bg-card relative flex gap-3 rounded-2xl border p-4">
+    <article
+      className={cn(
+        'bg-card relative flex gap-3 rounded-2xl border p-4',
+        dismissed && 'opacity-60',
+      )}
+    >
       <button
         type="button"
-        onClick={onDismiss}
-        aria-label={`Not interested in ${event.title}`}
+        onClick={dismissed ? onRestore : onDismiss}
+        aria-label={dismissed ? `Show ${event.title} again` : `Not interested in ${event.title}`}
         className="text-muted-foreground hover:bg-secondary absolute top-2.5 right-2.5 grid size-7 place-items-center rounded-full"
       >
-        <X className="size-4" aria-hidden="true" />
+        {dismissed ? (
+          <RotateCcw className="size-4" aria-hidden="true" />
+        ) : (
+          <X className="size-4" aria-hidden="true" />
+        )}
       </button>
 
       <div className="flex shrink-0 flex-col items-center gap-1.5">
@@ -128,6 +143,11 @@ export function EventListCard({
           <h3 className="pr-6 text-base leading-tight font-bold">{event.title}</h3>
 
           <div className="mt-1.5 flex flex-wrap gap-1.5">
+            {dismissed && (
+              <span className="bg-secondary text-muted-foreground rounded-lg px-2 py-0.5 text-[10px] font-bold">
+                Not interested
+              </span>
+            )}
             {event.format && (
               <span className="bg-accent text-accent-foreground rounded-lg px-2 py-0.5 text-[10px] font-bold">
                 {EVENT_FORMAT_LABELS[event.format]}

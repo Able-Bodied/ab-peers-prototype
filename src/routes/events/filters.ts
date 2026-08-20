@@ -56,6 +56,8 @@ export interface EventFilterState {
   cities: Record<string, boolean>;
   /** null means no distance filter is active. */
   near: NearFilter | null;
+  /** Off by default — events marked Not interested stay out of the feed until this is on. */
+  showHidden: boolean;
 }
 
 /** Router state carried from the event detail page's tag chips to preselect that tag on arrival. */
@@ -75,6 +77,7 @@ export function defaultFilters(): EventFilterState {
     organizations: {},
     cities: {},
     near: null,
+    showHidden: false,
   };
 }
 

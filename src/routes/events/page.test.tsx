@@ -3,9 +3,11 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { DismissalsProvider } from '@/lib/dismissals';
 import { FollowsProvider } from '@/lib/follows';
 import { RsvpProvider } from '@/lib/rsvps';
 import EventsPage from '@/routes/events/page';
+import { createEventDismissalsMock } from '@/test/dismissals-mock';
 import { createEventRsvpsMock } from '@/test/rsvp-mock';
 
 class MockIntersectionObserver {
@@ -41,7 +43,8 @@ interface EventRow {
   city: string | null;
   url: string | null;
   registration_url: string | null;
-  organizations: OrganizationEmbed | null;
+  /** PostgREST returns an embedded row as an object, or an array on some relationship shapes. */
+  organizations?: OrganizationEmbed | OrganizationEmbed[] | null;
 }
 
 /** Rows the fake PostgREST builder will return, settable per test. */
@@ -114,8 +117,12 @@ function makeBuilder(table: string) {
 }
 
 const eventRsvps = createEventRsvpsMock();
+const eventDismissals = createEventDismissalsMock();
 
-const mockFrom = vi.fn((table: string) => eventRsvps.forTable(table) ?? makeBuilder(table));
+const mockFrom = vi.fn(
+  (table: string) =>
+    eventRsvps.forTable(table) ?? eventDismissals.forTable(table) ?? makeBuilder(table),
+);
 
 vi.mock('@/lib/supabase', () => ({
   getSupabase: () => ({ from: mockFrom }),
@@ -143,7 +150,9 @@ function renderEvents() {
     <MemoryRouter initialEntries={['/events']}>
       <RsvpProvider>
         <FollowsProvider>
-          <EventsPage />
+          <DismissalsProvider>
+            <EventsPage />
+          </DismissalsProvider>
         </FollowsProvider>
       </RsvpProvider>
     </MemoryRouter>,
@@ -156,7 +165,9 @@ function renderEventsWithTag(tagSlug: string) {
     <MemoryRouter initialEntries={[{ pathname: '/events', state: { tagSlug } }]}>
       <RsvpProvider>
         <FollowsProvider>
-          <EventsPage />
+          <DismissalsProvider>
+            <EventsPage />
+          </DismissalsProvider>
         </FollowsProvider>
       </RsvpProvider>
     </MemoryRouter>,
@@ -171,9 +182,11 @@ describe('EventsPage', () => {
     cityRows = [];
     mockRange.mockImplementation(() => Promise.resolve({ data: rows, error: null }));
     mockFrom.mockImplementation(
-      (table: string) => eventRsvps.forTable(table) ?? makeBuilder(table),
+      (table: string) =>
+        eventRsvps.forTable(table) ?? eventDismissals.forTable(table) ?? makeBuilder(table),
     );
     eventRsvps.reset();
+    eventDismissals.reset();
     globalThis.localStorage.clear();
   });
 
@@ -649,6 +662,64 @@ describe('EventsPage', () => {
 
     expect(screen.queryByText('Adaptive handcycle ride')).not.toBeInTheDocument();
     expect(screen.getByText('Wheelchair rugby open gym')).toBeInTheDocument();
+    expect(eventDismissals.rows).toEqual([expect.objectContaining({ event_id: 'e1' })]);
+  });
+
+  it('keeps a dismissed event hidden across a reload', async () => {
+    rows = [eventRow({ id: 'e1', title: 'Adaptive handcycle ride' })];
+    // Seed the viewer id the provider will read, so the pre-existing dismissal is keyed to it.
+    globalThis.localStorage.setItem('ab-peers:viewer-id', 'viewer-1');
+    eventDismissals.reset([{ event_id: 'e1', viewer_id: 'viewer-1' }]);
+
+    renderEvents();
+
+    await screen.findByText('Nothing matches');
+    expect(screen.queryByText('Adaptive handcycle ride')).not.toBeInTheDocument();
+  });
+
+  it('reveals a dismissed event, marked Not interested, once Show hidden events is on', async () => {
+    rows = [eventRow({ id: 'e1', title: 'Adaptive handcycle ride' })];
+
+    renderEvents();
+    await screen.findByText('Adaptive handcycle ride');
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Not interested in Adaptive handcycle ride' }),
+    );
+    expect(screen.queryByText('Adaptive handcycle ride')).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Filters' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Show hidden events' }));
+    await userEvent.click(screen.getByRole('button', { name: /Show \d+ events/ }));
+
+    expect(screen.getByText('Adaptive handcycle ride')).toBeInTheDocument();
+    expect(screen.getByText('Not interested')).toBeInTheDocument();
+  });
+
+  it('undoes a dismissal from the card once hidden events are shown', async () => {
+    rows = [eventRow({ id: 'e1', title: 'Adaptive handcycle ride' })];
+
+    renderEvents();
+    await screen.findByText('Adaptive handcycle ride');
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Not interested in Adaptive handcycle ride' }),
+    );
+
+    await userEvent.click(screen.getByRole('button', { name: 'Filters' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Show hidden events' }));
+    await userEvent.click(screen.getByRole('button', { name: /Show \d+ events/ }));
+
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Show Adaptive handcycle ride again' }),
+    );
+
+    expect(screen.queryByText('Not interested')).not.toBeInTheDocument();
+    expect(eventDismissals.rows).toEqual([]);
+
+    // Turning Hidden back off keeps it visible now that it's no longer dismissed.
+    await userEvent.click(screen.getByRole('button', { name: 'Filters' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Show hidden events' }));
+    await userEvent.click(screen.getByRole('button', { name: /Show \d+ events/ }));
+    expect(screen.getByText('Adaptive handcycle ride')).toBeInTheDocument();
   });
 
   it('increments the going count when the viewer RSVPs', async () => {
