@@ -48,6 +48,8 @@ interface EventRow {
 let rows: EventRow[] = [];
 /** Records the filters the page applied, so tests can assert on the real date filter. */
 let appliedFilters: { method: string; column: string; value: string }[] = [];
+/** Records the sort the page applied to the `events` query, settable/readable per test. */
+let appliedOrder: { column: string; ascending: boolean } | null = null;
 /** The city vocabulary `useCities()` reads back from `events.city` — settable per test. */
 let cityRows: { city: string }[] = [];
 
@@ -97,11 +99,13 @@ function makeBuilder(table: string) {
       table === 'tags' ? settled(() => Promise.resolve({ data: tagRows, error: null })) : builder,
     ),
     // The organizations query ends at `order`, one step later than tags.
-    order: vi.fn(() =>
-      table === 'organizations'
-        ? settled(() => Promise.resolve({ data: orgRows, error: null }))
-        : builder,
-    ),
+    order: vi.fn((column: string, opts?: { ascending?: boolean }) => {
+      if (table === 'organizations') {
+        return settled(() => Promise.resolve({ data: orgRows, error: null }));
+      }
+      appliedOrder = { column, ascending: opts?.ascending ?? true };
+      return builder;
+    }),
     range: vi.fn((...args: Parameters<typeof mockRange>) => settled(() => mockRange(...args))),
     // useCities() ends its `events` query here: select('city').not(...).overrideTypes(...).
     not: vi.fn(() => settled(() => Promise.resolve({ data: cityRows, error: null }))),
@@ -168,6 +172,7 @@ describe('EventsPage', () => {
     vi.clearAllMocks();
     rows = [];
     appliedFilters = [];
+    appliedOrder = null;
     cityRows = [];
     mockRange.mockImplementation(() => Promise.resolve({ data: rows, error: null }));
     mockFrom.mockImplementation(
@@ -433,6 +438,48 @@ describe('EventsPage', () => {
 
     await waitFor(() => {
       expect(appliedFilters).toEqual([]);
+    });
+  });
+
+  it('sorts events soonest-first by default', async () => {
+    rows = [eventRow({ id: 'e1', title: 'Event' })];
+
+    renderEvents();
+
+    await screen.findByText('Event');
+    expect(appliedOrder).toEqual({ column: 'start_time', ascending: true });
+  });
+
+  it('drops the lower bound but keeps an upper bound for Past events', async () => {
+    rows = [eventRow({ id: 'e1', title: 'Event' })];
+
+    renderEvents();
+    await screen.findByText('Event');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Filters' }));
+    appliedFilters = [];
+    await userEvent.click(screen.getByRole('button', { name: 'Past events' }));
+
+    await waitFor(() => {
+      expect(appliedFilters.map((f) => f.method)).toEqual(['lte']);
+    });
+
+    const upperBound = appliedFilters.find((f) => f.method === 'lte');
+    const startOfToday = new Date(new Date().toDateString());
+    expect(new Date(upperBound?.value ?? '').getTime()).toBeLessThan(startOfToday.getTime());
+  });
+
+  it('sorts Past events newest-first instead of soonest-first', async () => {
+    rows = [eventRow({ id: 'e1', title: 'Event' })];
+
+    renderEvents();
+    await screen.findByText('Event');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Filters' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Past events' }));
+
+    await waitFor(() => {
+      expect(appliedOrder).toEqual({ column: 'start_time', ascending: false });
     });
   });
 

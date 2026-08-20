@@ -11,12 +11,13 @@
  * `feed` is still presentational: there is no ranking signal to sort "For you" by.
  */
 
-export const DATE_WINDOWS = ['week', 'month', 'any'] as const;
+export const DATE_WINDOWS = ['week', 'month', 'past', 'any'] as const;
 export type DateWindow = (typeof DATE_WINDOWS)[number];
 
 export const DATE_WINDOW_LABELS: Record<DateWindow, string> = {
   week: 'This week',
   month: 'This month',
+  past: 'Past events',
   any: 'Anything',
 };
 
@@ -126,8 +127,8 @@ export function activeFilterCount(filters: EventFilterState): number {
 }
 
 export interface DateRange {
-  /** Inclusive lower bound, as an ISO timestamp. */
-  from: string;
+  /** Inclusive lower bound, as an ISO timestamp. Absent for "past", which has no lower bound. */
+  from?: string;
   /** Inclusive upper bound, as an ISO timestamp. */
   to: string;
 }
@@ -136,14 +137,19 @@ export interface DateRange {
  * The range `when` selects, or null for "Anything" — which deliberately leaves past events in
  * rather than silently adding a lower bound the user did not ask for.
  *
- * Both windows start at midnight local time today, so an event earlier this afternoon still counts
- * as being "this week"; ending the window at the last instant of the final day keeps an event at
- * 8pm on the boundary day inside it.
+ * The week/month windows start at midnight local time today, so an event earlier this afternoon
+ * still counts as being "this week"; ending the window at the last instant of the final day keeps
+ * an event at 8pm on the boundary day inside it. "Past" is the mirror image: it ends the instant
+ * before today starts, so it never overlaps what the other windows call "future".
  */
 export function dateWindowRange(when: DateWindow, now: Date = new Date()): DateRange | null {
   if (when === 'any') return null;
 
-  const from = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+
+  if (when === 'past') {
+    return { to: new Date(startOfToday.getTime() - 1).toISOString() };
+  }
 
   const to =
     when === 'week'
@@ -152,5 +158,10 @@ export function dateWindowRange(when: DateWindow, now: Date = new Date()): DateR
         // years without a table.
         new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
 
-  return { from: from.toISOString(), to: to.toISOString() };
+  return { from: startOfToday.toISOString(), to: to.toISOString() };
+}
+
+/** Past events read newest-first (closest to today); every other window reads soonest-first. */
+export function dateWindowAscending(when: DateWindow): boolean {
+  return when !== 'past';
 }
