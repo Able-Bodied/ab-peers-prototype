@@ -29,9 +29,9 @@ export interface NavItem {
 
 export const navItems: NavItem[] = [
   {
-    to: '/map',
+    to: '/discover',
     label: 'Discover',
-    description: 'Filterable map of peers and mentors',
+    description: 'Browse and swipe through peers and mentors',
     icon: DiscoverIcon,
   },
   {
@@ -51,6 +51,8 @@ export const navItems: NavItem[] = [
 
 // The coordinator dashboard (docs/PRD.md's roster/upload flow) has no nav tab — Activity
 // took its slot — but the route itself still resolves for anyone who links to it directly.
+// Same for the old filterable-map placeholder at /map: Discover now points at the real
+// browse/swipe feature (src/routes/discover), so /map is unlinked but still reachable.
 
 // The last tab is one slot shared by two destinations: a signed-out visitor gets the
 // join/sign-in wizard, a signed-in member gets their own profile. They never both apply,
