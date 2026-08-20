@@ -89,8 +89,8 @@ const OTHER_STATE_PEER = browseMemberRow({
   id: 'peer-2',
   type: 'peer',
   display_name: 'Peer Two',
-  state: 'Texas',
-  city: 'Austin',
+  state: 'California',
+  city: 'Oakland',
   disability: 'TBI',
   level: null,
   interests: [],
@@ -202,13 +202,13 @@ describe('filters', () => {
 
     await screen.findByText('Peer One');
     await user.click(screen.getByRole('button', { name: 'Filters' }));
-    await user.click(screen.getByRole('button', { name: 'Texas' }));
+    await user.click(screen.getByRole('button', { name: 'California' }));
     await user.click(screen.getByRole('button', { name: 'Close filters' }));
 
     expect(await screen.findByText('Peer Two')).toBeInTheDocument();
     expect(screen.queryByText('Peer One')).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: 'Remove filter Texas' }));
+    await user.click(screen.getByRole('button', { name: 'Remove filter California' }));
     expect(await screen.findByText('Peer One')).toBeInTheDocument();
   });
 
@@ -218,7 +218,7 @@ describe('filters', () => {
 
     await screen.findByText('Peer One');
     await user.click(screen.getByRole('button', { name: 'Filters' }));
-    await user.click(screen.getByRole('button', { name: 'Vermont' }));
+    await user.click(screen.getByRole('button', { name: 'California' }));
     await user.click(screen.getByRole('button', { name: 'Close filters' }));
 
     expect(await screen.findByText(/no peers match these filters/i)).toBeInTheDocument();

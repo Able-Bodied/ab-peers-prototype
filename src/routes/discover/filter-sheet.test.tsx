@@ -5,7 +5,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { MEMBERS, ORGS } from '@/mocks/seed';
 import { DiscoverFilterSheet, type DiscoverFilterSheetProps } from '@/routes/discover/filter-sheet';
-import { defaultDiscoverFilters, languagesIn, topicsIn } from '@/routes/discover/filters';
+import { defaultDiscoverFilters, interestsIn, languagesIn } from '@/routes/discover/filters';
 import type { BrowseMember, MemberFilters } from '@/types/domain';
 
 /** The seeded people, cut to what another member may see (docs/PII.md). No invented humans. */
@@ -14,7 +14,7 @@ const browsable: BrowseMember[] = MEMBERS.map(
 );
 
 const languages = languagesIn(browsable);
-const topics = topicsIn(browsable);
+const interests = interestsIn(browsable);
 const organizations = ORGS.slice(0, 3).map((org) => ({ slug: org.id, name: org.name }));
 
 /**
@@ -41,7 +41,7 @@ function renderSheet(
         }}
         organizations={organizations}
         languages={languages}
-        topics={topics}
+        interests={interests}
         resultCount={12}
         {...overrides}
       />
@@ -69,7 +69,7 @@ describe('DiscoverFilterSheet', () => {
       'Level',
       'Time since disability',
       'Languages',
-      'Topics',
+      'Interests',
       'Age band',
     ]);
   });
@@ -77,14 +77,14 @@ describe('DiscoverFilterSheet', () => {
   it('narrows by state or disability from inside the sheet', async () => {
     const { onChange, user } = renderSheet();
 
-    await user.click(screen.getByRole('button', { name: 'Texas' }));
+    await user.click(screen.getByRole('button', { name: 'California' }));
     expect(onChange).toHaveBeenLastCalledWith(
-      expect.objectContaining({ state: 'Texas', disability: 'All' }),
+      expect.objectContaining({ state: 'California', disability: 'All' }),
     );
 
     await user.click(screen.getByRole('button', { name: 'SCI - para' }));
     expect(onChange).toHaveBeenLastCalledWith(
-      expect.objectContaining({ state: 'Texas', disability: 'SCI - para' }),
+      expect.objectContaining({ state: 'California', disability: 'SCI - para' }),
     );
 
     await user.click(screen.getByRole('button', { name: 'All states' }));
@@ -168,7 +168,7 @@ describe('DiscoverFilterSheet', () => {
         state: 'California',
         disability: 'SCI - quad',
         equipment: 'Power chair',
-        level: 'C5',
+        level: ['C5'],
         ageBand: '30-39',
       },
     );
@@ -240,25 +240,39 @@ describe('DiscoverFilterSheet', () => {
 
     it('is usable once the disability is SCI', async () => {
       const { onChange, user } = renderSheet({}, { state: 'All', disability: 'SCI - quad' });
-      const select = screen.getByLabelText('Level of injury');
-      expect(select).toBeEnabled();
+      const trigger = screen.getByLabelText('Level of injury');
+      expect(trigger).toBeEnabled();
+      expect(trigger).toHaveTextContent('Any level');
 
-      await user.selectOptions(select, 'C5');
+      await user.click(trigger);
+      await user.click(screen.getByRole('button', { name: 'C5' }));
 
       expect(onChange).toHaveBeenCalledWith({
         state: 'All',
         disability: 'SCI - quad',
-        level: 'C5',
+        level: ['C5'],
       });
+    });
+
+    it('picks more than one level at a time', async () => {
+      const { onChange, user } = renderSheet({}, { state: 'All', disability: 'SCI - quad' });
+
+      await user.click(screen.getByLabelText('Level of injury'));
+      await user.click(screen.getByRole('button', { name: 'C5' }));
+      await user.click(screen.getByRole('button', { name: 'C6' }));
+
+      expect(onChange).toHaveBeenLastCalledWith(expect.objectContaining({ level: ['C5', 'C6'] }));
+      expect(screen.getByLabelText('Level of injury')).toHaveTextContent('2 levels');
     });
 
     it('goes back to any level', async () => {
       const { onChange, user } = renderSheet(
         {},
-        { state: 'All', disability: 'SCI - para', level: 'T6' },
+        { state: 'All', disability: 'SCI - para', level: ['T6'] },
       );
 
-      await user.selectOptions(screen.getByLabelText('Level of injury'), 'Any level');
+      await user.click(screen.getByLabelText('Level of injury'));
+      await user.click(screen.getByRole('button', { name: 'Any level' }));
 
       expect(onChange).toHaveBeenLastCalledWith({
         state: 'All',
@@ -277,11 +291,11 @@ describe('DiscoverFilterSheet', () => {
       expect(screen.queryByRole('button', { name: 'Mandarin' })).not.toBeInTheDocument();
     });
 
-    it('offers only topics somebody here will discuss, so no chip is a dead end', () => {
-      renderSheet({ topics: ['Transfers'] });
+    it('offers only interests somebody here has, so no chip is a dead end', () => {
+      renderSheet({ interests: ['Reading'] });
 
-      expect(screen.getByRole('button', { name: 'Transfers' })).toBeInTheDocument();
-      expect(screen.queryByRole('button', { name: 'Botox' })).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Reading' })).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Archery' })).not.toBeInTheDocument();
     });
 
     it('says so rather than showing an empty section when nobody has listed a language', () => {

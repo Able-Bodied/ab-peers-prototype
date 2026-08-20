@@ -5,8 +5,14 @@
  * State and Disability come first, since they used to live on the bar and still narrow the most.
  * Then, in the order the PRD argues for: Equipment (manual versus power is a larger difference in
  * daily life than two levels of injury), then Organization (how someone referred by Craig will
- * look for their own hospital's mentors), then Level, Time since disability, Languages, Topics,
+ * look for their own hospital's mentors), then Level, Time since disability, Languages, Interests,
  * Age band.
+ *
+ * State and Organization are cut down to California / NorCal SCI for now (@/routes/discover/
+ * filters.ts) — this prototype only has the one launch org. Interests stands in for the PRD's
+ * "Topics" section here, since onboarding's `interests` step is the vocabulary this flow actually
+ * collects; tapping an "Ask me about" chip on a card still filters by the real `topic` field
+ * regardless of what this sheet offers.
  *
  * Presentational only. It renders the `filters` it is handed and calls `onChange` with the next
  * whole object — there is no source of truth in here, so the page and the sheet can never drift.
@@ -17,8 +23,8 @@
  * centred card.
  */
 
-import { X } from 'lucide-react';
-import { type ReactNode, useId } from 'react';
+import { ChevronDown, X } from 'lucide-react';
+import { type ReactNode, useId, useState } from 'react';
 
 import {
   Dialog,
@@ -31,6 +37,7 @@ import { cn } from '@/lib/utils';
 import {
   activeFilterCount,
   clearedFilters,
+  DISCOVER_STATE_OPTIONS,
   EQUIPMENT_FILTER_OPTIONS,
   levelApplies,
   setDisability,
@@ -41,10 +48,10 @@ import {
   DISABILITIES,
   DURATIONS,
   INJURY_LEVELS,
+  INTERESTS,
+  type InjuryLevel,
+  type Interest,
   type MemberFilters,
-  TOPICS,
-  type Topic,
-  US_STATES,
 } from '@/types/domain';
 
 export interface DiscoverFilterSheetProps {
@@ -56,11 +63,11 @@ export interface DiscoverFilterSheetProps {
   languages: string[];
   resultCount: number;
   /**
-   * The topic vocabulary to offer — pass `topicsIn(members)` so every chip returns somebody
+   * The interest vocabulary to offer — pass `interestsIn(members)` so every chip returns somebody
    * (PRD §8.2). Optional so the sheet still renders standalone; it then falls back to the full
    * controlled list.
    */
-  topics?: Topic[];
+  interests?: Interest[];
 }
 
 function Chip({ label, on, onClick }: { label: string; on: boolean; onClick: () => void }) {
@@ -145,6 +152,80 @@ function ChipGroup<T extends string>({
   );
 }
 
+/**
+ * Level, multiple at once. A disclosure rather than a floating popover — the sheet is already a
+ * modal dialog, and stacking a second layer of portal/focus-trap on top of it is more than this
+ * needs. Closed, the trigger summarizes the pick ("Any level", "C5", "3 levels"); open, it drops a
+ * row of the same 46px chips every other section uses.
+ */
+function LevelDropdown({
+  id,
+  levels,
+  selected,
+  onChange,
+  disabled,
+}: {
+  id: string;
+  levels: readonly InjuryLevel[];
+  selected: InjuryLevel[];
+  onChange: (next: InjuryLevel[]) => void;
+  disabled: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const summary =
+    selected.length === 0
+      ? 'Any level'
+      : selected.length === 1
+        ? selected[0]
+        : `${selected.length} levels`;
+
+  function toggle(level: InjuryLevel) {
+    onChange(selected.includes(level) ? selected.filter((l) => l !== level) : [...selected, level]);
+  }
+
+  return (
+    <div className="w-full">
+      <button
+        id={id}
+        type="button"
+        disabled={disabled}
+        aria-expanded={open}
+        onClick={() => {
+          setOpen((o) => !o);
+        }}
+        className="border-input bg-card focus-visible:ring-ring flex min-h-[46px] w-full items-center justify-between rounded-xl border-2 px-3 text-[15px] font-semibold focus-visible:ring-2 focus-visible:outline-none disabled:opacity-60"
+      >
+        {summary}
+        <ChevronDown
+          className={cn('size-4 transition-transform', open && 'rotate-180')}
+          aria-hidden="true"
+        />
+      </button>
+      {open && !disabled ? (
+        <div className="mt-2 flex flex-wrap gap-2">
+          <Chip
+            label="Any level"
+            on={selected.length === 0}
+            onClick={() => {
+              onChange([]);
+            }}
+          />
+          {levels.map((level) => (
+            <Chip
+              key={level}
+              label={level}
+              on={selected.includes(level)}
+              onClick={() => {
+                toggle(level);
+              }}
+            />
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 export function DiscoverFilterSheet({
   open,
   onOpenChange,
@@ -153,11 +234,11 @@ export function DiscoverFilterSheet({
   organizations,
   languages,
   resultCount,
-  topics,
+  interests,
 }: DiscoverFilterSheetProps) {
-  const levelSelectId = useId();
+  const levelDropdownId = useId();
   const activeCount = activeFilterCount(filters);
-  const topicOptions = topics ?? [...TOPICS];
+  const interestOptions = interests ?? [...INTERESTS];
   const canFilterByLevel = levelApplies(filters.disability);
   const people = resultCount === 1 ? 'person' : 'people';
 
@@ -195,7 +276,7 @@ export function DiscoverFilterSheet({
           <Section title="State">
             <ChipGroup
               allLabel="All states"
-              options={US_STATES}
+              options={DISCOVER_STATE_OPTIONS}
               value={filters.state}
               onSelect={(state) => {
                 onChange({ ...filters, state: state ?? 'All' });
@@ -258,28 +339,18 @@ export function DiscoverFilterSheet({
                 : 'Level applies to spinal cord injuries. Pick SCI - para, SCI - quad or Combo for Disability above to filter by it.'
             }
           >
-            <label htmlFor={levelSelectId} className="sr-only">
+            <label htmlFor={levelDropdownId} className="sr-only">
               Level of injury
             </label>
-            <select
-              id={levelSelectId}
-              value={filters.level ?? 'All'}
+            <LevelDropdown
+              id={levelDropdownId}
+              levels={INJURY_LEVELS}
+              selected={filters.level ?? []}
               disabled={!canFilterByLevel}
-              onChange={(event) => {
-                // Reading the value back out of the vocabulary keeps this typed as InjuryLevel
-                // without a cast; "Any level" simply finds nothing and clears the filter.
-                const next = INJURY_LEVELS.find((level) => level === event.target.value);
-                onChange(setFilter(filters, 'level', next));
+              onChange={(next) => {
+                onChange(setFilter(filters, 'level', next.length > 0 ? next : undefined));
               }}
-              className="border-input bg-card focus-visible:ring-ring min-h-[46px] w-full rounded-xl border-2 px-3 text-[15px] font-semibold focus-visible:ring-2 focus-visible:outline-none disabled:opacity-60"
-            >
-              <option value="All">Any level</option>
-              {INJURY_LEVELS.map((level) => (
-                <option key={level} value={level}>
-                  {level}
-                </option>
-              ))}
-            </select>
+            />
           </Section>
 
           <Section title="Time since disability">
@@ -310,19 +381,19 @@ export function DiscoverFilterSheet({
           </Section>
 
           <Section
-            title="Topics"
+            title="Interests"
             hint={
-              topicOptions.length === 0
-                ? 'Nobody in this set has listed what they will discuss yet.'
-                : 'What people will talk about. Only topics somebody here has are offered.'
+              interestOptions.length === 0
+                ? 'Nobody in this set has listed an interest yet.'
+                : 'What people are into. Only interests somebody here has are offered.'
             }
           >
             <ChipGroup
-              allLabel="All topics"
-              options={topicOptions}
-              value={filters.topic}
-              onSelect={(topic) => {
-                onChange(setFilter(filters, 'topic', topic));
+              allLabel="All interests"
+              options={interestOptions}
+              value={filters.interest}
+              onSelect={(interest) => {
+                onChange(setFilter(filters, 'interest', interest));
               }}
             />
           </Section>
