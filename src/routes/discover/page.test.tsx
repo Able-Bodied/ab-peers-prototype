@@ -3,6 +3,41 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+/**
+ * A capturing stand-in for the sentinel-driven infinite scroll (see page.tsx). jsdom has no
+ * layout, so nothing ever really "intersects" — this records the callback each observer was made
+ * with so a test can fire it itself, the way a real scroll into view would.
+ */
+class MockIntersectionObserver {
+  readonly root: Element | Document | null = null;
+  readonly rootMargin: string = '';
+  readonly thresholds: readonly number[] = [];
+  callback: IntersectionObserverCallback;
+
+  constructor(callback: IntersectionObserverCallback) {
+    this.callback = callback;
+    observers.push(this);
+  }
+
+  observe = vi.fn();
+  disconnect = vi.fn();
+  unobserve = vi.fn();
+  takeRecords = vi.fn(() => []);
+}
+
+let observers: MockIntersectionObserver[] = [];
+globalThis.IntersectionObserver =
+  MockIntersectionObserver as unknown as typeof IntersectionObserver;
+
+/** Fires the most recently created sentinel observer as if it had scrolled into view. */
+function triggerLoadMore() {
+  const observer = observers.at(-1);
+  observer?.callback(
+    [{ isIntersecting: true } as IntersectionObserverEntry],
+    observer as unknown as IntersectionObserver,
+  );
+}
+
 import type { BrowseMemberRow } from '@/lib/browse-members';
 import { WavesProvider } from '@/lib/waves';
 import DiscoverPage from '@/routes/discover/page';
@@ -138,6 +173,7 @@ beforeEach(() => {
   session.loading = false;
   browseMembers.reset([]);
   waves.reset([]);
+  observers = [];
 });
 
 describe('signed out', () => {
@@ -307,5 +343,61 @@ describe('swiping', () => {
 
     drag({ x: 300, y: 100 }, { x: 220, y: 400 }, deck);
     expect(screen.getByText('Peer One')).toBeInTheDocument();
+  });
+});
+
+describe('infinite scroll', () => {
+  // Same state, duration and (empty) interests as the viewer, so every card ties on rank and the
+  // deck keeps this exact insertion order (see ranking.ts) — which is what makes "first 12, then
+  // the rest" assertable at all.
+  const MANY_PEERS = Array.from({ length: 14 }, (_, i) =>
+    browseMemberRow({
+      id: `peer-page-${i}`,
+      type: 'peer',
+      display_name: `Page Peer ${i}`,
+      state: 'Colorado',
+      city: 'Denver',
+      interests: [],
+      topics: [],
+    }),
+  );
+
+  it('renders only the first page of a large deck, with a sentinel below it', async () => {
+    renderPage([VIEWER_ROW, ...MANY_PEERS]);
+
+    await screen.findByText('Page Peer 0');
+    expect(screen.getByText('Page Peer 11')).toBeInTheDocument();
+    expect(screen.queryByText('Page Peer 12')).not.toBeInTheDocument();
+    expect(screen.getByTestId('discover-scroll-sentinel')).toBeInTheDocument();
+    expect(screen.getByText('Loading more people…')).toBeInTheDocument();
+  });
+
+  it('reveals the next page once the sentinel scrolls into view, and says so once every page is in', async () => {
+    renderPage([VIEWER_ROW, ...MANY_PEERS]);
+    await screen.findByText('Page Peer 11');
+
+    triggerLoadMore();
+
+    expect(await screen.findByText('Page Peer 12')).toBeInTheDocument();
+    expect(screen.getByText('Page Peer 13')).toBeInTheDocument();
+    expect(screen.getByText("That's everyone.")).toBeInTheDocument();
+  });
+
+  it('resets back to the first page when the filters narrow the deck', async () => {
+    const user = userEvent.setup();
+    renderPage([VIEWER_ROW, ...MANY_PEERS]);
+    await screen.findByText('Page Peer 11');
+
+    triggerLoadMore();
+    await screen.findByText('Page Peer 12');
+
+    await user.click(screen.getByRole('button', { name: 'Filters' }));
+    await user.click(screen.getByRole('button', { name: 'SCI - para' }));
+    await user.click(screen.getByRole('button', { name: 'Close filters' }));
+
+    await waitFor(() => {
+      expect(screen.queryByText('Page Peer 12')).not.toBeInTheDocument();
+    });
+    expect(screen.getByText('Loading more people…')).toBeInTheDocument();
   });
 });
