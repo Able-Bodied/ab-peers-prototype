@@ -16,7 +16,8 @@
       "!**/components.json",
       "!public",
       "!supabase/.temp",
-      "!supabase/.branches"
+      "!supabase/.branches",
+      "!.claude/worktrees"
     ]
   },
   "formatter": {

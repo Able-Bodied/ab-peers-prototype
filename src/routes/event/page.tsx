@@ -56,7 +56,11 @@ interface EventDetailRow {
   title: string;
   description: string | null;
   description_html: string | null;
-  /** CTA-stripped copy from the verification pass; null until that pass has run. */
+  /**
+   * The verification pass's copy of the description; null until that pass has run, and '' if it
+   * ran while the event had no body text. It no longer edits the copy — see 3.4 of
+   * jobs/event-ingest/prompts/ai-verify-events.md — so this now mirrors `description`.
+   */
   description_clean: string | null;
   description_html_clean: string | null;
   start_time: string | null;
@@ -150,23 +154,17 @@ function formatDeadline(isoString: string): string {
   });
 }
 
-function Chip({ label, on, onClick }: { label: string; on: boolean; onClick?: () => void }) {
-  const className = cn(
-    'inline-flex min-h-8 items-center rounded-full border-2 px-3 text-[12.5px] font-semibold',
-    on
-      ? 'border-primary bg-secondary text-primary'
-      : 'border-border text-muted-foreground border-dashed',
+/** Every chip here searches the events list for what it says, so they all look and act alike. */
+function Chip({ label, onClick }: { label: string; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="border-primary bg-secondary text-primary inline-flex min-h-8 items-center rounded-full border-2 px-3 text-[12.5px] font-semibold"
+    >
+      {label}
+    </button>
   );
-
-  if (onClick) {
-    return (
-      <button type="button" onClick={onClick} className={className}>
-        {label}
-      </button>
-    );
-  }
-
-  return <span className={className}>{label}</span>;
 }
 
 export default function EventPage() {
@@ -320,6 +318,8 @@ export default function EventPage() {
   const rsvp = rsvpFor(event.id);
   const { going, interested } = countsFor(event.id);
   const tags = (event.event_tags ?? []).flatMap((link) => (link.tags ? [link.tags] : []));
+  // Pulled out of `event` so the chip's onClick closure keeps the non-null narrowing.
+  const format = event.event_format;
   // Prefer the verification pass's copy once it has produced some. A pass that ran while an event
   // had no body text stores '' here, and a later scrape that finally finds the real description
   // must not stay invisible behind that stale empty value until the next pass — hence firstNonBlank
@@ -384,21 +384,28 @@ export default function EventPage() {
           <Chip
             key={tag.slug}
             label={tag.name}
-            on
             onClick={() => {
               const state: EventListNavState = { tagSlug: tag.slug };
               void navigate('/events', { state });
             }}
           />
         ))}
-        {event.event_format && <Chip label={EVENT_FORMAT_LABELS[event.event_format]} on={false} />}
+        {format && (
+          <Chip
+            label={EVENT_FORMAT_LABELS[format]}
+            onClick={() => {
+              const state: EventListNavState = { format };
+              void navigate('/events', { state });
+            }}
+          />
+        )}
       </div>
 
       {photoUrl && (
         <img
           src={photoUrl}
           alt={event.title}
-          className="mt-3.5 aspect-video max-h-72 w-full rounded-2xl object-cover"
+          className="mx-auto mt-3.5 block max-h-96 w-auto max-w-full rounded-2xl object-contain"
         />
       )}
 
