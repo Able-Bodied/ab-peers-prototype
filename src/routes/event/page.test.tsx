@@ -70,7 +70,6 @@ function makeBuilder(table: string) {
     // Two real chains have no terminal call and are awaited directly, so the fake builder has to be
     // a thenable to stand in for either: the event_photos chain (.order().order()) and the org
     // events-this-year count chain (.select(..., {head:true}).eq().gte().lt()), both on `events`.
-    // biome-ignore lint/suspicious/noThenProperty: intentional thenable, see above
     then: (resolve: (result: { data: unknown; count?: number | null; error: null }) => void) => {
       if (table === 'events') {
         resolve({ data: null, count: orgEventCount, error: null });
