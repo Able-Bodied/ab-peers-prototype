@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<title>PeerConnect — Events</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=Public+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --canvas:#EFF2EE; --paper:#fff; --ink:#111A16; --ink2:#46524C;
+  --pine:#14483C; --pine-hi:#1B5F4E; --tint:#DDE9E3; --clay:#C9491B; --clay-t:#FBE7DE;
+  --line:#C9D2CC; --grey:#8A968F;
+  --head:Archivo,"TeX Gyre Heros","Liberation Sans",sans-serif;
+  --body:"Public Sans","Liberation Sans",-apple-system,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;height:100%}
+body{background:var(--canvas);font-family:var(--body);color:var(--ink)}
+#phone{width:390px;height:844px;background:var(--canvas);display:flex;flex-direction:column;overflow:hidden;position:relative}
+
+/* status bar */
+.status{flex:none;display:flex;align-items:center;justify-content:space-between;padding:14px 24px 2px;
+  font-family:var(--body);font-weight:700;font-size:15px}
+.status .r{display:flex;align-items:center;gap:5px}
+.bars{display:flex;align-items:flex-end;gap:2px;height:12px}
+.bars i{display:block;width:3px;background:var(--ink);border-radius:1px}
+.batt{width:24px;height:12px;border:1.6px solid var(--ink);border-radius:3px;position:relative;padding:1.5px}
+.batt::after{content:"";position:absolute;right:-3.5px;top:3.5px;width:2px;height:4px;background:var(--ink);border-radius:0 1px 1px 0}
+.batt i{display:block;height:100%;width:100%;background:var(--ink);border-radius:1px}
+
+/* top */
+.top{flex:none;display:flex;gap:9px;align-items:center;padding:12px 18px 8px}
+.seg{min-height:44px;padding:0 22px;border-radius:22px;border:2px solid var(--line);background:var(--paper);
+  font-family:var(--head);font-weight:700;font-size:16px;color:var(--ink)}
+.seg[aria-selected="true"]{background:var(--pine);border-color:var(--pine);color:#fff}
+.icb{width:44px;height:44px;border-radius:50%;border:2px solid var(--line);background:var(--paper);
+  display:grid;place-items:center;flex:none;margin-left:auto}
+
+/* filter chip bar */
+.fbar{flex:none;display:flex;gap:8px;padding:2px 18px 10px;overflow:hidden}
+.fchip{flex:none;min-height:36px;padding:0 14px;border-radius:18px;border:2px solid var(--line);
+  background:var(--paper);color:var(--ink);font-size:13px;font-weight:700;display:inline-flex;align-items:center;gap:6px}
+.fchip.on{border-color:var(--pine);background:var(--tint);color:var(--pine)}
+
+/* list */
+.deck{flex:1;min-height:0;overflow:hidden;padding:0 18px 6px;position:relative;-webkit-mask-image:linear-gradient(to bottom,#000 90%,rgba(0,0,0,.06));mask-image:linear-gradient(to bottom,#000 90%,rgba(0,0,0,.06))}
+.ev{width:100%;text-align:left;background:var(--paper);border:1.6px solid var(--line);border-radius:16px;
+  padding:14px 15px 13px;margin-bottom:12px;display:flex;gap:13px;position:relative}
+.date{width:58px;height:58px;border-radius:13px;background:var(--tint);flex:none;display:flex;
+  flex-direction:column;align-items:center;justify-content:center;color:var(--pine)}
+.date b{font-family:var(--head);font-size:20px;line-height:1}
+.date i{font-style:normal;font-size:10.5px;font-weight:700;letter-spacing:.06em}
+.body{flex:1;min-width:0}
+.tt{font-family:var(--head);font-weight:700;font-size:16px;line-height:1.2;padding-right:20px}
+.badges{display:flex;gap:6px;margin-top:5px}
+.badge{display:inline-block;font-size:10px;font-weight:700;padding:3px 9px;border-radius:9px;white-space:nowrap}
+.badge.v{background:var(--clay);color:#fff}
+.badge.r{background:var(--tint);color:var(--pine)}
+.meta{font-size:13px;color:var(--ink2);line-height:1.42;margin-top:3px}
+.counts{font-size:12.5px;font-weight:700;color:var(--pine);margin-top:7px}
+.counts em{font-style:normal;color:var(--ink2);font-weight:600}
+.match{font-size:12.5px;font-weight:700;color:var(--clay);margin-top:2px}
+.acts{display:flex;gap:8px;margin-top:10px}
+.mini{min-height:36px;padding:0 16px;border-radius:12px;font-family:var(--head);font-size:13.5px;font-weight:700;
+  border:2px solid var(--pine);background:transparent;color:var(--pine);display:inline-flex;align-items:center}
+.mini.solid{background:var(--pine);color:#fff}
+.mini.done{background:var(--tint);border-color:var(--tint);color:var(--pine)}
+.x{position:absolute;top:11px;right:12px;width:24px;height:24px;border-radius:50%;border:0;background:none;
+  display:grid;place-items:center;color:var(--grey)}
+
+/* nav */
+nav{flex:none;margin:2px 16px 14px;background:var(--paper);
+  border:1.6px solid var(--line);border-radius:24px;display:flex;padding:9px 0}
+nav button{flex:1;background:none;border:0;display:flex;flex-direction:column;align-items:center;gap:4px;
+  font-size:10.5px;font-weight:700;color:var(--grey);padding:2px 0;font-family:var(--body)}
+nav button[aria-current="page"]{color:var(--pine)}
+nav .ic{width:22px;height:22px}
+.avatar{width:22px;height:22px;border-radius:50%;background:var(--pine);color:#fff;display:grid;place-items:center;
+  font-size:11px;font-weight:800;font-family:var(--head)}
+</style></head>
+<body><div id="phone">
+
+  <div class="status">
+    <span>9:41</span>
+    <span class="r">
+      <span class="bars"><i style="height:4px"></i><i style="height:7px"></i><i style="height:10px"></i><i style="height:12px"></i></span>
+      <span class="batt"><i></i></span>
+    </span>
+  </div>
+
+  <div class="top">
+    <button class="seg" aria-selected="true">All</button>
+    <button class="seg" aria-selected="false">Mine</button>
+    <button class="icb" aria-label="Filters">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#111A16" stroke-width="2" stroke-linecap="round">
+        <path d="M3 7h18M3 12h18M3 17h18"/><circle cx="9" cy="7" r="2.4" fill="#fff"/>
+        <circle cx="15" cy="12" r="2.4" fill="#fff"/><circle cx="8" cy="17" r="2.4" fill="#fff"/></svg>
+    </button>
+  </div>
+
+  <div class="fbar">
+    <span class="fchip on">For you
+      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round"><path d="m5 9 7 7 7-7"/></svg>
+    </span>
+    <span class="fchip">California</span>
+    <span class="fchip">This month</span>
+  </div>
+
+  <div class="deck">
+
+    <div class="ev">
+      <button class="x" aria-label="Not interested">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M5 5l14 14M19 5 5 19"/></svg>
+      </button>
+      <div class="date"><i>SAT</i><b>22</b></div>
+      <div class="body">
+        <div class="tt">Adaptive handcycle ride</div>
+        <div class="meta">BORP · Berkeley, CA<br>9:00 AM · All levels</div>
+        <div class="counts">6 going <em>·</em> 22 interested</div>
+        <div class="match">2 with SCI - para</div>
+        <div class="acts">
+          <button class="mini">Interested</button>
+          <button class="mini solid">Going</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="ev">
+      <button class="x" aria-label="Not interested">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M5 5l14 14M19 5 5 19"/></svg>
+      </button>
+      <div class="date"><i>THU</i><b>27</b></div>
+      <div class="body">
+        <div class="tt">AbleBodied monthly</div>
+        <div class="badges"><span class="badge v">Online</span><span class="badge r">Recurring</span></div>
+        <div class="meta">AbleBodied · Online · 7:00 PM PT<br>Live captions on</div>
+        <div class="counts">18 going <em>·</em> 31 interested</div>
+        <div class="match">Join link appears once you're going</div>
+        <div class="acts">
+          <button class="mini done">Interested ✓</button>
+          <button class="mini solid">Going</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="ev">
+      <button class="x" aria-label="Not interested">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M5 5l14 14M19 5 5 19"/></svg>
+      </button>
+      <div class="date"><i>MON</i><b>24</b></div>
+      <div class="body">
+        <div class="tt">SCI peer support group</div>
+        <div class="badges"><span class="badge r">Recurring</span></div>
+        <div class="meta">SCVMC · San Jose, CA<br>4:00 PM · Weekly, drop in</div>
+        <div class="counts">Standing group <em>·</em> 12 regulars</div>
+        <div class="acts">
+          <button class="mini">Interested</button>
+          <button class="mini solid">Going</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="ev">
+      <div class="date"><i>WED</i><b>3</b></div>
+      <div class="body">
+        <div class="tt">Wheelchair rugby open gym</div>
+        <div class="badges"><span class="badge r">Recurring</span></div>
+        <div class="meta">BORP · Berkeley, CA<br>6:00 PM · Loaner chairs</div>
+        <div class="counts">8 going <em>·</em> 14 interested</div>
+      </div>
+    </div>
+
+  </div>
+
+  <nav>
+    <button>
+      <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><path d="M12 4v3M12 17v3M4 12h3M17 12h3"/><circle cx="12" cy="12" r="2" fill="currentColor"/></svg></span>Discover</button>
+    <button aria-current="page">
+      <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15" rx="3"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg></span>Events</button>
+    <button>
+      <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.5 12a8 8 0 1 1-3.2-6.4"/><path d="M4 20l1.6-4"/><circle cx="12" cy="12" r="1" fill="currentColor"/></svg></span>Chats</button>
+    <button>
+      <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 9a6 6 0 1 0-12 0c0 5-2 6-2 6h16s-2-1-2-6"/><path d="M10.5 20a2 2 0 0 0 3 0"/></svg></span>Activity</button>
+    <button>
+      <span class="ic"><span class="avatar">W</span></span>Me</button>
+  </nav>
+
+</div></body></html>

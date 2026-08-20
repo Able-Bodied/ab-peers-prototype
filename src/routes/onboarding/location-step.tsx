@@ -11,30 +11,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { reverseGeocode } from '@/lib/geocode';
 import { cn } from '@/lib/utils';
 import { US_STATES, type UsState } from '@/types/domain';
-
-function matchUsState(name: string | undefined): UsState | null {
-  if (!name) return null;
-  return US_STATES.find((s) => s.toLowerCase() === name.toLowerCase()) ?? null;
-}
-
-async function reverseGeocode(
-  latitude: number,
-  longitude: number,
-): Promise<{ city: string; state: UsState } | null> {
-  const res = await fetch(
-    `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latitude}&lon=${longitude}`,
-    { headers: { Accept: 'application/json' } },
-  );
-  if (!res.ok) return null;
-  const body = (await res.json()) as { address?: Record<string, string> };
-  const address = body.address ?? {};
-  const city = address.city ?? address.town ?? address.village ?? address.hamlet ?? '';
-  const state = matchUsState(address.state);
-  if (!city || !state) return null;
-  return { city, state };
-}
 
 export function LocationStep({
   city,

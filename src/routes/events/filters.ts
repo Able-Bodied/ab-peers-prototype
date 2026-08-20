@@ -1,0 +1,184 @@
+/**
+ * Filter state for the events feed.
+ *
+ * `when`, `formats`, `tags`, `organizations` and `cities` all map to real columns and are applied
+ * in the Supabase query rather than after the fact, so infinite scroll keeps paging through the
+ * filtered set instead of paging the whole table and dropping most of each batch. `near` maps to
+ * the `nearby_events` RPC (supabase/migrations/20260819160000_events_geocoding.sql) the same way —
+ * resolved to a set of ids once per filter change, then applied as an `.in('id', ...)` alongside
+ * the rest.
+ *
+ * `feed` is still presentational: there is no ranking signal to sort "For you" by.
+ */
+
+export const DATE_WINDOWS = ['week', 'month', 'past', 'any'] as const;
+export type DateWindow = (typeof DATE_WINDOWS)[number];
+
+export const DATE_WINDOW_LABELS: Record<DateWindow, string> = {
+  week: 'This week',
+  month: 'This month',
+  past: 'Past events',
+  any: 'Anything',
+};
+
+/** Matches the events_event_format_check constraint on `events.event_format`. */
+export const EVENT_FORMATS = ['in_person', 'online', 'hybrid'] as const;
+export type EventFormat = (typeof EVENT_FORMATS)[number];
+
+export const EVENT_FORMAT_LABELS: Record<EventFormat, string> = {
+  in_person: 'In person',
+  online: 'Online',
+  hybrid: 'Hybrid',
+};
+
+export type FeedMode = 'foryou' | 'everything';
+
+/** A resolved search origin for the distance filter — "near me" or a geocoded zip/city. */
+export interface NearFilter {
+  latitude: number;
+  longitude: number;
+  radiusMiles: number;
+  /** What to show on the chip — "Near me" or the geocoded city name. */
+  label: string;
+}
+
+export const DISTANCE_OPTIONS_MILES = [10, 25, 50] as const;
+
+export interface EventFilterState {
+  feed: FeedMode; // not wired
+  place: string; // not wired
+  when: DateWindow;
+  formats: Record<EventFormat, boolean>;
+  /** Tag slug -> selected. Absent or false means "not selected", not "excluded". */
+  tags: Record<string, boolean>;
+  /** Organization slug -> selected. Absent or false means "not selected", not "excluded". */
+  organizations: Record<string, boolean>;
+  /** City name -> selected. Absent or false means "not selected", not "excluded". */
+  cities: Record<string, boolean>;
+  /** null means no distance filter is active. */
+  near: NearFilter | null;
+  /** Off by default — events marked Not interested stay out of the feed until this is on. */
+  showHidden: boolean;
+}
+
+/**
+ * Router state carried from the event detail page's chips, to preselect what was tapped on
+ * arrival. A chip sets exactly one of these; the events list treats an absent field as
+ * "don't narrow by that".
+ */
+export interface EventListNavState {
+  tagSlug?: string;
+  format?: EventFormat;
+}
+
+/** The `formats` map that narrows to a single format, for a format chip tapped on a detail page. */
+export function onlyFormat(format: EventFormat): Record<EventFormat, boolean> {
+  return {
+    in_person: format === 'in_person',
+    online: format === 'online',
+    hybrid: format === 'hybrid',
+  };
+}
+
+export function defaultFilters(): EventFilterState {
+  return {
+    feed: 'foryou',
+    place: 'California',
+    when: 'month',
+    // All on is the same result as none on — both mean "don't narrow by format" — but starting
+    // them on makes the sheet read as "everything is included", which is what the feed shows.
+    formats: { in_person: true, online: true, hybrid: true },
+    tags: {},
+    organizations: {},
+    cities: {},
+    near: null,
+    showHidden: false,
+  };
+}
+
+/**
+ * The formats to narrow to, or null for "don't narrow".
+ *
+ * All-selected and none-selected both mean no filter. Treating none-selected as "match nothing"
+ * would hand someone an empty feed for the very natural act of clearing every chip, with no hint
+ * that clearing one more would have brought everything back.
+ */
+export function selectedFormats(filters: EventFilterState): EventFormat[] | null {
+  const on = EVENT_FORMATS.filter((format) => filters.formats[format]);
+  return on.length === 0 || on.length === EVENT_FORMATS.length ? null : on;
+}
+
+/** The tag slugs to narrow to, or null for "don't narrow". Selected tags are OR-ed. */
+export function selectedTags(filters: EventFilterState): string[] | null {
+  const on = Object.entries(filters.tags)
+    .filter(([, selected]) => selected)
+    .map(([slug]) => slug);
+  return on.length === 0 ? null : on.sort();
+}
+
+/** The organization slugs to narrow to, or null for "don't narrow". Selected orgs are OR-ed. */
+export function selectedOrganizations(filters: EventFilterState): string[] | null {
+  const on = Object.entries(filters.organizations)
+    .filter(([, selected]) => selected)
+    .map(([slug]) => slug);
+  return on.length === 0 ? null : on.sort();
+}
+
+/** The city names to narrow to, or null for "don't narrow". Selected cities are OR-ed. */
+export function selectedCities(filters: EventFilterState): string[] | null {
+  const on = Object.entries(filters.cities)
+    .filter(([, selected]) => selected)
+    .map(([city]) => city);
+  return on.length === 0 ? null : on.sort();
+}
+
+/** How many narrowing choices are active, for the chip bar. */
+export function activeFilterCount(filters: EventFilterState): number {
+  return (
+    (selectedFormats(filters) ? 1 : 0) +
+    (selectedTags(filters)?.length ?? 0) +
+    (selectedOrganizations(filters)?.length ?? 0) +
+    (selectedCities(filters)?.length ?? 0) +
+    (filters.near ? 1 : 0)
+  );
+}
+
+export interface DateRange {
+  /** Inclusive lower bound, as an ISO timestamp. Absent for "past", which has no lower bound. */
+  from?: string;
+  /** Inclusive upper bound, as an ISO timestamp. */
+  to: string;
+}
+
+/**
+ * The range `when` selects, or null for "Anything" — which deliberately leaves past events in
+ * rather than silently adding a lower bound the user did not ask for.
+ *
+ * The week/month windows start at midnight local time today, so an event earlier this afternoon
+ * still counts as being "this week"; ending the window at the last instant of the final day keeps
+ * an event at 8pm on the boundary day inside it. "Past" is the mirror image: it ends the instant
+ * before today starts, so it never overlaps what the other windows call "future".
+ */
+export function dateWindowRange(when: DateWindow, now: Date = new Date()): DateRange | null {
+  if (when === 'any') return null;
+
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+
+  if (when === 'past') {
+    return { to: new Date(startOfToday.getTime() - 1).toISOString() };
+  }
+
+  const to =
+    when === 'week'
+      ? new Date(now.getFullYear(), now.getMonth(), now.getDate() + 6, 23, 59, 59, 999)
+      : // Day 0 of next month is the last day of this one, so this handles month length and leap
+        // years without a table.
+        new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+
+  return { from: startOfToday.toISOString(), to: to.toISOString() };
+}
+
+/** Past events read newest-first (closest to today); every other window reads soonest-first. */
+export function dateWindowAscending(when: DateWindow): boolean {
+  return when !== 'past';
+}

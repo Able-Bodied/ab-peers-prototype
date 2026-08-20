@@ -2,7 +2,7 @@ import path from 'node:path';
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
-import { defineConfig } from 'vitest/config';
+import { configDefaults, defineConfig } from 'vitest/config';
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -40,5 +40,9 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],
     css: true,
+    // Parallel work-in-progress branches live as sibling git worktrees under .claude/worktrees —
+    // without this, `pnpm test` from the repo root also collects (and runs) their test files,
+    // including whatever half-finished state they're in.
+    exclude: [...configDefaults.exclude, '.claude/**'],
   },
 });

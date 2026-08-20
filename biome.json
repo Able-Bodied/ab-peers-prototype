@@ -16,7 +16,10 @@
       "!**/components.json",
       "!public",
       "!supabase/.temp",
-      "!supabase/.branches"
+      "!supabase/.branches",
+      "!jobs/event-ingest/out",
+      "!.claude",
+      "!docs"
     ]
   },
   "formatter": {
@@ -49,6 +52,18 @@
       "tailwindDirectives": true
     }
   },
+  "overrides": [
+    {
+      "includes": ["**/*.test.ts", "**/*.test.tsx"],
+      "linter": {
+        "rules": {
+          "suspicious": {
+            "noThenProperty": "off"
+          }
+        }
+      }
+    }
+  ],
   "assist": {
     "enabled": true,
     "actions": {

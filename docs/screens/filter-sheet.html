@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<title>PeerConnect — Events filter sheet</title>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=Public+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --canvas:#EFF2EE; --paper:#fff; --ink:#111A16; --ink2:#46524C;
+  --pine:#14483C; --tint:#DDE9E3; --clay:#C9491B; --clay-t:#FBE7DE;
+  --line:#C9D2CC; --grey:#8A968F;
+  --head:Archivo,"TeX Gyre Heros","Liberation Sans",sans-serif;
+  --body:"Public Sans","Liberation Sans",-apple-system,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{background:#DCE2DB;font-family:var(--body);color:var(--ink)}
+#wrap{display:flex;gap:34px;padding:34px}
+.col{display:flex;flex-direction:column;gap:12px}
+.cap{font-family:var(--head);font-size:14px;font-weight:700;color:var(--pine);text-align:center}
+.phone{width:390px;height:844px;background:var(--canvas);display:flex;flex-direction:column;overflow:hidden;
+  position:relative;border-radius:30px;box-shadow:0 18px 44px rgba(17,26,22,.22)}
+
+.status{flex:none;display:flex;align-items:center;justify-content:space-between;padding:14px 24px 2px;
+  font-weight:700;font-size:15px}
+.status .r{display:flex;align-items:center;gap:5px}
+.bars{display:flex;align-items:flex-end;gap:2px;height:12px}
+.bars i{display:block;width:3px;background:var(--ink);border-radius:1px}
+.batt{width:24px;height:12px;border:1.6px solid var(--ink);border-radius:3px;position:relative;padding:1.5px}
+.batt::after{content:"";position:absolute;right:-3.5px;top:3.5px;width:2px;height:4px;background:var(--ink);border-radius:0 1px 1px 0}
+.batt i{display:block;height:100%;width:100%;background:var(--ink);border-radius:1px}
+
+.shead{flex:none;display:flex;align-items:center;gap:12px;padding:8px 20px 12px}
+.shead h1{font-family:var(--head);font-size:25px;margin:0;letter-spacing:-.02em;flex:1}
+.txtbtn{background:none;border:0;font-family:var(--body);font-size:14px;font-weight:700;color:var(--pine);padding:6px 2px}
+.xbtn{width:36px;height:36px;border-radius:50%;border:2px solid var(--line);background:var(--paper);
+  display:grid;place-items:center;flex:none}
+
+.scroll{flex:1;min-height:0;overflow:hidden;padding:0 20px 4px;
+  -webkit-mask-image:linear-gradient(to bottom,#000 92%,rgba(0,0,0,.05));
+  mask-image:linear-gradient(to bottom,#000 92%,rgba(0,0,0,.05))}
+h3.sec{font-family:var(--head);font-size:11.5px;text-transform:uppercase;letter-spacing:.09em;
+  color:var(--ink2);margin:20px 0 9px}
+h3.sec:first-child{margin-top:4px}
+.hint{font-size:12.5px;color:var(--ink2);margin:-4px 0 9px}
+
+.two{display:flex;gap:8px}
+.two button{flex:1;min-height:46px;border-radius:14px;border:2px solid var(--line);background:var(--paper);
+  font-family:var(--head);font-size:15px;font-weight:700;color:var(--ink)}
+.two button[aria-pressed="true"]{background:var(--pine);border-color:var(--pine);color:#fff}
+
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{min-height:38px;padding:0 14px;border-radius:19px;border:2px solid var(--line);background:var(--paper);
+  font-size:13px;font-weight:600;display:inline-flex;align-items:center;gap:6px;color:var(--ink)}
+.chip.on{border-color:var(--pine);background:var(--tint);color:var(--pine)}
+.chip .tick{font-size:12px}
+
+.grow{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 0;
+  border-bottom:1px solid var(--line)}
+.grow .nm{font-size:14.5px;font-weight:700}
+.grow .sub{font-size:12.5px;color:var(--ink2);font-weight:500;margin-top:1px}
+.sw{width:48px;height:28px;border-radius:16px;background:var(--line);position:relative;flex:none}
+.sw i{position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:#fff;
+  box-shadow:0 1px 3px rgba(0,0,0,.25)}
+.sw.on{background:var(--pine)}
+.sw.on i{left:23px}
+
+.genre{display:flex;align-items:center;justify-content:space-between;margin:16px 0 8px}
+.genre b{font-family:var(--head);font-size:15px}
+.genre .cnt{font-size:12px;color:var(--ink2);font-weight:600;margin-left:7px}
+
+.orow{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}
+.state{font-size:12px;font-weight:700;padding:5px 11px;border-radius:12px;background:var(--tint);color:var(--pine)}
+.state.n{background:#E7EAE6;color:var(--ink2)}
+.state.m{background:var(--clay-t);color:#8A3413}
+
+.hid{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}
+.hid .nm{font-size:14px;font-weight:700}
+.hid .sub{font-size:12px;color:var(--ink2);font-weight:500;margin-top:1px}
+.restore{min-height:32px;padding:0 13px;border-radius:11px;border:2px solid var(--pine);background:transparent;
+  color:var(--pine);font-family:var(--head);font-size:12.5px;font-weight:700}
+
+footer{flex:none;padding:10px 20px 16px;background:linear-gradient(to top,var(--canvas) 74%,rgba(239,242,238,0))}
+.btn{width:100%;min-height:54px;border-radius:14px;border:0;background:var(--pine);color:#fff;
+  font-family:var(--head);font-size:17px;font-weight:700}
+</style></head>
+<body><div id="wrap">
+
+<div class="col">
+<div class="phone">
+  <div class="status"><span>9:41</span><span class="r">
+    <span class="bars"><i style="height:4px"></i><i style="height:7px"></i><i style="height:10px"></i><i style="height:12px"></i></span>
+    <span class="batt"><i></i></span></span></div>
+
+  <div class="shead">
+    <h1>Filters</h1>
+    <button class="txtbtn">Reset</button>
+    <button class="xbtn" aria-label="Close">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#111A16" stroke-width="2.6" stroke-linecap="round"><path d="M5 5l14 14M19 5 5 19"/></svg>
+    </button>
+  </div>
+
+  <div class="scroll">
+    <h3 class="sec">Feed</h3>
+    <div class="two">
+      <button aria-pressed="true">For you</button>
+      <button aria-pressed="false">Everything</button>
+    </div>
+    <p class="hint" style="margin-top:9px">For you is built from what you picked at signup and what you've
+      marked since. Everything is the full list.</p>
+
+    <h3 class="sec">Where</h3>
+    <div class="chips">
+      <span class="chip on">California
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round"><path d="m5 9 7 7 7-7"/></svg></span>
+    </div>
+    <div class="grow" style="margin-top:6px">
+      <div><div class="nm">Include online events</div>
+        <div class="sub">They ignore the state filter</div></div>
+      <span class="sw on"><i></i></span>
+    </div>
+
+    <h3 class="sec">When</h3>
+    <div class="chips">
+      <span class="chip">This week</span>
+      <span class="chip on">This month</span>
+      <span class="chip">Anything</span>
+    </div>
+
+    <h3 class="sec">Format</h3>
+    <div class="chips">
+      <span class="chip on">In person</span>
+      <span class="chip on">Online</span>
+      <span class="chip on">Recurring</span>
+      <span class="chip">Beginner-friendly</span>
+    </div>
+
+    <h3 class="sec">Activities</h3>
+    <div class="genre"><span><b>Sports &amp; recreation</b><span class="cnt">4 of 9</span></span>
+      <span class="sw on"><i></i></span></div>
+    <div class="chips">
+      <span class="chip on">Handcycling</span>
+      <span class="chip on">Wheelchair rugby</span>
+      <span class="chip">Monoskiing</span>
+      <span class="chip on">Adaptive climbing</span>
+      <span class="chip">Kayaking</span>
+      <span class="chip on">Hiking &amp; trails</span>
+    </div>
+  </div>
+
+  <footer><button class="btn">Show 14 events</button></footer>
+</div>
+<div class="cap">Tapping Filters — feed mode, where, when, format</div>
+</div>
+
+<div class="col">
+<div class="phone">
+  <div class="status"><span>9:41</span><span class="r">
+    <span class="bars"><i style="height:4px"></i><i style="height:7px"></i><i style="height:10px"></i><i style="height:12px"></i></span>
+    <span class="batt"><i></i></span></span></div>
+
+  <div class="shead">
+    <h1>Filters</h1>
+    <button class="txtbtn">Reset</button>
+    <button class="xbtn" aria-label="Close">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#111A16" stroke-width="2.6" stroke-linecap="round"><path d="M5 5l14 14M19 5 5 19"/></svg>
+    </button>
+  </div>
+
+  <div class="scroll">
+    <div class="genre" style="margin-top:2px"><span><b>Support &amp; groups</b><span class="cnt">2 of 4</span></span>
+      <span class="sw on"><i></i></span></div>
+    <div class="chips">
+      <span class="chip on">Peer support group</span>
+      <span class="chip on">Men's group</span>
+      <span class="chip">Caregiver group</span>
+      <span class="chip">Newly injured</span>
+    </div>
+
+    <div class="genre"><span><b>Social &amp; travel</b><span class="cnt">Off</span></span>
+      <span class="sw"><i></i></span></div>
+
+    <h3 class="sec">Organizations</h3>
+    <p class="hint">Following puts an org's events at the top.</p>
+    <div class="orow"><span class="nm">BORP</span><span class="state">Following</span></div>
+    <div class="orow"><span class="nm">NorCal SCI</span><span class="state">Following</span></div>
+    <div class="orow"><span class="nm">SCVMC</span><span class="state n">Neutral</span></div>
+    <div class="orow"><span class="nm">Craig Hospital</span><span class="state n">Neutral</span></div>
+    <div class="orow"><span class="nm">Ability360</span><span class="state m">Muted</span></div>
+
+    <h3 class="sec">Hidden — 3</h3>
+    <div class="hid">
+      <div><div class="nm">Ability360</div><div class="sub">Organization · muted 4 Aug</div></div>
+      <button class="restore">Restore</button></div>
+    <div class="hid">
+      <div><div class="nm">Monoskiing</div><div class="sub">Activity · muted 11 Aug</div></div>
+      <button class="restore">Restore</button></div>
+    <div class="hid">
+      <div><div class="nm">Sit-ski open day</div><div class="sub">Single event · 31 Aug</div></div>
+      <button class="restore">Restore</button></div>
+  </div>
+
+  <footer><button class="btn">Show 14 events</button></footer>
+</div>
+<div class="cap">Scrolled — activities by genre, organizations, and Hidden</div>
+</div>
+
+</div></body></html>

@@ -15,6 +15,34 @@ Element.prototype.setPointerCapture = () => undefined;
 Element.prototype.releasePointerCapture = () => undefined;
 Element.prototype.scrollIntoView = () => undefined;
 
+// This jsdom build exposes `window` but no `localStorage`, which src/lib/rsvps.tsx uses to keep a
+// viewer's Interested/Going marks across a reload. An in-memory stand-in lets tests exercise that
+// persistence instead of silently taking the "storage unavailable" path on every run.
+// The key can be present while the value is undefined (jsdom leaves it that way for an opaque
+// origin), so this checks for a usable object rather than for the property.
+if (typeof (globalThis as { localStorage?: Storage }).localStorage?.getItem !== 'function') {
+  const store = new Map<string, string>();
+  Object.defineProperty(globalThis, 'localStorage', {
+    configurable: true,
+    value: {
+      getItem: (key: string) => store.get(key) ?? null,
+      setItem: (key: string, value: string) => {
+        store.set(key, value);
+      },
+      removeItem: (key: string) => {
+        store.delete(key);
+      },
+      clear: () => {
+        store.clear();
+      },
+      key: (index: number) => [...store.keys()][index] ?? null,
+      get length() {
+        return store.size;
+      },
+    },
+  });
+}
+
 afterEach(() => {
   cleanup();
 });

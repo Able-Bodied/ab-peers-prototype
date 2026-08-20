@@ -31,3 +31,6 @@ coverage
 *.njsproj
 *.sln
 *.sw?
+
+# Staging output from the AI verification dry runs (jobs/event-ingest/prompts/ai-verify-events.md)
+jobs/event-ingest/out/
