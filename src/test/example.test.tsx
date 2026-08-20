@@ -53,7 +53,7 @@ describe('App', () => {
     expect(screen.getByRole('link', { name: 'Sign in' })).toBeInTheDocument();
   });
 
-  it('renders the connect flow with the seed mentor name', async () => {
+  it('renders the connect flow', async () => {
     const user = userEvent.setup();
     render(
       <MemoryRouter initialEntries={['/']}>
@@ -64,7 +64,9 @@ describe('App', () => {
     await user.click(screen.getByRole('link', { name: /^Connect/ }));
 
     expect(screen.getByRole('heading', { level: 1, name: 'Connect' })).toBeInTheDocument();
-    expect(screen.getByText('Ilse V.')).toBeInTheDocument();
+    // Connect reads from the chat provider, not @/mocks/seed, so there is no seed
+    // name to look for here: signed out, the roster is behind sign-in.
+    expect(screen.getByRole('link', { name: 'Sign in' })).toBeInTheDocument();
   });
 
   it('renders the coordinator dashboard with seed roster data', async () => {

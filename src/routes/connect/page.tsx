@@ -1,125 +1,151 @@
-import { useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { useId, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog';
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@/components/ui/form';
-import { MENTORS } from '@/mocks/seed';
+import { Input } from '@/components/ui/input';
+import { useChat } from '@/lib/chat';
+import { newConversationsRemaining, wavesRemaining } from '@/lib/chat-rules';
+import { useSession } from '@/lib/session';
+import { ComposeDialog } from '@/routes/connect/compose-dialog';
+import { ErrorBanner } from '@/routes/connect/error-banner';
+import { MemberRow } from '@/routes/connect/member-row';
+import type { ChatMember } from '@/types/domain';
 
-interface ConnectFormValues {
-  message: string;
-}
-
+/**
+ * Connect — the moment a browsing member decides to contact somebody.
+ *
+ * This is the list of people the viewer may reach, and the two ways to reach
+ * them: a wave ("say hi"), which needs no words, or a first message, which does.
+ * Between two peers a wave is an invitation — it waits in their hellos and only
+ * opens a thread if they wave back. To a mentor who is open it opens the thread
+ * outright, because a mentor has already volunteered to hear from people and
+ * making them accept a second time asks a stranger to knock twice. Mentors who
+ * are at capacity or paused, and anyone who has turned off unsolicited contact,
+ * are shown with the reason rather than hidden, so nobody sends into a wall.
+ */
 export default function ConnectPage() {
-  const [open, setOpen] = useState(false);
-  const mentor = MENTORS[0];
-  const form = useForm<ConnectFormValues>({ defaultValues: { message: '' } });
+  const { member: viewer, loading: sessionLoading } = useSession();
+  const { members, limits, loading, error, dismissError, conversationWith } = useChat();
 
-  function onSubmit(_values: ConnectFormValues): void {
-    // No backend in the prototype — this is where a real "create Connection"
-    // call would go (see Connection in src/types/domain.ts, status "requested").
-    // The stub just closes the dialog; see the TODO block below.
-    setOpen(false);
-    form.reset();
+  const [query, setQuery] = useState('');
+  const [selected, setSelected] = useState<ChatMember | null>(null);
+  const searchId = useId();
+
+  const matches = useMemo(() => {
+    const needle = query.trim().toLowerCase();
+    if (needle === '') return members;
+    return members.filter((candidate) => candidate.displayName.toLowerCase().includes(needle));
+  }, [members, query]);
+
+  if (!viewer && !sessionLoading) {
+    return (
+      <div className="mx-auto max-w-md text-center">
+        <h1 className="text-2xl font-semibold">Connect</h1>
+        <p className="text-muted-foreground mt-2 text-sm">
+          Reaching out lives behind sign-in. Who you may contact, and what you have already said to
+          them, are only answerable for a specific person — so this screen needs to know who you
+          are.
+        </p>
+        <Button asChild className="mt-4 min-h-[46px]">
+          <Link to="/onboarding">Sign in</Link>
+        </Button>
+      </div>
+    );
   }
 
+  const wavesLeft = wavesRemaining(limits);
+  const conversationsLeft = newConversationsRemaining(limits);
+
   return (
-    <div className="mx-auto max-w-xl">
+    <div className="mx-auto max-w-xl pb-8">
       <h1 className="text-2xl font-semibold">Connect</h1>
       <p className="text-muted-foreground mt-2 text-sm">
-        The connect action lets a mentee either send a message or, depending on the mentor's privacy
-        settings, reveal contact info directly. It's reached from a mentor's profile page and is the
-        moment a browsing mentee turns into a requested Connection.
+        Find someone who has been where you are and say hi. A wave takes one tap and no words; if
+        you would rather open with a question, write instead. Nobody's contact details change hands
+        — the conversation is the connection.
       </p>
 
-      <Card className="mt-6">
-        <CardHeader>
-          <CardTitle>{mentor?.displayName ?? 'Mentor'}</CardTitle>
-          <CardDescription>
-            Privacy setting for this mentor: <Badge variant="outline">message first</Badge>
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-3 sm:flex-row">
-          <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
-              <Button>Send a message</Button>
-            </DialogTrigger>
-            <DialogContent>
-              <Form {...form}>
-                <form
-                  onSubmit={(event) => {
-                    void form.handleSubmit(onSubmit)(event);
-                  }}
-                >
-                  <DialogHeader>
-                    <DialogTitle>Message {mentor?.displayName}</DialogTitle>
-                    <DialogDescription>
-                      Sent as a connection request. {mentor?.displayName} sees your basic profile
-                      info, nothing more, unless they accept.
-                    </DialogDescription>
-                  </DialogHeader>
+      {/* The banner is hidden while the compose panel is open, because the panel
+          renders the same error over its own overlay — one error, one place to
+          read it, wherever the member is actually looking. */}
+      {error !== null && selected === null ? (
+        <div className="mt-4">
+          <ErrorBanner message={error} onDismiss={dismissError} />
+        </div>
+      ) : null}
 
-                  <FormField
-                    control={form.control}
-                    name="message"
-                    rules={{ required: "Say a bit about what you're looking for." }}
-                    render={({ field }) => (
-                      <FormItem className="mt-4">
-                        <FormLabel>Message</FormLabel>
-                        <FormControl>
-                          <textarea
-                            {...field}
-                            rows={4}
-                            placeholder="Hi! I'm looking for advice on…"
-                            className="border-input focus-visible:border-ring focus-visible:ring-ring/50 w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-[3px]"
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+      {limits ? (
+        <p role="status" className="bg-muted/60 mt-4 rounded-md px-3 py-2 text-sm">
+          {wavesLeft} of {limits.waveDailyLimit} waves left today · {conversationsLeft} of{' '}
+          {limits.conversationDailyLimit} new conversations left
+          {wavesLeft === 0 ? '. Waving is off until tomorrow.' : ''}
+        </p>
+      ) : null}
 
-                  <DialogFooter className="mt-4">
-                    <Button type="submit">Send request</Button>
-                  </DialogFooter>
-                </form>
-              </Form>
-            </DialogContent>
-          </Dialog>
+      <div className="mt-4">
+        <label htmlFor={searchId} className="text-sm font-medium">
+          Search by name
+        </label>
+        <Input
+          id={searchId}
+          type="search"
+          value={query}
+          onChange={(event) => {
+            setQuery(event.target.value);
+          }}
+          placeholder="Start typing a name"
+          className="mt-1 min-h-[46px]"
+        />
+      </div>
 
-          <Button variant="outline" disabled>
-            Reveal contact info
-          </Button>
-        </CardContent>
-      </Card>
+      {loading && members.length === 0 ? (
+        <p className="text-muted-foreground mt-6 text-sm">Loading people…</p>
+      ) : null}
 
-      {/* TODO(team): Connect action acceptance criteria
-        - [ ] Wire "Reveal contact info" to the mentor's actual privacy setting: some mentors
-              allow direct contact reveal, others require a message-first flow (like the
-              default stubbed above).
-        - [ ] On submit, create a mock Connection (src/types/domain.ts) with status "requested"
-              and add it to local/mock state so the coordinator dashboard's last-touchpoint
-              tracking has something to show.
-        - [ ] Show request status back to the mentee (requested / accepted / declined) once a
-              coordinator or mentor "responds" in the mock data.
-        - [ ] Never reveal a mentor's precise contact info by default — see docs/PII.md.
+      {!loading && matches.length === 0 ? (
+        <p className="text-muted-foreground mt-6 text-sm">
+          {members.length === 0 ? 'There is nobody to show yet.' : 'Nobody here goes by that name.'}
+        </p>
+      ) : null}
+
+      <ul className="mt-4 space-y-3">
+        {matches.map((candidate) => (
+          <MemberRow
+            key={candidate.id}
+            member={candidate}
+            conversationId={conversationWith(candidate.id)?.id ?? null}
+            onSelect={() => {
+              setSelected(candidate);
+            }}
+          />
+        ))}
+      </ul>
+
+      {/* Keyed on the member so switching people starts from a clean panel
+          rather than inheriting the last person's half-written note. */}
+      {selected !== null ? (
+        <ComposeDialog
+          key={selected.id}
+          member={selected}
+          onClose={() => {
+            setSelected(null);
+          }}
+        />
+      ) : null}
+
+      {/* TODO(team): Connect action — what is still not built
+        - [x] Say hi (wave) as the primary action, with the peer/mentor asymmetry stated before sending
+        - [x] Mentor capacity and "not accepting messages" shown as a reason, not a dead button
+        - [x] Daily wave and new-conversation allowances, from the database
+        - [x] Write-first path, validated against the same limit the messages table enforces
+        - [x] Existing thread offers "Open conversation" instead of a second hello
+        - [~] "Reveal contact info" deleted rather than wired up — a member's phone and email are
+              never shown to another member (PRD §14, docs/PII.md). Deliberately not a TODO.
+        - [ ] Reach this screen from a profile with that person preselected, rather than by search
+        - [ ] Filter the topic list to the topics this mentor actually offers, once `chat_members`
+              carries them (it has `interests` but no `topics` today)
+        - [ ] Show waves already sent, so somebody does not wave twice at the same person
+        - [ ] Block and report, from the row rather than only from inside a thread
       */}
     </div>
   );
