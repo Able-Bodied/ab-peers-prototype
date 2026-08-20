@@ -17,5 +17,8 @@
       "Read(./.env.local)",
       "Read(./.env.*.local)"
     ]
+  },
+  "worktree": {
+    "symlinkDirectories": [".env.local", "jobs/event-ingest/.env"]
   }
 }
