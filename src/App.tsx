@@ -11,6 +11,7 @@ import EventPage from '@/routes/event/page';
 import EventsPage from '@/routes/events/page';
 import MapPage from '@/routes/map/page';
 import OnboardingPage from '@/routes/onboarding/page';
+import ProfileEditPage from '@/routes/profile/edit/page';
 import ProfilePage from '@/routes/profile/page';
 
 interface Flow {
@@ -77,6 +78,7 @@ export function App() {
                   <Route path="/onboarding" element={<OnboardingPage />} />
                   <Route path="/map" element={<MapPage />} />
                   <Route path="/profile" element={<ProfilePage />} />
+                  <Route path="/profile/edit" element={<ProfileEditPage />} />
                   <Route path="/connect" element={<ConnectPage />} />
                   <Route path="/coordinator" element={<CoordinatorPage />} />
                   <Route path="/events" element={<EventsPage />} />

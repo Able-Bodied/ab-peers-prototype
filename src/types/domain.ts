@@ -139,6 +139,30 @@ export const RELATIONSHIPS = [
 ] as const;
 export type Relationship = (typeof RELATIONSHIPS)[number];
 
+/** Dating/marital status, shown on the "Life now" profile-editor screen. Not
+ * to be confused with `Relationship` above, which is who is filling out the
+ * profile (self, parent, partner, caregiver). */
+export const RELATIONSHIP_STATUSES = [
+  'Single',
+  'Partnered',
+  'Married',
+  'Prefer not to say',
+] as const;
+export type RelationshipStatus = (typeof RELATIONSHIP_STATUSES)[number];
+
+export const INDEPENDENCE_LEVELS = [
+  'Completely independent',
+  'Some help',
+  'Full-time care',
+] as const;
+export type Independence = (typeof INDEPENDENCE_LEVELS)[number];
+
+export const CHILDREN_STATUSES = ['No', 'Yes, pre-injury', 'Yes, post-injury'] as const;
+export type ChildrenStatus = (typeof CHILDREN_STATUSES)[number];
+
+export const INJURY_MECHANISMS = ['Vehicle', 'Sport', 'Fall', 'Medical', 'Other'] as const;
+export type InjuryMechanism = (typeof INJURY_MECHANISMS)[number];
+
 export const EVENT_MODES = ['in-person', 'virtual'] as const;
 export type EventMode = (typeof EVENT_MODES)[number];
 
@@ -217,6 +241,9 @@ export const TOPICS = [
   'Travel & flying',
   'UTIs',
   'Vehicle modifications',
+  'FES',
+  'Wheelchair assist devices',
+  'Wound care',
 ] as const;
 export type Topic = (typeof TOPICS)[number];
 
@@ -310,6 +337,19 @@ export interface Member {
   employment: string | null;
   living: string | null;
 
+  /** How the injury happened. Editable from the profile editor, not asked at onboarding. */
+  injuryMechanism: InjuryMechanism | null;
+  independence: Independence | null;
+  relationshipStatus: RelationshipStatus | null;
+  children: ChildrenStatus | null;
+  /** "Independence"/"Relationship"/"Children"/"Work"/"Languages" are collected either way;
+   * this controls whether that "Life now" section renders on the public profile. */
+  lifeNowVisible: boolean;
+
+  /** Expressed interest in mentoring — does NOT grant mentor status. Coordinator-reviewed;
+   * see docs/CONTEXT.md. `type`/`verifiedBy` are what actually make someone a Mentor. */
+  mentorInterest: boolean;
+
   affiliations: string[];
   /** Org id. Presence of this is what makes someone a Mentor rather than an Experienced peer. */
   verifiedBy: string | null;
@@ -319,6 +359,13 @@ export interface Member {
 
   /** Opt-out of appearing in browse without losing the ability to browse or wave. */
   showInBrowse: boolean;
+}
+
+/** "Doing things you enjoy" gallery shots — separate from the single onboarding `photoUrl`. */
+export interface MemberPhoto {
+  id: string;
+  url: string;
+  alt: string | null;
 }
 
 export interface EventItem {
