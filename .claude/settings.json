@@ -1,6 +1,11 @@
 {
   "permissions": {
-    "allow": ["Bash(pnpm *)", "Bash(git *)", "Read(.env.example)", "Read(./.env.example)"],
+    "allow": [
+      "Bash(pnpm *)",
+      "Bash(git *)",
+      "Read(.env.example)",
+      "Read(./.env.example)"
+    ],
     "deny": [
       "Bash(git push*)",
       "Bash(rm -rf*)",
@@ -17,5 +22,8 @@
       "Read(./.env.local)",
       "Read(./.env.*.local)"
     ]
+  },
+  "worktree": {
+    "baseRef": "head"
   }
 }
