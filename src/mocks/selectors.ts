@@ -4,26 +4,26 @@
  */
 
 import type {
+  BrowseMember,
   DurationBucket,
   EventFilters,
   EventItem,
-  Member,
   MemberFilters,
   Topic,
 } from '@/types/domain';
 
 /** Interests the two people have in common — the line that makes a card worth tapping. */
-export function sharedInterests(a: Member, b: Member): string[] {
+export function sharedInterests(a: BrowseMember, b: BrowseMember): string[] {
   const mine = new Set(a.interests);
   return b.interests.filter((i) => mine.has(i));
 }
 
 /** Under a year in. Routes them to Mentors rather than Peers on first launch. */
-export function isNewlyInjured(m: Member): boolean {
+export function isNewlyInjured(m: Pick<BrowseMember, 'duration'>): boolean {
   return m.duration === 'Less than 6 months' || m.duration === '6 - 12 months';
 }
 
-export function defaultTabFor(m: Member): 'peers' | 'mentors' | 'events' {
+export function defaultTabFor(m: Pick<BrowseMember, 'duration'>): 'peers' | 'mentors' | 'events' {
   return isNewlyInjured(m) ? 'mentors' : 'peers';
 }
 
@@ -31,7 +31,10 @@ export function defaultTabFor(m: Member): 'peers' | 'mentors' | 'events' {
  * Roll a duration bucket forward. Store durationAnsweredOn when it is set and
  * call this on read, or the "newly injured" segment fills with people who are not.
  */
-export function currentDuration(m: Member, now = new Date()): DurationBucket {
+export function currentDuration(
+  m: Pick<BrowseMember, 'duration' | 'durationAnsweredOn'>,
+  now = new Date(),
+): DurationBucket {
   if (m.duration === 'Since birth') return m.duration;
   const months =
     (now.getTime() - new Date(m.durationAnsweredOn).getTime()) / (1000 * 60 * 60 * 24 * 30.44);
@@ -55,7 +58,11 @@ export function currentDuration(m: Member, now = new Date()): DurationBucket {
   return out;
 }
 
-export function filterMembers(members: Member[], f: MemberFilters, viewer?: Member): Member[] {
+export function filterMembers<T extends BrowseMember>(
+  members: T[],
+  f: MemberFilters,
+  viewer?: BrowseMember,
+): T[] {
   const out = members.filter((m) => {
     if (!m.showInBrowse) return false;
     if (viewer?.id === m.id) return false;
@@ -66,6 +73,8 @@ export function filterMembers(members: Member[], f: MemberFilters, viewer?: Memb
     if (f.duration && f.duration !== 'All' && currentDuration(m) !== f.duration) return false;
     if (f.language && f.language !== 'All' && !m.languages.includes(f.language)) return false;
     if (f.topic && f.topic !== 'All' && !m.topics.includes(f.topic)) return false;
+    if (f.level && f.level !== 'All' && m.level !== f.level) return false;
+    if (f.ageBand && f.ageBand !== 'All' && m.ageBand !== f.ageBand) return false;
     return true;
   });
   if (!viewer) return out;
@@ -93,7 +102,7 @@ export function isUpcoming(e: EventItem, now = new Date()): boolean {
 }
 
 /** How many people at this event share the viewer's disability. Drives attendance. */
-export function matchingAttendees(e: EventItem, viewer: Member): number {
+export function matchingAttendees(e: EventItem, viewer: BrowseMember): number {
   // Placeholder until RSVPs are real: derived, deterministic, and obviously fake.
   return e.goingCount > 4 && viewer.disability.startsWith('SCI') ? Math.floor(e.goingCount / 3) : 0;
 }
@@ -104,6 +113,8 @@ export function openerFor(topic: Topic): string {
 }
 
 /** Mentors who are open take a message straight away; peers need a wave back. */
-export function canMessageDirectly(target: Member): boolean {
+export function canMessageDirectly(
+  target: Pick<BrowseMember, 'type' | 'openToMessages' | 'capacity'>,
+): boolean {
   return target.type === 'mentor' && target.openToMessages && target.capacity === 'open';
 }

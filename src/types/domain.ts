@@ -321,6 +321,22 @@ export interface Member {
   showInBrowse: boolean;
 }
 
+/**
+ * A member as anyone *other than that member* is allowed to see them.
+ *
+ * `phone` and `birthDate` are the two fields that never leave the row they belong to: the phone
+ * number is sign-in identity and is "never shown to members" (PRD §6), and the birth date is kept
+ * only for the under-18 gate, with every UI surface reading `ageBand` instead (PRD §6.2). Browse
+ * surfaces take this type rather than `Member` so that showing either one is a type error, not a
+ * code-review catch. The database enforces the same cut independently — the `browse_members` view
+ * simply does not select those columns.
+ */
+export type BrowseMember = Omit<Member, 'phone' | 'birthDate'>;
+
+/** The two segments of Discover. Two only, so the pills stop at each end rather than wrapping. */
+export const DISCOVER_SEGMENTS = ['peers', 'mentors'] as const;
+export type DiscoverSegment = (typeof DISCOVER_SEGMENTS)[number];
+
 export interface EventItem {
   id: string;
   title: string;
@@ -376,6 +392,8 @@ export interface MemberFilters {
   /** 'All' is a valid value here too — it's just not distinguishable from any other language at the type level. */
   language?: string;
   topic?: Topic | 'All';
+  level?: InjuryLevel | 'All';
+  ageBand?: AgeBand | 'All';
 }
 
 export interface EventFilters {
