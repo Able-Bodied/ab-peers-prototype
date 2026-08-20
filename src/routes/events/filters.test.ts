@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   activeFilterCount,
+  dateWindowAscending,
   dateWindowRange,
   defaultFilters,
   selectedCities,
@@ -42,6 +43,24 @@ describe('dateWindowRange', () => {
     const range = dateWindowRange('week', new Date(2026, 7, 29, 10, 0));
     expect(new Date(range?.to ?? '')).toEqual(new Date(2026, 8, 4, 23, 59, 59, 999));
   });
+
+  it('gives "past" no lower bound and ends it the instant before today starts', () => {
+    const range = dateWindowRange('past', NOW);
+    expect(range?.from).toBeUndefined();
+    expect(new Date(range?.to ?? '')).toEqual(new Date(2026, 7, 11, 23, 59, 59, 999));
+  });
+});
+
+describe('dateWindowAscending', () => {
+  it('reads past events newest-first', () => {
+    expect(dateWindowAscending('past')).toBe(false);
+  });
+
+  it('reads every other window soonest-first', () => {
+    expect(dateWindowAscending('week')).toBe(true);
+    expect(dateWindowAscending('month')).toBe(true);
+    expect(dateWindowAscending('any')).toBe(true);
+  });
 });
 
 describe('defaultFilters', () => {
@@ -59,6 +78,10 @@ describe('defaultFilters', () => {
   it('starts with no narrowing applied', () => {
     expect(selectedFormats(defaultFilters())).toBeNull();
     expect(selectedTags(defaultFilters())).toBeNull();
+  });
+
+  it('starts with dismissed events hidden', () => {
+    expect(defaultFilters().showHidden).toBe(false);
   });
 });
 

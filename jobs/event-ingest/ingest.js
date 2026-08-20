@@ -655,7 +655,16 @@ class EventIngestionWorker {
    */
   async scrapeNorCalSCIEvents(feed) {
     this.log(`  Using NorCal SCI Events scraper with image download`, 'info');
-    const scraper = new NorCalSCIEventsJsonWithImagesScraper(feed.feed_url, { skipImages: false });
+    // includePast: NorCal SCI's Squarespace account timezone is misconfigured (see
+    // scrapers/timezone.js), so an occurrence can tip from "upcoming" into Squarespace's own
+    // "past" bucket up to a few hours before its real Pacific start time. An upcoming-only scrape
+    // then never revisits that row, so it can get stuck on whatever value an earlier, possibly
+    // pre-correction, scrape wrote. Re-including the first page of past events (~30, one extra
+    // JSON request) means every run re-corrects anything that recently made that transition.
+    const scraper = new NorCalSCIEventsJsonWithImagesScraper(feed.feed_url, {
+      skipImages: false,
+      includePast: true,
+    });
 
     const events = await scraper.scrape(feed.id);
     return events;

@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { createContext, useCallback, useContext, useMemo, useRef, useState } from 'react';
 
 import { getSupabase } from '@/lib/supabase';
+import { getOrCreateViewerId } from '@/lib/viewer-id';
 
 /**
  * Who the viewer said they were going to, and how many people in total, shared across every route
@@ -26,7 +27,6 @@ export interface RsvpCounts {
   interested: number;
 }
 
-const VIEWER_ID_KEY = 'ab-peers:viewer-id';
 const ZERO_COUNTS: RsvpCounts = { going: 0, interested: 0 };
 
 interface RsvpContextValue {
@@ -43,32 +43,6 @@ interface RsvpContextValue {
 }
 
 const RsvpContext = createContext<RsvpContextValue | null>(null);
-
-/**
- * Storage is best-effort: Safari in private mode throws on write, and losing the viewer id just
- * means a fresh one gets minted next time, not a broken page.
- */
-function storage(): Storage | null {
-  // The DOM types promise localStorage always exists, but it does not: a jsdom document on an
-  // opaque origin leaves it undefined, and privacy modes can too. Checking for a usable object
-  // rather than trusting the type keeps this from throwing on load.
-  const candidate = (globalThis as { localStorage?: Storage }).localStorage;
-  return typeof candidate?.getItem === 'function' ? candidate : null;
-}
-
-function getOrCreateViewerId(): string {
-  const store = storage();
-  const existing = store?.getItem(VIEWER_ID_KEY);
-  if (existing) return existing;
-
-  const fresh = crypto.randomUUID();
-  try {
-    store?.setItem(VIEWER_ID_KEY, fresh);
-  } catch {
-    // Nothing to do — this viewer just won't be remembered across a reload.
-  }
-  return fresh;
-}
 
 function shiftCounts(base: RsvpCounts, from: RsvpState, to: RsvpState): RsvpCounts {
   let { going, interested } = base;

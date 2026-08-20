@@ -1,5 +1,5 @@
-import { X } from 'lucide-react';
-import { useState } from 'react';
+import { CheckCheck, X } from 'lucide-react';
+import { type ReactNode, useState } from 'react';
 
 import { forwardGeocode, getCurrentPosition, reverseGeocode } from '@/lib/geocode';
 import type { Organization } from '@/lib/organizations';
@@ -14,6 +14,7 @@ import {
   EVENT_FORMATS,
   type EventFilterState,
   type NearFilter,
+  selectedTags,
 } from '@/routes/events/filters';
 
 interface FilterSheetProps {
@@ -40,11 +41,13 @@ function Section({ children }: { children: string }) {
 
 function Chip({
   label,
+  icon,
   on,
   onClick,
   disabled,
 }: {
   label: string;
+  icon?: ReactNode;
   on: boolean;
   onClick: () => void;
   disabled?: boolean;
@@ -56,11 +59,12 @@ function Chip({
       disabled={disabled ?? false}
       aria-pressed={on}
       className={cn(
-        'bg-card inline-flex min-h-9 items-center rounded-full border-2 px-3.5 text-[13px] font-semibold',
+        'bg-card inline-flex min-h-9 items-center gap-1.5 rounded-full border-2 px-3.5 text-[13px] font-semibold',
         on && 'border-primary bg-secondary text-primary',
         disabled === true && 'opacity-60',
       )}
     >
+      {icon}
       {label}
     </button>
   );
@@ -335,6 +339,18 @@ export function FilterSheet({
 
         <Section>Activities</Section>
         {categories.length === 0 && <p className="text-muted-foreground text-xs">Loading tags…</p>}
+        {categories.length > 0 && (
+          <div className="flex flex-wrap gap-2">
+            <Chip
+              label="All"
+              icon={<CheckCheck className="size-3.5" aria-hidden="true" />}
+              on={selectedTags(filters) === null}
+              onClick={() => {
+                onChange({ ...filters, tags: {} });
+              }}
+            />
+          </div>
+        )}
         {categories.map((category) => (
           <div key={category.slug}>
             <div className="mt-4 mb-2 flex items-center justify-between">
@@ -356,6 +372,19 @@ export function FilterSheet({
         ))}
         <p className="text-muted-foreground mt-3 text-xs">
           Picking no activity shows every event; picking several shows events matching any of them.
+        </p>
+
+        <Section>Hidden</Section>
+        <Chip
+          label="Show hidden events"
+          on={filters.showHidden}
+          onClick={() => {
+            onChange({ ...filters, showHidden: !filters.showHidden });
+          }}
+        />
+        <p className="text-muted-foreground mt-2 text-xs">
+          Events you marked Not interested (the X on a card) stay out of the feed. Turn this on to
+          see them again — each one still shows an Undo so you can bring it back for good.
         </p>
       </div>
 

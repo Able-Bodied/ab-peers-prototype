@@ -2,6 +2,7 @@ import { SlidersHorizontal } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useCities } from '@/lib/cities';
+import { useDismissals } from '@/lib/dismissals';
 import { useFollows } from '@/lib/follows';
 import { useOrganizations } from '@/lib/organizations';
 import { useRsvps } from '@/lib/rsvps';
@@ -13,6 +14,7 @@ import { mockEventAttributes } from '@/routes/events/event-mocks';
 import { FilterSheet } from '@/routes/events/filter-sheet';
 import {
   DATE_WINDOW_LABELS,
+  dateWindowAscending,
   dateWindowRange,
   defaultFilters,
   EVENT_FORMAT_LABELS,
@@ -58,7 +60,7 @@ import { GoingDialog } from '@/routes/events/going-dialog';
  *  - [x] City filter (`events.city`) and distance filter (`nearby_events` RPC)
  *  - [x] Following segment, filtered by the organizations the viewer follows (src/lib/follows.tsx)
  *  - [x] Per-event organization, for feeds that aggregate many orgs (AdaptiveRecHub)
- *  - [ ] Persist dismissals, and give the user a way to restore them (Hidden, in the sheet)
+ *  - [x] Persist dismissals, and give the user a way to restore them (Hidden, in the sheet)
  *  - [ ] "For you" ranking from the peer's signup interests
  */
 
@@ -240,7 +242,7 @@ export default function EventsPage() {
   const [rows, setRows] = useState<EventRow[]>([]);
   // Shared across routes, so the going count on a card and on that event's own page agree.
   const { rsvps, setRsvp, countsFor, ensureCounts } = useRsvps();
-  const [dismissed, setDismissed] = useState<Set<string>>(new Set());
+  const { isDismissed, dismiss, restore } = useDismissals();
   // Marking Going opens the hand-off dialog: the host owns registration, so saying Going here is
   // not the same as having a place.
   const [goingEvent, setGoingEvent] = useState<FeedEvent | null>(null);
@@ -281,7 +283,8 @@ export default function EventsPage() {
 
       let query = supabase.from('events').select(selectFor(activeTags, activeOrgs));
       if (range) {
-        query = query.gte('start_time', range.from).lte('start_time', range.to);
+        if (range.from) query = query.gte('start_time', range.from);
+        query = query.lte('start_time', range.to);
       }
       if (activeFormats) {
         query = query.in('event_format', activeFormats);
@@ -300,7 +303,7 @@ export default function EventsPage() {
       }
 
       const { data, error: queryError } = await query
-        .order('start_time', { ascending: true })
+        .order('start_time', { ascending: dateWindowAscending(filters.when) })
         .range(from, from + BATCH_SIZE - 1)
         .overrideTypes<EventRow[], { merge: false }>();
 
@@ -390,7 +393,7 @@ export default function EventsPage() {
 
   const visible = useMemo(() => {
     return rows
-      .filter((row) => !dismissed.has(row.id))
+      .filter((row) => filters.showHidden || !isDismissed(row.id))
       .filter((row) => {
         if (segment === 'mine') return Boolean(rsvps[row.id]);
         if (segment === 'following') {
@@ -403,7 +406,7 @@ export default function EventsPage() {
         const event = toFeedEvent(row);
         return event ? [event] : [];
       });
-  }, [rows, dismissed, segment, rsvps, followedSlugs]);
+  }, [rows, filters.showHidden, isDismissed, segment, rsvps, followedSlugs]);
 
   const chips = [
     filters.feed === 'foryou' ? 'For you' : 'Everything',
@@ -415,6 +418,7 @@ export default function EventsPage() {
     ...(orgSlugs ?? []).map((slug) => organizationNames.get(slug) ?? slug.replace(/-/g, ' ')),
     ...(citySlugs ?? []),
     ...(near ? [`Within ${near.radiusMiles} mi of ${near.label}`] : []),
+    ...(filters.showHidden ? ['Showing not-interested events'] : []),
   ];
 
   return (
@@ -512,6 +516,7 @@ export default function EventsPage() {
             event={event}
             rsvp={rsvps[event.id] ?? null}
             counts={countsFor(event.id)}
+            dismissed={isDismissed(event.id)}
             onOpen={() => {
               void navigate(`/event/${event.id}`);
             }}
@@ -520,7 +525,10 @@ export default function EventsPage() {
               if (next === 'going') setGoingEvent(event);
             }}
             onDismiss={() => {
-              setDismissed((prev) => new Set(prev).add(event.id));
+              dismiss(event.id);
+            }}
+            onRestore={() => {
+              restore(event.id);
             }}
           />
         ))}

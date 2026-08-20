@@ -3,9 +3,11 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { DismissalsProvider } from '@/lib/dismissals';
 import { FollowsProvider } from '@/lib/follows';
 import { RsvpProvider } from '@/lib/rsvps';
 import EventsPage from '@/routes/events/page';
+import { createEventDismissalsMock } from '@/test/dismissals-mock';
 import { createEventRsvpsMock } from '@/test/rsvp-mock';
 
 class MockIntersectionObserver {
@@ -41,13 +43,16 @@ interface EventRow {
   city: string | null;
   url: string | null;
   registration_url: string | null;
-  organizations: OrganizationEmbed | null;
+  /** PostgREST returns an embedded row as an object, or an array on some relationship shapes. */
+  organizations?: OrganizationEmbed | OrganizationEmbed[] | null;
 }
 
 /** Rows the fake PostgREST builder will return, settable per test. */
 let rows: EventRow[] = [];
 /** Records the filters the page applied, so tests can assert on the real date filter. */
 let appliedFilters: { method: string; column: string; value: string }[] = [];
+/** Records the sort the page applied to the `events` query, settable/readable per test. */
+let appliedOrder: { column: string; ascending: boolean } | null = null;
 /** The city vocabulary `useCities()` reads back from `events.city` — settable per test. */
 let cityRows: { city: string }[] = [];
 
@@ -97,11 +102,13 @@ function makeBuilder(table: string) {
       table === 'tags' ? settled(() => Promise.resolve({ data: tagRows, error: null })) : builder,
     ),
     // The organizations query ends at `order`, one step later than tags.
-    order: vi.fn(() =>
-      table === 'organizations'
-        ? settled(() => Promise.resolve({ data: orgRows, error: null }))
-        : builder,
-    ),
+    order: vi.fn((column: string, opts?: { ascending?: boolean }) => {
+      if (table === 'organizations') {
+        return settled(() => Promise.resolve({ data: orgRows, error: null }));
+      }
+      appliedOrder = { column, ascending: opts?.ascending ?? true };
+      return builder;
+    }),
     range: vi.fn((...args: Parameters<typeof mockRange>) => settled(() => mockRange(...args))),
     // useCities() ends its `events` query here: select('city').not(...).overrideTypes(...).
     not: vi.fn(() => settled(() => Promise.resolve({ data: cityRows, error: null }))),
@@ -114,8 +121,12 @@ function makeBuilder(table: string) {
 }
 
 const eventRsvps = createEventRsvpsMock();
+const eventDismissals = createEventDismissalsMock();
 
-const mockFrom = vi.fn((table: string) => eventRsvps.forTable(table) ?? makeBuilder(table));
+const mockFrom = vi.fn(
+  (table: string) =>
+    eventRsvps.forTable(table) ?? eventDismissals.forTable(table) ?? makeBuilder(table),
+);
 
 vi.mock('@/lib/supabase', () => ({
   getSupabase: () => ({ from: mockFrom }),
@@ -143,7 +154,9 @@ function renderEvents() {
     <MemoryRouter initialEntries={['/events']}>
       <RsvpProvider>
         <FollowsProvider>
-          <EventsPage />
+          <DismissalsProvider>
+            <EventsPage />
+          </DismissalsProvider>
         </FollowsProvider>
       </RsvpProvider>
     </MemoryRouter>,
@@ -156,7 +169,9 @@ function renderEventsWithTag(tagSlug: string) {
     <MemoryRouter initialEntries={[{ pathname: '/events', state: { tagSlug } }]}>
       <RsvpProvider>
         <FollowsProvider>
-          <EventsPage />
+          <DismissalsProvider>
+            <EventsPage />
+          </DismissalsProvider>
         </FollowsProvider>
       </RsvpProvider>
     </MemoryRouter>,
@@ -168,12 +183,15 @@ describe('EventsPage', () => {
     vi.clearAllMocks();
     rows = [];
     appliedFilters = [];
+    appliedOrder = null;
     cityRows = [];
     mockRange.mockImplementation(() => Promise.resolve({ data: rows, error: null }));
     mockFrom.mockImplementation(
-      (table: string) => eventRsvps.forTable(table) ?? makeBuilder(table),
+      (table: string) =>
+        eventRsvps.forTable(table) ?? eventDismissals.forTable(table) ?? makeBuilder(table),
     );
     eventRsvps.reset();
+    eventDismissals.reset();
     globalThis.localStorage.clear();
   });
 
@@ -341,6 +359,35 @@ describe('EventsPage', () => {
     expect(screen.getByRole('button', { name: 'Kayaking' })).toBeInTheDocument();
   });
 
+  it('deselects "All" when a specific activity tag is picked, and vice versa', async () => {
+    rows = [eventRow({ id: 'e1', title: 'Event' })];
+
+    renderEvents();
+    await screen.findByText('Event');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Filters' }));
+    const allChip = await screen.findByRole('button', { name: 'All' });
+    const kayakingChip = await screen.findByRole('button', { name: 'Kayaking' });
+
+    // No tags picked yet — "All" reads as active and every tag chip is blank.
+    expect(allChip).toHaveAttribute('aria-pressed', 'true');
+    expect(kayakingChip).toHaveAttribute('aria-pressed', 'false');
+
+    await userEvent.click(kayakingChip);
+    expect(allChip).toHaveAttribute('aria-pressed', 'false');
+    expect(kayakingChip).toHaveAttribute('aria-pressed', 'true');
+
+    await userEvent.click(allChip);
+    expect(allChip).toHaveAttribute('aria-pressed', 'true');
+    expect(kayakingChip).toHaveAttribute('aria-pressed', 'false');
+
+    appliedFilters = [];
+    await userEvent.click(screen.getByRole('button', { name: /Show \d+ events/ }));
+    expect(appliedFilters).not.toContainEqual(
+      expect.objectContaining({ column: 'event_tags.tags.slug' }),
+    );
+  });
+
   it('narrows the feed to one city from the filter sheet', async () => {
     rows = [eventRow({ id: 'e1', title: 'Event' })];
     cityRows = [{ city: 'Berkeley' }, { city: 'Oakland' }];
@@ -427,6 +474,48 @@ describe('EventsPage', () => {
 
     await waitFor(() => {
       expect(appliedFilters).toEqual([]);
+    });
+  });
+
+  it('sorts events soonest-first by default', async () => {
+    rows = [eventRow({ id: 'e1', title: 'Event' })];
+
+    renderEvents();
+
+    await screen.findByText('Event');
+    expect(appliedOrder).toEqual({ column: 'start_time', ascending: true });
+  });
+
+  it('drops the lower bound but keeps an upper bound for Past events', async () => {
+    rows = [eventRow({ id: 'e1', title: 'Event' })];
+
+    renderEvents();
+    await screen.findByText('Event');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Filters' }));
+    appliedFilters = [];
+    await userEvent.click(screen.getByRole('button', { name: 'Past events' }));
+
+    await waitFor(() => {
+      expect(appliedFilters.map((f) => f.method)).toEqual(['lte']);
+    });
+
+    const upperBound = appliedFilters.find((f) => f.method === 'lte');
+    const startOfToday = new Date(new Date().toDateString());
+    expect(new Date(upperBound?.value ?? '').getTime()).toBeLessThan(startOfToday.getTime());
+  });
+
+  it('sorts Past events newest-first instead of soonest-first', async () => {
+    rows = [eventRow({ id: 'e1', title: 'Event' })];
+
+    renderEvents();
+    await screen.findByText('Event');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Filters' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Past events' }));
+
+    await waitFor(() => {
+      expect(appliedOrder).toEqual({ column: 'start_time', ascending: false });
     });
   });
 
@@ -620,6 +709,64 @@ describe('EventsPage', () => {
 
     expect(screen.queryByText('Adaptive handcycle ride')).not.toBeInTheDocument();
     expect(screen.getByText('Wheelchair rugby open gym')).toBeInTheDocument();
+    expect(eventDismissals.rows).toEqual([expect.objectContaining({ event_id: 'e1' })]);
+  });
+
+  it('keeps a dismissed event hidden across a reload', async () => {
+    rows = [eventRow({ id: 'e1', title: 'Adaptive handcycle ride' })];
+    // Seed the viewer id the provider will read, so the pre-existing dismissal is keyed to it.
+    globalThis.localStorage.setItem('ab-peers:viewer-id', 'viewer-1');
+    eventDismissals.reset([{ event_id: 'e1', viewer_id: 'viewer-1' }]);
+
+    renderEvents();
+
+    await screen.findByText('Nothing matches');
+    expect(screen.queryByText('Adaptive handcycle ride')).not.toBeInTheDocument();
+  });
+
+  it('reveals a dismissed event, marked Not interested, once Show hidden events is on', async () => {
+    rows = [eventRow({ id: 'e1', title: 'Adaptive handcycle ride' })];
+
+    renderEvents();
+    await screen.findByText('Adaptive handcycle ride');
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Not interested in Adaptive handcycle ride' }),
+    );
+    expect(screen.queryByText('Adaptive handcycle ride')).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Filters' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Show hidden events' }));
+    await userEvent.click(screen.getByRole('button', { name: /Show \d+ events/ }));
+
+    expect(screen.getByText('Adaptive handcycle ride')).toBeInTheDocument();
+    expect(screen.getByText('Not interested')).toBeInTheDocument();
+  });
+
+  it('undoes a dismissal from the card once hidden events are shown', async () => {
+    rows = [eventRow({ id: 'e1', title: 'Adaptive handcycle ride' })];
+
+    renderEvents();
+    await screen.findByText('Adaptive handcycle ride');
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Not interested in Adaptive handcycle ride' }),
+    );
+
+    await userEvent.click(screen.getByRole('button', { name: 'Filters' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Show hidden events' }));
+    await userEvent.click(screen.getByRole('button', { name: /Show \d+ events/ }));
+
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Show Adaptive handcycle ride again' }),
+    );
+
+    expect(screen.queryByText('Not interested')).not.toBeInTheDocument();
+    expect(eventDismissals.rows).toEqual([]);
+
+    // Turning Hidden back off keeps it visible now that it's no longer dismissed.
+    await userEvent.click(screen.getByRole('button', { name: 'Filters' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Show hidden events' }));
+    await userEvent.click(screen.getByRole('button', { name: /Show \d+ events/ }));
+    expect(screen.getByText('Adaptive handcycle ride')).toBeInTheDocument();
   });
 
   it('increments the going count when the viewer RSVPs', async () => {
