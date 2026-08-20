@@ -4,8 +4,9 @@ Ingests event data from various calendar sources (Squarespace, NeonCRM, etc.) an
 
 ## What it does
 
-- Scrapes Northern California SCI events from Squarespace JSON API
+- Scrapes multiple event sources (Squarespace, AdaptiveRecHub, etc.)
 - Uploads event photos to the `event-photos` Supabase Storage bucket
+- Resolves per-event organizations (for feeds like AdaptiveRecHub with many host orgs)
 - Deduplicates events using UNIQUE(feed_id, external_id) composite key
 - Detects duplicate events across different feed sources
 - Updates event records when re-ingested
@@ -49,6 +50,14 @@ This installs all workspace dependencies, including those for `event-ingest`.
 pnpm -F event-ingest start
 ```
 
+### Ingest a single feed
+
+Use the `--feed-url` flag to refresh only one feed, useful for testing:
+
+```bash
+pnpm -F event-ingest start -- --feed-url=https://adaptiverechub.org/events/
+```
+
 ### Watch mode (restarts on file changes)
 
 ```bash
@@ -73,6 +82,11 @@ The ingest job:
 - Inserts into `event_photos` table with the public URL and storage path
 - Skips invalid or oversized (>10MB) images with warnings
 
+**Note**: AdaptiveRecHub events currently have no photos (see
+`scrapers/adaptiverechub-events.js` for the TODO — per-event image fetching is
+scoped for future work once we've agreed how to batch/throttle N image requests
+without hammering the site). The detail page shows a fallback org badge instead.
+
 ## Database Schema
 
 ### data_feeds table
@@ -80,10 +94,15 @@ Stores configuration for each event source:
 - `id`: UUID primary key
 - `name`: Display name (e.g. "NorCal SCI")
 - `feed_url`: Source URL
-- `feed_type`: Type of feed (squarespace, neoncrm, etc.)
+- `feed_type`: Type of feed (squarespace, norcalsci-events-json, adaptiverechub-events, etc.)
+- `organization_id`: Fallback org when an event names no per-event org (e.g. NorCal SCI, or Adaptive Rec Hub for events without a Program)
 - `is_active`: Enable/disable feed ingestion
 - `last_fetched_at`: When last scraped
 - `created_at`, `updated_at`: Timestamps
+
+**Feeds:**
+- **NorCal SCI** (`norcalsci-events-json`): Squarespace-based calendar, one org for every event in the feed
+- **AdaptiveRecHub** (`adaptiverechub-events`): WordPress REST API, aggregates many different host orgs' events; each event names its "Program" (host org)
 
 ### events table
 Normalized event data:
@@ -96,6 +115,7 @@ Normalized event data:
 - `url`: Original event URL
 - `registration_url`: Registration link (if any)
 - `category`: Event category (e.g. "events")
+- `organization_id`: **The effective organization for this event** — resolved by ingest.js from the scraper's per-event org when named (e.g. AdaptiveRecHub's "Program"), or the feed's fallback org otherwise. This is what the UI reads; no fallback logic needed in frontend code.
 - `needs_ai_verification`: Set by the ingest job when a scraped event is new or its content
   changed since the last run; left alone on an unchanged re-scrape. Cleared by whatever reviews
   the event, not by the ingest job.

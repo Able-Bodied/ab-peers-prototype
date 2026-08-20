@@ -33,9 +33,13 @@ import { GoingDialog } from '@/routes/events/going-dialog';
  * Events are real: they come from the `events` table, ingested from partner org calendars by
  * jobs/event-ingest. So are the organization badge, the format badge, the tags and the RSVP
  * tallies (event_rsvps, via src/lib/rsvps.tsx). The card shows an organization badge rather than
- * an event photo — each event's `data_feeds` row maps to one `organizations` row (see
- * supabase/migrations/20260819120000_organizations.sql), and a scraped photo said less about an
- * event than knowing which trusted org posted it.
+ * an event photo — `events.organization_id` (see
+ * supabase/migrations/20260819170000_events_organization_id.sql) is the *effective* org for that
+ * specific event: the one ingest.js resolved from the scraper's own per-event org when it named
+ * one (e.g. AdaptiveRecHub's "Program" — one feed can host many different orgs' events), or the
+ * feed's own org otherwise (NorCal SCI's case — one org for every event in that feed). Either way
+ * the row's `organizations` embed is already the right one to read, with no fallback logic needed
+ * here. A scraped photo said less about an event than knowing which trusted org posted it.
  *
  * start_time/end_time/location prefer the scraped column and fall back to the AI-extracted one
  * (ai_extracted_start_time/end_time/location — see
@@ -53,6 +57,7 @@ import { GoingDialog } from '@/routes/events/going-dialog';
  *  - [x] Organization badge and filter, from `organizations`
  *  - [x] City filter (`events.city`) and distance filter (`nearby_events` RPC)
  *  - [x] Following segment, filtered by the organizations the viewer follows (src/lib/follows.tsx)
+ *  - [x] Per-event organization, for feeds that aggregate many orgs (AdaptiveRecHub)
  *  - [ ] Persist dismissals, and give the user a way to restore them (Hidden, in the sheet)
  *  - [ ] "For you" ranking from the peer's signup interests
  */
@@ -64,11 +69,6 @@ interface OrganizationEmbed {
   slug: string;
   name: string;
   logo_url: string | null;
-}
-
-interface DataFeedEmbed {
-  name: string;
-  organizations: OrganizationEmbed | OrganizationEmbed[] | null;
 }
 
 interface EventRow {
@@ -89,7 +89,7 @@ interface EventRow {
   registration_deadline: string | null;
   event_format: EventFormat | null;
   /** PostgREST returns an embedded row as an object, or an array on some relationship shapes. */
-  data_feeds?: DataFeedEmbed | DataFeedEmbed[] | null;
+  organizations?: OrganizationEmbed | OrganizationEmbed[] | null;
   event_tags?: { tags: { slug: string; name: string } | null }[] | null;
 }
 
@@ -106,38 +106,35 @@ function selectFor(tags: string[] | null, organizations: string[] | null): strin
   const tagsPart = tags
     ? 'event_tags!inner(tags!inner(slug, name))'
     : 'event_tags(tags(slug, name))';
-  const feedsPart = organizations
-    ? 'data_feeds!inner(name, organizations!inner(slug, name, logo_url))'
-    : 'data_feeds(name, organizations(slug, name, logo_url))';
-  return `${BASE_COLUMNS}, ${feedsPart}, ${tagsPart}`;
+  const orgsPart = organizations
+    ? 'organizations!inner(slug, name, logo_url)'
+    : 'organizations(slug, name, logo_url)';
+  return `${BASE_COLUMNS}, ${orgsPart}, ${tagsPart}`;
 }
 
 function tagsOf(row: EventRow): { slug: string; name: string }[] {
   return (row.event_tags ?? []).flatMap((link) => (link.tags ? [link.tags] : []));
 }
 
-function feedOf(row: EventRow): DataFeedEmbed | null {
-  const feed = row.data_feeds;
-  if (!feed) return null;
-  return (Array.isArray(feed) ? feed[0] : feed) ?? null;
+function orgOf(row: EventRow): OrganizationEmbed | null {
+  const org = row.organizations;
+  if (!org) return null;
+  return (Array.isArray(org) ? org[0] : org) ?? null;
 }
 
 function orgNameOf(row: EventRow): string | null {
-  return feedOf(row)?.name ?? null;
+  return orgOf(row)?.name ?? null;
 }
 
-/** The badge shown in place of an event photo — one organization per publishing feed. */
+/** The badge shown in place of an event photo — the event's own effective organization. */
 function orgBadgeOf(row: EventRow): { name: string; logoUrl: string | null } | null {
-  const org = feedOf(row)?.organizations;
-  const orgRow = Array.isArray(org) ? org[0] : org;
-  return orgRow ? { name: orgRow.name, logoUrl: orgRow.logo_url } : null;
+  const org = orgOf(row);
+  return org ? { name: org.name, logoUrl: org.logo_url } : null;
 }
 
 /** Used to test an event against the viewer's followed organizations (see useFollows). */
 function orgSlugOf(row: EventRow): string | null {
-  const org = feedOf(row)?.organizations;
-  const orgRow = Array.isArray(org) ? org[0] : org;
-  return orgRow?.slug ?? null;
+  return orgOf(row)?.slug ?? null;
 }
 
 /**
@@ -293,7 +290,7 @@ export default function EventsPage() {
         query = query.in('event_tags.tags.slug', activeTags);
       }
       if (activeOrgs) {
-        query = query.in('data_feeds.organizations.slug', activeOrgs);
+        query = query.in('organizations.slug', activeOrgs);
       }
       if (activeCities) {
         query = query.in('city', activeCities);

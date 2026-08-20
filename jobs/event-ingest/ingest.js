@@ -13,6 +13,7 @@ import {
   NorCalSCIEventsJsonWithImagesScraper,
   uploadEventImage,
 } from './scrapers/norcalsci-events-json-with-images.js';
+import AdaptiveRecHubScraper from './scrapers/adaptiverechub-events.js';
 import {
   findSeriesMatch,
   SERIES_MATCH_THRESHOLD,
@@ -282,19 +283,100 @@ class EventIngestionWorker {
   }
 
   /**
+   * Resolve event organizations for events that carry per-event org data.
+   * For feeds like AdaptiveRecHub that name an org per event (via organization_slug),
+   * find-or-create that org and set organization_id on the event. For events with
+   * no per-event org, use the feed's own org as fallback. Mutates `events` in place.
+   */
+  async resolveEventOrganizations(feed, events) {
+    if (!feed || !feed.organization_id) {
+      // Feed has no fallback org — just set what we have from the scraper
+      return events;
+    }
+
+    // Collect distinct organization_slugs from this batch
+    const slugsNeeded = new Set();
+    for (const event of events) {
+      if (event.organization_slug) {
+        slugsNeeded.add(event.organization_slug);
+      }
+    }
+
+    if (slugsNeeded.size === 0) {
+      // No per-event orgs, just use feed's fallback for everyone
+      for (const event of events) {
+        event.organization_id = feed.organization_id;
+      }
+      return events;
+    }
+
+    // Find-or-create org rows for each distinct slug
+    const slugToId = new Map();
+    for (const slug of slugsNeeded) {
+      // Try to find existing org
+      const { data: existing } = await this.supabase
+        .from('organizations')
+        .select('id')
+        .eq('slug', slug)
+        .single();
+
+      if (existing) {
+        slugToId.set(slug, existing.id);
+      } else {
+        // Create new org with this slug; use the org name from the first event with this slug
+        const orgName = events.find((e) => e.organization_slug === slug)?.organization_name || slug;
+        const { data: created, error: createError } = await this.supabase
+          .from('organizations')
+          .insert({
+            name: orgName,
+            slug: slug,
+            default_timezone: 'America/Los_Angeles',
+          })
+          .select('id')
+          .single();
+
+        if (createError) {
+          this.log(`  Warning: Failed to create org "${slug}": ${createError.message}`, 'warning');
+          // Fall back to feed's org for this event
+          slugToId.set(slug, feed.organization_id);
+        } else {
+          slugToId.set(slug, created.id);
+        }
+      }
+    }
+
+    // Assign organization_id to each event
+    for (const event of events) {
+      if (event.organization_slug && slugToId.has(event.organization_slug)) {
+        event.organization_id = slugToId.get(event.organization_slug);
+      } else {
+        // No per-event org or lookup failed, use feed's fallback
+        event.organization_id = feed.organization_id;
+      }
+    }
+
+    return events;
+  }
+
+  /**
    * Upsert events for a specific feed
    * Uses UNIQUE(feed_id, external_id) for safe deduplication
    * Also checks for title+date duplicates across feeds
    * Returns count of inserted vs updated events
    */
-  async upsertEvents(feedId, events) {
+  async upsertEvents(feed, events) {
     if (events.length === 0) {
       this.log('  No events to upsert', 'info');
       return { inserted: 0, updated: 0, failed: 0, deduplicated: 0 };
     }
 
+    const feedId = feed.id;
+
     try {
       let dedupCount = 0;
+
+      // Resolve event organizations (per-event orgs for AdaptiveRecHub, fallback to feed's org)
+      await this.resolveEventOrganizations(feed, events);
 
       // Load existing rows for this feed so we can tell which scraped events
       // actually changed vs. which are byte-for-byte re-scrapes, and so
@@ -358,6 +440,7 @@ class EventIngestionWorker {
           registration_url: event.registration_url || null,
           category: event.category || null,
           series_id: event.series_id || null,
+          organization_id: event.organization_id || null,
           city: event.city || null,
           postal_code: event.postal_code || null,
           latitude: event.latitude ?? null,
@@ -562,14 +645,31 @@ class EventIngestionWorker {
   }
 
   /**
-   * Process the NorCal SCI events feed
+   * Dispatch to the appropriate scraper based on feed_type
+   */
+  async scrapeFeed(feed) {
+    switch (feed.feed_type) {
+      case 'adaptiverechub-events':
+        this.log(`  Using AdaptiveRecHub Events scraper`, 'info');
+        const arhScraper = new AdaptiveRecHubScraper();
+        return await arhScraper.scrape(feed.id);
+      case 'squarespace':
+      case 'norcalsci-events-json':
+        return await this.scrapeNorCalSCIEvents(feed);
+      default:
+        throw new Error(`Unknown feed type: ${feed.feed_type}`);
+    }
+  }
+
+  /**
+   * Process a single feed
    */
   async processFeed(feed) {
     this.log(`\nProcessing feed: ${feed.name}`, 'info');
     this.log(`Feed URL: ${feed.feed_url}`, 'info');
 
     try {
-      const events = await this.scrapeNorCalSCIEvents(feed);
+      const events = await this.scrapeFeed(feed);
 
       if (!Array.isArray(events)) {
         throw new Error(`Expected array of events, got ${typeof events}`);
@@ -579,7 +679,7 @@ class EventIngestionWorker {
       this.stats.eventsScraped += events.length;
 
       // Upsert events to database
-      const result = await this.upsertEvents(feed.id, events);
+      const result = await this.upsertEvents(feed, events);
 
       if (result.failed && result.failed > 0) {
         this.log(`  Upsert failed for ${result.failed} events`, 'warning');
@@ -676,7 +776,16 @@ class EventIngestionWorker {
       }
 
       // Get active feeds
-      const feeds = await this.getActiveFeeds();
+      let feeds = await this.getActiveFeeds();
+
+      // Support --feed-url=<url> flag to narrow to one feed (for scoped testing)
+      const feedUrlArg = process.argv.find((arg) => arg.startsWith('--feed-url='));
+      if (feedUrlArg) {
+        const feedUrl = feedUrlArg.split('=')[1];
+        feeds = feeds.filter((f) => f.feed_url === feedUrl);
+        this.log(`Filtering to feed(s) with URL: ${feedUrl}`, 'info');
+      }
+
       this.log(`Found ${feeds.length} active feed(s)`, 'info');
 
       if (feeds.length === 0) {
