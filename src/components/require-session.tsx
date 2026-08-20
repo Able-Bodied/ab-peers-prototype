@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 
+import { LogoSplash } from '@/components/logo-splash';
 import { Button } from '@/components/ui/button';
 import { useSession } from '@/lib/session';
 
@@ -19,6 +20,9 @@ export function RequireSession({ children }: { children: ReactNode }) {
   if (!member) {
     return (
       <div className="mx-auto max-w-md text-center">
+        <div className="mb-6">
+          <LogoSplash />
+        </div>
         <h1 className="text-2xl font-semibold">Sign in required</h1>
         <p className="text-muted-foreground mt-2 text-sm">
           Sign in or join PeerConnect to see this page.
