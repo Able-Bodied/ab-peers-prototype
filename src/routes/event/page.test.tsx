@@ -168,6 +168,34 @@ describe('EventPage', () => {
     expect(screen.getByText(/Berkeley Aquatic Park/)).toBeInTheDocument();
   });
 
+  it("prefers the verification pass's cleaned copy over the raw scrape", async () => {
+    eventRow = baseEvent({
+      description: 'Raw scraped copy',
+      description_clean: 'Cleaned copy',
+    });
+
+    renderEvent();
+
+    expect(await screen.findByText('Cleaned copy')).toBeInTheDocument();
+    expect(screen.queryByText('Raw scraped copy')).not.toBeInTheDocument();
+  });
+
+  it('shows a newly scraped description even when an older pass left the cleaned copy empty', async () => {
+    // A verification pass that ran while this event had no body text stores '', and a later scrape
+    // that finally finds the real description must not stay hidden behind that stale empty value.
+    eventRow = baseEvent({
+      description: 'Everyone is welcome to use the equipment at the fitness studio.',
+      description_clean: '',
+      description_html_clean: '',
+    });
+
+    renderEvent();
+
+    expect(
+      await screen.findByText('Everyone is welcome to use the equipment at the fitness studio.'),
+    ).toBeInTheDocument();
+  });
+
   it('renders the primary photo when one exists', async () => {
     photoRows = [{ photo_url: '/photos/events/e1/primary.jpg', is_primary: true }];
 

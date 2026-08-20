@@ -124,6 +124,86 @@ describe('parseDetailHtml', () => {
   });
 });
 
+describe('AdaptiveRecHubEventsScraper.fetchEventLastModified', () => {
+  const INDEX = `<sitemapindex>
+    <sitemap><loc>https://adaptiverechub.org/wp-sitemap-posts-events-1.xml</loc></sitemap>
+    <sitemap><loc>https://adaptiverechub.org/wp-sitemap-posts-events-2.xml</loc></sitemap>
+  </sitemapindex>`;
+
+  const chunk = (loc, lastmod) =>
+    `<urlset><url><loc>${loc}</loc><lastmod>${lastmod}</lastmod></url></urlset>`;
+
+  /** A scraper with no crawl delay whose fetches are served from `routes`. */
+  function scraperServing(routes, log = []) {
+    const scraper = new AdaptiveRecHubEventsScraper({ crawlDelayMs: 0 });
+    scraper.politeFetch = async (url) => {
+      log.push(url);
+      const route = routes[url];
+      if (!route) return { ok: false, status: 404, text: async () => 'Not Found' };
+      return { ok: route.status === 200, status: route.status, text: async () => route.body };
+    };
+    return scraper;
+  }
+
+  it('reads a chunk that soft-404s but still returns a valid urlset', async () => {
+    // The real site answers 404 on every event chunk after the first, with 2000 good entries in
+    // the body. Trusting the status here leaves every event with a null lastmod, which silently
+    // turns the incremental fetch back into a full crawl on every run.
+    const scraper = scraperServing({
+      'https://adaptiverechub.org/wp-sitemap.xml': { status: 200, body: INDEX },
+      'https://adaptiverechub.org/wp-sitemap-posts-events-2.xml': {
+        status: 404,
+        body: chunk('https://adaptiverechub.org/events/a/', '2026-08-01T10:00:00+00:00'),
+      },
+    });
+
+    const found = await scraper.fetchEventLastModified(
+      new Set(['https://adaptiverechub.org/events/a/']),
+    );
+
+    expect(found.get('https://adaptiverechub.org/events/a/')).toBe('2026-08-01T10:00:00+00:00');
+  });
+
+  it('ignores a genuine 404, which is an HTML page with no url entries', async () => {
+    const scraper = scraperServing({
+      'https://adaptiverechub.org/wp-sitemap.xml': { status: 200, body: INDEX },
+    });
+
+    const found = await scraper.fetchEventLastModified(
+      new Set(['https://adaptiverechub.org/events/a/']),
+    );
+
+    expect(found.size).toBe(0);
+  });
+
+  it('walks newest-first and stops as soon as every wanted url is found', async () => {
+    const log = [];
+    const scraper = scraperServing(
+      {
+        'https://adaptiverechub.org/wp-sitemap.xml': { status: 200, body: INDEX },
+        'https://adaptiverechub.org/wp-sitemap-posts-events-2.xml': {
+          status: 404,
+          body: chunk('https://adaptiverechub.org/events/a/', '2026-08-01T10:00:00+00:00'),
+        },
+      },
+      log,
+    );
+
+    await scraper.fetchEventLastModified(new Set(['https://adaptiverechub.org/events/a/']));
+
+    // Upcoming events are the newest posts, so they sit in the last chunk — chunk 1 is never read.
+    expect(log).not.toContain('https://adaptiverechub.org/wp-sitemap-posts-events-1.xml');
+  });
+
+  it('returns nothing when the index itself is unreadable, rather than throwing', async () => {
+    const scraper = scraperServing({});
+
+    await expect(
+      scraper.fetchEventLastModified(new Set(['https://adaptiverechub.org/events/a/'])),
+    ).resolves.toEqual(new Map());
+  });
+});
+
 describe('AdaptiveRecHubEventsScraper.normalizeEvent', () => {
   const scraper = new AdaptiveRecHubEventsScraper();
 

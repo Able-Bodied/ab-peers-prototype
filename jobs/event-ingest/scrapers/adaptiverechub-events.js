@@ -334,10 +334,21 @@ export class AdaptiveRecHubEventsScraper {
   /**
    * `<lastmod>` for the given event URLs, from the site's sitemap.
    *
-   * Walks the event chunks only until every wanted URL is accounted for — our ~29 local events sit
-   * among ~10,000 nationally, and each chunk costs a crawl slot, so stopping early routinely saves
-   * most of them. A chunk that fails to load is skipped rather than fatal: a missing lastmod just
-   * makes those events look stale, which costs a detail fetch instead of losing the event.
+   * Two things about this site shape the loop:
+   *
+   *  - **The chunks soft-404.** Every `wp-sitemap-posts-events-N.xml` after the first answers
+   *    `HTTP 404` while returning a perfectly good `<urlset>` of 2000 entries. Trusting the status
+   *    code here throws away four fifths of the sitemap and leaves every event with a null
+   *    lastmod — which silently degrades to re-fetching all ~29 detail pages on every run. So a
+   *    chunk is judged by what it parses to, not by its status: a genuine 404 is an HTML error
+   *    page, which yields zero entries and is skipped just the same.
+   *  - **Our events are in the last chunk.** WordPress fills these in post order, so the newest
+   *    events — the only ones a feed of *upcoming* events contains — land at the end. Walking
+   *    newest-first typically finds all of them in the first request instead of the fifth, and the
+   *    early exit below then skips the rest. At `Crawl-delay: 10` that is 40 seconds a run.
+   *
+   * A chunk that genuinely fails is skipped rather than fatal: a missing lastmod just makes those
+   * events look stale, which costs a detail fetch instead of losing the event.
    */
   async fetchEventLastModified(wantedUrls) {
     const found = new Map();
@@ -346,8 +357,8 @@ export class AdaptiveRecHubEventsScraper {
     let chunkUrls;
     try {
       const index = await this.politeFetch(SITEMAP_INDEX);
-      if (!index.ok) throw new Error(`HTTP ${index.status}`);
       chunkUrls = parseSitemapIndex(await index.text());
+      if (chunkUrls.length === 0) throw new Error(`no event chunks listed (HTTP ${index.status})`);
     } catch (error) {
       console.warn(
         `  AdaptiveRecHub: sitemap index unavailable (${error.message}) — ` +
@@ -356,17 +367,27 @@ export class AdaptiveRecHubEventsScraper {
       return found;
     }
 
-    for (const chunkUrl of chunkUrls) {
+    for (const chunkUrl of chunkUrls.reverse()) {
       try {
         const chunk = await this.politeFetch(chunkUrl);
-        if (!chunk.ok) throw new Error(`HTTP ${chunk.status}`);
-        for (const [loc, lastmod] of parseUrlSet(await chunk.text())) {
+        const entries = parseUrlSet(await chunk.text());
+        if (entries.size === 0) {
+          throw new Error(`no <url> entries (HTTP ${chunk.status})`);
+        }
+        for (const [loc, lastmod] of entries) {
           if (wantedUrls.has(loc)) found.set(loc, lastmod);
         }
       } catch (error) {
-        console.warn(`  AdaptiveRecHub: sitemap chunk ${chunkUrl} failed: ${error.message}`);
+        console.warn(`  AdaptiveRecHub: sitemap chunk ${chunkUrl} skipped: ${error.message}`);
       }
       if (found.size === wantedUrls.size) break;
+    }
+
+    if (found.size < wantedUrls.size) {
+      console.warn(
+        `  AdaptiveRecHub: no sitemap lastmod for ${wantedUrls.size - found.size} of ` +
+          `${wantedUrls.size} events — those pages get fetched every run until the sitemap lists them`,
+      );
     }
 
     return found;
