@@ -8,12 +8,12 @@ import { createClient } from '@supabase/supabase-js';
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { AdaptiveRecHubEventsScraper } from './scrapers/adaptiverechub-events.js';
 import { geocodeEvents } from './scrapers/geocode.js';
 import {
   NorCalSCIEventsJsonWithImagesScraper,
   uploadEventImage,
 } from './scrapers/norcalsci-events-json-with-images.js';
-import AdaptiveRecHubScraper from './scrapers/adaptiverechub-events.js';
 import {
   findSeriesMatch,
   SERIES_MATCH_THRESHOLD,
@@ -283,76 +283,67 @@ class EventIngestionWorker {
   }
 
   /**
-   * Resolve event organizations for events that carry per-event org data.
-   * For feeds like AdaptiveRecHub that name an org per event (via organization_slug),
-   * find-or-create that org and set organization_id on the event. For events with
-   * no per-event org, use the feed's own org as fallback. Mutates `events` in place.
+   * Resolves the *effective* organization for every event in a batch and writes it to
+   * `event.organization_id`, so `events.organization_id` is always the right org to badge,
+   * filter and count by — no reader ever has to fall back through `data_feeds` (see
+   * supabase/migrations/20260819190000_events_organization_id.sql).
+   *
+   * A scraper that names a per-event org (AdaptiveRecHub's "Program", carried as
+   * `organization_slug`/`organization_name`) wins; find-or-create resolves it to a row. An event
+   * with no named org falls back to the feed's own `organization_id` — which is what every
+   * NorCal SCI event gets, and what the ~2/420 Program-less AdaptiveRecHub cards get ("Adaptive
+   * Rec Hub", seeded as that feed's org). Mutates `events` in place.
    */
   async resolveEventOrganizations(feed, events) {
-    if (!feed || !feed.organization_id) {
-      // Feed has no fallback org — just set what we have from the scraper
-      return events;
-    }
+    // Null when a feed has no org of its own: such an event keeps organization_id null rather
+    // than borrowing an unrelated org, and the UI simply shows no badge for it.
+    const fallbackOrgId = feed.organization_id ?? null;
 
-    // Collect distinct organization_slugs from this batch
-    const slugsNeeded = new Set();
-    for (const event of events) {
-      if (event.organization_slug) {
-        slugsNeeded.add(event.organization_slug);
-      }
-    }
+    const slugsNeeded = new Set(
+      events.flatMap((event) => (event.organization_slug ? [event.organization_slug] : [])),
+    );
 
-    if (slugsNeeded.size === 0) {
-      // No per-event orgs, just use feed's fallback for everyone
-      for (const event of events) {
-        event.organization_id = feed.organization_id;
-      }
-      return events;
-    }
-
-    // Find-or-create org rows for each distinct slug
+    // Find-or-create one row per distinct slug in the batch, so a program hosting six of this
+    // scrape's events costs one lookup rather than six.
     const slugToId = new Map();
     for (const slug of slugsNeeded) {
-      // Try to find existing org
-      const { data: existing } = await this.supabase
+      // maybeSingle(): "no such org yet" is the expected case on a first scrape, not an error.
+      const { data: existing, error: lookupError } = await this.supabase
         .from('organizations')
         .select('id')
         .eq('slug', slug)
-        .single();
+        .maybeSingle();
+
+      if (lookupError) {
+        this.log(`  Warning: Failed to look up org "${slug}": ${lookupError.message}`, 'warning');
+        continue;
+      }
 
       if (existing) {
         slugToId.set(slug, existing.id);
-      } else {
-        // Create new org with this slug; use the org name from the first event with this slug
-        const orgName = events.find((e) => e.organization_slug === slug)?.organization_name || slug;
-        const { data: created, error: createError } = await this.supabase
-          .from('organizations')
-          .insert({
-            name: orgName,
-            slug: slug,
-            default_timezone: 'America/Los_Angeles',
-          })
-          .select('id')
-          .single();
-
-        if (createError) {
-          this.log(`  Warning: Failed to create org "${slug}": ${createError.message}`, 'warning');
-          // Fall back to feed's org for this event
-          slugToId.set(slug, feed.organization_id);
-        } else {
-          slugToId.set(slug, created.id);
-        }
+        continue;
       }
+
+      // logo_url is left null deliberately — the AI verification pass backfills it from the org's
+      // own site (jobs/event-ingest/prompts/ai-verify-events.md), rather than guessing a URL here.
+      const orgName = events.find((e) => e.organization_slug === slug)?.organization_name || slug;
+      const { data: created, error: createError } = await this.supabase
+        .from('organizations')
+        .insert({ name: orgName, slug })
+        .select('id')
+        .single();
+
+      if (createError) {
+        this.log(`  Warning: Failed to create org "${slug}": ${createError.message}`, 'warning');
+        continue;
+      }
+
+      this.log(`  Created organization "${orgName}" (${slug})`, 'info');
+      slugToId.set(slug, created.id);
     }
 
-    // Assign organization_id to each event
     for (const event of events) {
-      if (event.organization_slug && slugToId.has(event.organization_slug)) {
-        event.organization_id = slugToId.get(event.organization_slug);
-      } else {
-        // No per-event org or lookup failed, use feed's fallback
-        event.organization_id = feed.organization_id;
-      }
+      event.organization_id = slugToId.get(event.organization_slug) ?? fallbackOrgId;
     }
 
     return events;
@@ -649,10 +640,10 @@ class EventIngestionWorker {
    */
   async scrapeFeed(feed) {
     switch (feed.feed_type) {
-      case 'adaptiverechub-events':
-        this.log(`  Using AdaptiveRecHub Events scraper`, 'info');
-        const arhScraper = new AdaptiveRecHubScraper();
-        return await arhScraper.scrape(feed.id);
+      case 'adaptiverechub-events': {
+        this.log('  Using AdaptiveRecHub Events scraper', 'info');
+        return await new AdaptiveRecHubEventsScraper().scrape(feed.id);
+      }
       case 'squarespace':
       case 'norcalsci-events-json':
         return await this.scrapeNorCalSCIEvents(feed);

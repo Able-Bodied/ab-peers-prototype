@@ -41,7 +41,7 @@ interface EventRow {
   city: string | null;
   url: string | null;
   registration_url: string | null;
-  data_feeds: { name: string; organizations: OrganizationEmbed | null } | null;
+  organizations: OrganizationEmbed | null;
 }
 
 /** Rows the fake PostgREST builder will return, settable per test. */
@@ -133,7 +133,7 @@ function eventRow(overrides: Partial<EventRow> & { id: string; title: string }):
     city: null,
     url: null,
     registration_url: null,
-    data_feeds: null,
+    organizations: null,
     ...overrides,
   };
 }
@@ -195,7 +195,7 @@ describe('EventsPage', () => {
         id: 'e1',
         title: 'Adaptive handcycle ride',
         start_time: '2026-08-22T16:00:00Z',
-        data_feeds: { name: 'BORP', organizations: null },
+        organizations: { slug: 'borp', name: 'BORP', logo_url: null },
       }),
     ];
 
@@ -219,7 +219,7 @@ describe('EventsPage', () => {
       eventRow({
         id: 'e1',
         title: 'Adaptive handcycle ride',
-        data_feeds: { name: 'BORP', organizations: null },
+        organizations: { slug: 'borp', name: 'BORP', logo_url: null },
         city: 'Sausalito',
       }),
     ];
@@ -236,7 +236,7 @@ describe('EventsPage', () => {
       eventRow({
         id: 'e1',
         title: 'Adaptive handcycle ride',
-        data_feeds: { name: 'BORP', organizations: null },
+        organizations: { slug: 'borp', name: 'BORP', logo_url: null },
         city: null,
       }),
     ];
@@ -265,13 +265,10 @@ describe('EventsPage', () => {
       eventRow({
         id: 'e1',
         title: 'Adaptive handcycle ride',
-        data_feeds: {
+        organizations: {
+          slug: 'norcal-sci',
           name: 'NorCal SCI',
-          organizations: {
-            slug: 'norcal-sci',
-            name: 'NorCal SCI',
-            logo_url: 'https://example.com/norcal-sci-logo.png',
-          },
+          logo_url: 'https://example.com/norcal-sci-logo.png',
         },
       }),
     ];
@@ -290,10 +287,7 @@ describe('EventsPage', () => {
       eventRow({
         id: 'e1',
         title: 'Adaptive handcycle ride',
-        data_feeds: {
-          name: 'BORP',
-          organizations: { slug: 'borp', name: 'BORP', logo_url: null },
-        },
+        organizations: { slug: 'borp', name: 'BORP', logo_url: null },
       }),
     ];
 
@@ -328,7 +322,7 @@ describe('EventsPage', () => {
 
     expect(appliedFilters).toContainEqual({
       method: 'in',
-      column: 'data_feeds.organizations.slug',
+      column: 'organizations.slug',
       value: 'norcal-sci',
     });
   });
@@ -492,15 +486,12 @@ describe('EventsPage', () => {
       eventRow({
         id: 'e1',
         title: 'NorCal ride',
-        data_feeds: {
-          name: 'NorCal SCI',
-          organizations: { slug: 'norcal-sci', name: 'NorCal SCI', logo_url: null },
-        },
+        organizations: { slug: 'norcal-sci', name: 'NorCal SCI', logo_url: null },
       }),
       eventRow({
         id: 'e2',
         title: 'BORP swim',
-        data_feeds: { name: 'BORP', organizations: { slug: 'borp', name: 'BORP', logo_url: null } },
+        organizations: { slug: 'borp', name: 'BORP', logo_url: null },
       }),
     ];
     globalThis.localStorage.setItem('ab-peers:followed-orgs', JSON.stringify(['norcal-sci']));

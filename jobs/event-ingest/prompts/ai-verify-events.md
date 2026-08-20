@@ -62,15 +62,19 @@ so running it proves nothing and still hammers the source site.
 
 ```sql
 select e.id, e.title, e.description, e.description_html, e.start_time, e.end_time, e.location,
-       e.url, e.registration_url, e.category, o.default_timezone
+       e.url, e.registration_url, e.category, e.organization_id, o.default_timezone
 from events e
-join data_feeds f on f.id = e.feed_id
-left join organizations o on o.id = f.organization_id
+left join organizations o on o.id = e.organization_id
 where e.needs_ai_verification = true
 order by e.start_time
 ```
 
-`default_timezone` is null when the feed has no organization on file yet — fall back to
+The timezone comes from the event's **own** organization (`events.organization_id`), not from its
+feed's. One feed can carry many different orgs' events — AdaptiveRecHub names a host org per event
+— so joining through `data_feeds` would resolve every one of those events against the feed-level
+fallback org instead of the org actually hosting it.
+
+`default_timezone` is null when the event has no organization on file yet — fall back to
 `America/Los_Angeles` in that case (every org this prototype knows about is California-based) and
 say so in `notes` rather than guessing per-event.
 
@@ -284,7 +288,54 @@ run. Do not abort the batch.
 
 ---
 
-## Phase 6 — Report
+## Phase 6 — Backfill missing organization logos
+
+A hub feed creates an organization row per host org it names (AdaptiveRecHub's "Program" — see
+`resolveEventOrganizations` in ingest.js), and those rows start with `logo_url` null because the
+scraper never saw one. The org's own website usually has a usable brand image, and its events
+usually link to that website. This phase closes that loop.
+
+Scope it to this run: the distinct `organization_id`s among Phase 2's events whose org has no logo
+yet.
+
+```sql
+select distinct o.id, o.name, o.slug
+from events e
+join organizations o on o.id = e.organization_id
+where e.needs_ai_verification = true
+  and o.logo_url is null
+```
+
+For each org:
+
+1. Pull every event on file for that `organization_id`, not just this batch's — more rows mean
+   more chances of an outbound link:
+   ```sql
+   select url, registration_url, extracted_registration_url
+   from events where organization_id = $1
+   ```
+2. Find a link whose domain is **neither the hub's own domain** (`adaptiverechub.org`,
+   `norcalsci.org` — the feed published the event, it isn't the org's site) **nor a generic
+   registration or meeting platform** (Eventbrite, Zoom, Google Forms, Meetup, Facebook, and the
+   like). What's left is the best available signal for "the org's own website".
+3. Fetch that site and look for a roughly-square brand image — the header/nav logo, `og:image`, or
+   an apple-touch-icon. Prefer whichever reads as the org's mark rather than a photo.
+4. Write it to `organizations.logo_url`, with the same idempotent-update-plus-`.select()` write
+   check used everywhere else in this doc. **Hotlink it; never mirror it into storage** — same
+   posture as the NorCal SCI seed in `20260819120000_organizations.sql`: it's their asset, not
+   ours to host.
+
+**Never overwrite a `logo_url` that is already set** — a human-curated or previously-resolved logo
+outranks anything you find. If no external link exists, or the site has no discoverable square
+image, **leave it null**. Null is the correct answer here, exactly as it is for every other field
+in this document: do not substitute a screenshot, a favicon scraped from the hub, or a generic
+placeholder.
+
+Skip this phase entirely in DRY RUN, and say so.
+
+---
+
+## Phase 7 — Report
 
 - Ingest summary from Phase 1
 - Events flagged, processed, skipped, failed
@@ -293,6 +344,9 @@ run. Do not abort the batch.
   removed while yielding no URL (that combination means a link was lost — call it out)
 - How many events got an `ai_extracted_start_time`/`ai_extracted_end_time`/`ai_extracted_location`,
   and how many you geocoded (3.8) vs. left untouched because the ingest job already had it
+- Organization logos (Phase 6): how many orgs were missing one, how many got one and from which
+  site, and how many were left null — with the reason for each (no outbound link found, or no
+  usable image on the site)
 - Every entry in `proposed_tags`, grouped, as the human's approval queue
 - Any `notes` worth a person's attention
 - If this was a DRY RUN, say so first and name the blocker

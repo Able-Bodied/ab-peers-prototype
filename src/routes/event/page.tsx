@@ -211,9 +211,13 @@ export default function EventPage() {
           .overrideTypes<{ photo_url: string; is_primary: boolean }[], { merge: false }>();
         if (photosError) throw photosError;
 
+        // Both of these key off the event's own organization_id rather than its feed: one
+        // AdaptiveRecHub feed carries hundreds of different orgs' events, so keying off feed_id
+        // would list a stranger's events under this org's name and count them as its own.
         let relatedData: RelatedEventRow[] = [];
+        let orgEventCount: number | null = null;
         if (orgId) {
-          const { data, error: relatedError } = await supabase
+          const { data: related, error: relatedError } = await supabase
             .from('events')
             .select('id, title, start_time, location')
             .eq('organization_id', orgId)
@@ -222,11 +226,8 @@ export default function EventPage() {
             .order('start_time', { ascending: true })
             .limit(2);
           if (relatedError) throw relatedError;
-          relatedData = data || [];
-        }
+          relatedData = related;
 
-        let orgEventCount: number | null = null;
-        if (orgId) {
           const now = new Date();
           const yearStart = new Date(now.getFullYear(), 0, 1).toISOString();
           const yearEnd = new Date(now.getFullYear() + 1, 0, 1).toISOString();

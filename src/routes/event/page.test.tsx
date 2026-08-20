@@ -33,8 +33,8 @@ interface EventDetailRow {
   description_html_clean: string | null;
   event_format: 'in_person' | 'online' | 'hybrid' | null;
   category: string | null;
-  feed_id: string;
-  data_feeds: { name: string; organizations: OrganizationEmbed | null } | null;
+  organization_id: string | null;
+  organizations: OrganizationEmbed | null;
   event_tags: { tags: { slug: string; name: string } | null }[];
 }
 
@@ -109,11 +109,27 @@ function baseEvent(overrides: Partial<EventDetailRow> = {}): EventDetailRow {
     description_html_clean: null,
     event_format: null,
     category: null,
-    feed_id: 'feed-1',
-    data_feeds: { name: 'BORP', organizations: null },
+    organization_id: null,
+    organizations: null,
     event_tags: [],
     ...overrides,
   };
+}
+
+const BORP_ORG: OrganizationEmbed = { id: 'org-2', slug: 'borp', name: 'BORP', logo_url: null };
+const NORCAL_ORG: OrganizationEmbed = {
+  id: 'org-1',
+  slug: 'norcal-sci',
+  name: 'NorCal SCI',
+  logo_url: 'https://example.com/norcal-sci-logo.png',
+};
+
+/**
+ * An event whose effective organization is already resolved — `events.organization_id` and the
+ * `organizations` embed agree, which is what ingest.js guarantees for every row it writes.
+ */
+function hostedBy(org: OrganizationEmbed, overrides: Partial<EventDetailRow> = {}): EventDetailRow {
+  return baseEvent({ organization_id: org.id, organizations: org, ...overrides });
 }
 
 function renderEvent(id = 'e1') {
@@ -143,6 +159,8 @@ describe('EventPage', () => {
   });
 
   it('shows the title, organization and location for the loaded event', async () => {
+    eventRow = hostedBy(BORP_ORG);
+
     renderEvent();
 
     expect(await screen.findByText('Adaptive handcycle ride')).toBeInTheDocument();
@@ -168,17 +186,7 @@ describe('EventPage', () => {
   });
 
   it("shows the organization's logo as a badge in the hosting card", async () => {
-    eventRow = baseEvent({
-      data_feeds: {
-        name: 'NorCal SCI',
-        organizations: {
-          id: 'org-1',
-          slug: 'norcal-sci',
-          name: 'NorCal SCI',
-          logo_url: 'https://example.com/norcal-sci-logo.png',
-        },
-      },
-    });
+    eventRow = hostedBy(NORCAL_ORG);
 
     renderEvent();
 
@@ -188,12 +196,7 @@ describe('EventPage', () => {
   });
 
   it('falls back to an initial in the hosting card when the organization has no logo', async () => {
-    eventRow = baseEvent({
-      data_feeds: {
-        name: 'BORP',
-        organizations: { id: 'org-2', slug: 'borp', name: 'BORP', logo_url: null },
-      },
-    });
+    eventRow = hostedBy(BORP_ORG);
 
     renderEvent();
 
@@ -203,12 +206,7 @@ describe('EventPage', () => {
   });
 
   it("shows the organization's real events-this-year count once known", async () => {
-    eventRow = baseEvent({
-      data_feeds: {
-        name: 'BORP',
-        organizations: { id: 'org-2', slug: 'borp', name: 'BORP', logo_url: null },
-      },
-    });
+    eventRow = hostedBy(BORP_ORG);
     orgEventCount = 7;
 
     renderEvent();
@@ -217,21 +215,18 @@ describe('EventPage', () => {
     expect(await screen.findByText('Hosting · 7 events this year')).toBeInTheDocument();
   });
 
-  it('shows just "Hosting" with no count when the org is not linked yet', async () => {
+  it('renders no hosting card when the event has no resolved organization', async () => {
     renderEvent();
 
     await screen.findByText('Adaptive handcycle ride');
-    expect(await screen.findByText('Hosting')).toBeInTheDocument();
-    expect(screen.queryByText(/events this year/)).not.toBeInTheDocument();
+    // `events.organization_id` is the effective org, so an event without one has nothing to badge,
+    // nothing to count and nobody to follow — the whole card is left out rather than half-filled.
+    expect(screen.queryByText(/Hosting/)).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Follow' })).not.toBeInTheDocument();
   });
 
   it('no longer shows a verified checkmark, access notes, or an access warning', async () => {
-    eventRow = baseEvent({
-      data_feeds: {
-        name: 'BORP',
-        organizations: { id: 'org-2', slug: 'borp', name: 'BORP', logo_url: null },
-      },
-    });
+    eventRow = hostedBy(BORP_ORG);
 
     renderEvent();
 
@@ -307,12 +302,7 @@ describe('EventPage', () => {
   });
 
   it('follows and unfollows the hosting organization', async () => {
-    eventRow = baseEvent({
-      data_feeds: {
-        name: 'BORP',
-        organizations: { id: 'org-2', slug: 'borp', name: 'BORP', logo_url: null },
-      },
-    });
+    eventRow = hostedBy(BORP_ORG);
 
     renderEvent();
     await screen.findByText('Adaptive handcycle ride');
@@ -329,14 +319,8 @@ describe('EventPage', () => {
     expect(screen.getByRole('button', { name: 'Follow' })).toHaveAttribute('aria-pressed', 'false');
   });
 
-  it('disables the follow button when the event has no known organization', async () => {
-    renderEvent();
-    await screen.findByText('Hosting');
-
-    expect(screen.getByRole('button', { name: 'Follow' })).toBeDisabled();
-  });
-
   it('lists related events from the same organization', async () => {
+    eventRow = hostedBy(BORP_ORG);
     relatedRows = [
       {
         id: 'e2',
@@ -353,6 +337,8 @@ describe('EventPage', () => {
   });
 
   it('does not render a "more from" section when there are no related events', async () => {
+    eventRow = hostedBy(BORP_ORG);
+
     renderEvent();
 
     await screen.findByText('Adaptive handcycle ride');
