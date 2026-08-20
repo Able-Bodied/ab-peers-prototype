@@ -24,7 +24,7 @@ describe('App', () => {
     ).toBeInTheDocument();
   });
 
-  it('lets a user navigate to another flow from the sidebar', async () => {
+  it('lets a user navigate to another flow from the nav', async () => {
     const user = userEvent.setup();
     render(
       <MemoryRouter initialEntries={['/']}>
@@ -32,7 +32,7 @@ describe('App', () => {
       </MemoryRouter>,
     );
 
-    await user.click(screen.getByRole('link', { name: /Mentor Map/ }));
+    await user.click(screen.getByRole('link', { name: /^Discover/ }));
 
     expect(screen.getByRole('heading', { level: 1, name: 'Mentor Map' })).toBeInTheDocument();
     // Mentor Map renders seed data, not just an empty skeleton.
@@ -47,7 +47,7 @@ describe('App', () => {
       </MemoryRouter>,
     );
 
-    await user.click(screen.getByRole('link', { name: /^Profile/ }));
+    await user.click(screen.getByRole('link', { name: /^Me/ }));
 
     expect(screen.getByRole('heading', { level: 1, name: 'Profile' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Sign in' })).toBeInTheDocument();
@@ -61,7 +61,7 @@ describe('App', () => {
       </MemoryRouter>,
     );
 
-    await user.click(screen.getByRole('link', { name: /^Connect/ }));
+    await user.click(screen.getByRole('link', { name: /^Chats/ }));
 
     expect(screen.getByRole('heading', { level: 1, name: 'Connect' })).toBeInTheDocument();
     expect(screen.getByText('Ilse V.')).toBeInTheDocument();
@@ -75,7 +75,7 @@ describe('App', () => {
       </MemoryRouter>,
     );
 
-    await user.click(screen.getByRole('link', { name: /Coordinator Dashboard/ }));
+    await user.click(screen.getByRole('link', { name: /^Roster/ }));
 
     expect(
       screen.getByRole('heading', { level: 1, name: 'Coordinator Dashboard' }),
