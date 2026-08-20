@@ -251,3 +251,39 @@ export function validateMessage(body: string, max = MESSAGE_MAX_LENGTH): string 
   }
   return null;
 }
+
+export type MessageSegment = { kind: 'text'; text: string } | { kind: 'link'; url: string };
+
+const URL_PATTERN = /https?:\/\/[^\s<>"]+/g;
+
+/**
+ * Splits a message body around any URLs it contains, so the renderer can turn
+ * just those spans into links rather than dropping `dangerouslySetInnerHTML`
+ * on a message somebody else typed. Trailing punctuation a sentence would
+ * naturally end a URL with — `.`, `,`, `)`, `!`, `?` — is peeled back into the
+ * surrounding text, so "visit https://ablebodied.org/." links the address and
+ * not the full stop after it.
+ */
+export function linkifyMessage(body: string): MessageSegment[] {
+  const segments: MessageSegment[] = [];
+  let cursor = 0;
+
+  for (const match of body.matchAll(URL_PATTERN)) {
+    const start = match.index;
+    let url = match[0];
+    let end = start + url.length;
+    const trailing = /[.,!?)]+$/.exec(url);
+    if (trailing) {
+      url = url.slice(0, url.length - trailing[0].length);
+      end -= trailing[0].length;
+    }
+    if (url === '') continue;
+
+    if (start > cursor) segments.push({ kind: 'text', text: body.slice(cursor, start) });
+    segments.push({ kind: 'link', url });
+    cursor = end;
+  }
+
+  if (cursor < body.length) segments.push({ kind: 'text', text: body.slice(cursor) });
+  return segments;
+}

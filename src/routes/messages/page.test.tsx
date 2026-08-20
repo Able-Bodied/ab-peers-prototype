@@ -44,6 +44,7 @@ function counterpart(id: string, displayName: string, type: 'peer' | 'mentor') {
     state: 'Colorado' as const,
     capacity: type === 'mentor' ? ('open' as const) : null,
     isSynthetic: false,
+    isBot: false,
   };
 }
 
@@ -366,5 +367,88 @@ describe('MessagesPage', () => {
     renderMessages();
 
     expect(await screen.findByRole('link', { name: 'Sign in' })).toBeInTheDocument();
+  });
+
+  it('marks a bot counterpart and hides the manual demo-reply control it makes redundant', async () => {
+    conversations = [
+      ...conversations,
+      {
+        id: 'conv-bot',
+        kind: 'peer',
+        createdAt: TODAY,
+        lastMessageAt: TODAY,
+        lastReadAt: TODAY,
+        archived: false,
+        muted: false,
+        blocked: false,
+        counterpart: {
+          ...counterpart('peer-bot', 'Peer Bot', 'peer'),
+          isSynthetic: true,
+          isBot: true,
+        },
+        unreadCount: 0,
+        lastMessageBody: null,
+        lastMessageSenderId: null,
+      },
+    ];
+    messagesByConversation['conv-bot'] = [];
+
+    renderMessages('/messages/conv-bot');
+
+    const thread = await screen.findByRole('region', { name: 'Conversation with Peer Bot' });
+    expect(within(thread).getByText('Bot')).toBeInTheDocument();
+    expect(
+      within(thread).queryByText('Prototype only — simulate a reply from this demo profile'),
+    ).not.toBeInTheDocument();
+  });
+
+  it('keeps the manual demo-reply control for a synthetic profile that is not the bot', async () => {
+    conversations = [
+      ...conversations,
+      {
+        id: 'conv-synthetic',
+        kind: 'mentor',
+        createdAt: TODAY,
+        lastMessageAt: TODAY,
+        lastReadAt: TODAY,
+        archived: false,
+        muted: false,
+        blocked: false,
+        counterpart: { ...counterpart('mira-1', 'Mira Castillo', 'mentor'), isSynthetic: true },
+        unreadCount: 0,
+        lastMessageBody: null,
+        lastMessageSenderId: null,
+      },
+    ];
+    messagesByConversation['conv-synthetic'] = [];
+
+    renderMessages('/messages/conv-synthetic');
+
+    const thread = await screen.findByRole('region', { name: 'Conversation with Mira Castillo' });
+    expect(within(thread).queryByText('Bot')).not.toBeInTheDocument();
+    expect(
+      within(thread).getByText('Prototype only — simulate a reply from this demo profile'),
+    ).toBeInTheDocument();
+  });
+
+  it('renders a URL in a message as a clickable link, without the trailing punctuation', async () => {
+    messagesByConversation['conv-1'] = [
+      ...(messagesByConversation['conv-1'] ?? []),
+      {
+        id: 'm-url',
+        conversationId: 'conv-1',
+        senderId: 'dana-1',
+        body: 'Visit https://ablebodied.org/ for more details.',
+        createdAt: TODAY,
+        deletedAt: null,
+      },
+    ];
+
+    renderMessages('/messages/conv-1');
+
+    const thread = await screen.findByRole('region', { name: 'Conversation with Dana Ruiz' });
+    const link = await within(thread).findByRole('link', { name: 'https://ablebodied.org/' });
+    expect(link).toHaveAttribute('href', 'https://ablebodied.org/');
+    expect(within(thread).getByText(/for more details\./)).toBeInTheDocument();
   });
 });

@@ -442,6 +442,8 @@ export interface ChatCounterpart {
   capacity: Capacity | null;
   /** Prototype only: a seeded demo profile, with no account behind it. */
   isSynthetic: boolean;
+  /** Peer Bot: replies to waves and messages on its own — see docs/CHAT.md. */
+  isBot: boolean;
 }
 
 /** Somebody the viewer may start a conversation with, or already has one with. */

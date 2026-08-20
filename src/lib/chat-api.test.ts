@@ -119,6 +119,7 @@ const counterpartColumns = {
   counterpart_state: 'Colorado',
   counterpart_capacity: 'open',
   counterpart_is_synthetic: true,
+  counterpart_is_bot: false,
   phone: '+15555550123',
   birth_date: '1990-04-02',
 };
@@ -175,6 +176,7 @@ const chatMemberRow = {
   capacity: 'open',
   open_to_messages: true,
   is_synthetic: true,
+  is_bot: false,
   phone: '+15555550123',
   birth_date: '1990-04-02',
 };
@@ -188,6 +190,7 @@ const expectedCounterpart = {
   state: 'Colorado',
   capacity: 'open',
   isSynthetic: true,
+  isBot: false,
 };
 
 beforeEach(() => {
@@ -471,6 +474,7 @@ describe('fetchChatMembers', () => {
         capacity: 'open',
         openToMessages: true,
         isSynthetic: true,
+        isBot: false,
       },
     ]);
   });

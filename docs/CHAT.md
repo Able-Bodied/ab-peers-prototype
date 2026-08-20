@@ -95,11 +95,41 @@ What is **not** here, and should be before this meets real members:
   unless that counterpart is `is_synthetic`, so it can never post as a real account — but it has no
   business existing in front of real members.
 
+## Peer Bot
+
+`demo_reply()` needs a tester to click it. Peer Bot (`supabase/migrations/20260820150000_peer_bot.sql`)
+is the automated version: one synthetic member, `is_bot = true`, listened for by database triggers
+rather than by a person. "The server" is Postgres itself — there is no process to keep running, and
+it answers whether or not anyone has the app open.
+
+- Waving at it gets an answer immediately, the same way waving at an open mentor does — except Peer
+  Bot is `type = 'peer'` (it has not volunteered as a mentor), so it gets its own trigger
+  (`chat_bot_wave_back`) that waves back on the human's wave rather than reusing the mentor path.
+- The moment a thread with it opens — by a wave, by writing first, however — it sends one greeting,
+  once (`chat_bot_greet`, on `conversations` insert).
+- After that, every message a human sends into that thread gets an automatic reply
+  (`chat_bot_reply`, on `messages` insert): the exact handcycling question gets the AbleBodied
+  answer; anything else gets "not available yet" and one of fifty prewritten jokes (`bot_jokes`,
+  readable by nobody but the trigger function itself).
+- It is also `is_synthetic`, same as the rest of the demo population, but the client hides the
+  manual "simulate a reply" control for it specifically — a human tester faking a reply next to a
+  counterpart that already replies on its own is confusing, not useful. `demo_reply()` itself still
+  works against it at the database level; nothing here narrows what it was already allowed to do.
+- `chat_wave_back_opens_thread()` (defined in the chat migration) got one guard narrowed here, from
+  "no message in this thread yet" to "no message from this sender yet" — the greeting posts into a
+  freshly opened conversation before that guard is reached, and the old, caller-agnostic version of
+  it would have silently dropped a human's wave-carried text into a bot conversation. See the
+  comment on that function in the migration for the full reasoning.
+- It does not show up in Discover (`show_in_browse = false`) — a profile card with a `disability`
+  field is not an honest way to present a bot — but it does show up in Connect's search
+  (`open_to_messages = true` is what `chat_members` actually keys on).
+
 ## Files
 
 | Path | What it is |
 | --- | --- |
 | `supabase/migrations/20260820140000_chat_messaging.sql` | The schema, the rules and the privacy boundary. Start here. |
+| `supabase/migrations/20260820150000_peer_bot.sql` | Peer Bot: the member row, the fifty jokes, and the triggers that make it answer on its own. |
 | `supabase/tests/` | RLS tests, run against a real Postgres. See that folder's README. |
 | `src/lib/chat-api.ts` | Every Supabase call, and the row-to-domain mapping. Nothing above it names a table. |
 | `src/lib/chat-rules.ts` | The pure decisions — contactability, wave outcome, grouping, formatting. Tested without a database. |

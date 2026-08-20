@@ -6,6 +6,7 @@ import {
   dayLabel,
   groupMessagesByDay,
   initials,
+  linkifyMessage,
   locationLabel,
   MESSAGE_MAX_LENGTH,
   messageTime,
@@ -56,6 +57,7 @@ function counterpart(overrides: Partial<ChatCounterpart> = {}): ChatCounterpart 
     state: 'Colorado',
     capacity: null,
     isSynthetic: true,
+    isBot: false,
     ...overrides,
   };
 }
@@ -570,5 +572,54 @@ describe('validateMessage', () => {
 
   it('lets a wave-length body through when measured against the message limit', () => {
     expect(validateMessage('a'.repeat(WAVE_MESSAGE_MAX_LENGTH + 1))).toBeNull();
+  });
+});
+
+describe('linkifyMessage', () => {
+  it('returns a plain message as a single text segment', () => {
+    expect(linkifyMessage('Hi, how are you?')).toEqual([
+      { kind: 'text', text: 'Hi, how are you?' },
+    ]);
+  });
+
+  it('splits a URL out of surrounding text', () => {
+    expect(linkifyMessage('Visit https://ablebodied.org/ for more details')).toEqual([
+      { kind: 'text', text: 'Visit ' },
+      { kind: 'link', url: 'https://ablebodied.org/' },
+      { kind: 'text', text: ' for more details' },
+    ]);
+  });
+
+  it('renders a message that is only a URL as a single link segment', () => {
+    expect(linkifyMessage('https://ablebodied.org/')).toEqual([
+      { kind: 'link', url: 'https://ablebodied.org/' },
+    ]);
+  });
+
+  it('finds more than one URL in the same message', () => {
+    expect(linkifyMessage('See https://a.example and https://b.example too')).toEqual([
+      { kind: 'text', text: 'See ' },
+      { kind: 'link', url: 'https://a.example' },
+      { kind: 'text', text: ' and ' },
+      { kind: 'link', url: 'https://b.example' },
+      { kind: 'text', text: ' too' },
+    ]);
+  });
+
+  it('peels a trailing sentence mark off the URL rather than linking it', () => {
+    expect(linkifyMessage('Visit https://ablebodied.org/.')).toEqual([
+      { kind: 'text', text: 'Visit ' },
+      { kind: 'link', url: 'https://ablebodied.org/' },
+      { kind: 'text', text: '.' },
+    ]);
+    expect(linkifyMessage('Have you seen (https://ablebodied.org/)?')).toEqual([
+      { kind: 'text', text: 'Have you seen (' },
+      { kind: 'link', url: 'https://ablebodied.org/' },
+      { kind: 'text', text: ')?' },
+    ]);
+  });
+
+  it('leaves a message with no URL untouched', () => {
+    expect(linkifyMessage('no links here')).toEqual([{ kind: 'text', text: 'no links here' }]);
   });
 });

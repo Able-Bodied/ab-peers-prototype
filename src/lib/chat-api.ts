@@ -55,6 +55,7 @@ interface CounterpartColumns {
   counterpart_state: string;
   counterpart_capacity: string | null;
   counterpart_is_synthetic: boolean;
+  counterpart_is_bot: boolean;
 }
 
 interface ConversationRow extends CounterpartColumns {
@@ -111,6 +112,7 @@ interface ChatMemberRow {
   capacity: string | null;
   open_to_messages: boolean;
   is_synthetic: boolean;
+  is_bot: boolean;
 }
 
 /* ---------------------------------------------------------------- mapping */
@@ -125,6 +127,7 @@ function mapCounterpart(row: CounterpartColumns): ChatCounterpart {
     state: row.counterpart_state as UsState,
     capacity: row.counterpart_capacity as Capacity | null,
     isSynthetic: row.counterpart_is_synthetic,
+    isBot: row.counterpart_is_bot,
   };
 }
 
@@ -185,6 +188,7 @@ function mapChatMember(row: ChatMemberRow): ChatMember {
     capacity: row.capacity as Capacity | null,
     openToMessages: row.open_to_messages,
     isSynthetic: row.is_synthetic,
+    isBot: row.is_bot,
   };
 }
 

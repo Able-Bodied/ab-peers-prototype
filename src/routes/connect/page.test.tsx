@@ -58,6 +58,7 @@ function chatMember(
     state: 'California',
     capacity: null,
     isSynthetic: false,
+    isBot: false,
     disability: 'SCI - para',
     level: 'T6',
     ageBand: '30-39',

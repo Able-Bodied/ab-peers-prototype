@@ -80,6 +80,11 @@ export function ConversationList({
                       Mentor
                     </span>
                   )}
+                  {counterpart.isBot && (
+                    <span className="bg-accent text-accent-foreground shrink-0 rounded-lg px-2 py-0.5 text-[10px] font-bold">
+                      Bot
+                    </span>
+                  )}
                   {conversation.archived && (
                     <span className="bg-secondary text-muted-foreground shrink-0 rounded-lg px-2 py-0.5 text-[10px] font-bold">
                       Archived

@@ -8,6 +8,7 @@ import { useChat } from '@/lib/chat';
 import {
   groupMessagesByDay,
   initials,
+  linkifyMessage,
   locationLabel,
   messageTime,
   validateMessage,
@@ -144,6 +145,11 @@ export function ThreadView({ conversation, viewerId, onBack }: ThreadViewProps) 
             {counterpart.type === 'mentor' && (
               <span className="bg-accent text-accent-foreground shrink-0 rounded-lg px-2 py-0.5 text-[10px] font-bold">
                 Mentor
+              </span>
+            )}
+            {counterpart.isBot && (
+              <span className="bg-accent text-accent-foreground shrink-0 rounded-lg px-2 py-0.5 text-[10px] font-bold">
+                Bot
               </span>
             )}
             {counterpart.type === 'mentor' && counterpart.capacity && (
@@ -298,7 +304,7 @@ export function ThreadView({ conversation, viewerId, onBack }: ThreadViewProps) 
             </p>
           )}
 
-          {counterpart.isSynthetic && (
+          {counterpart.isSynthetic && !counterpart.isBot && (
             <DemoReplyControl conversationId={conversationId} onSend={demoReply} />
           )}
         </div>
@@ -356,7 +362,23 @@ function MessageRow({ message, mine, counterpartName, onRetract }: MessageRowPro
         {/* The row survives a retraction so the thread keeps its shape, but the
             body is never rendered again — that is the whole point of retracting. */}
         <p className="text-[15px] leading-snug whitespace-pre-wrap">
-          {retracted ? 'Message removed' : message.body}
+          {retracted
+            ? 'Message removed'
+            : linkifyMessage(message.body).map((segment, index) =>
+                segment.kind === 'link' ? (
+                  <a
+                    key={`${message.id}-${String(index)}`}
+                    href={segment.url}
+                    target="_blank"
+                    rel="noreferrer noopener"
+                    className="underline underline-offset-2 hover:no-underline"
+                  >
+                    {segment.url}
+                  </a>
+                ) : (
+                  <span key={`${message.id}-${String(index)}`}>{segment.text}</span>
+                ),
+              )}
         </p>
       </div>
 

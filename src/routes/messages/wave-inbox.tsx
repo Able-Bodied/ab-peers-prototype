@@ -179,6 +179,11 @@ function WaveHeader({ wave }: { wave: ChatWave }) {
               Mentor
             </span>
           )}
+          {counterpart.isBot && (
+            <span className="bg-accent text-accent-foreground shrink-0 rounded-lg px-2 py-0.5 text-[10px] font-bold">
+              Bot
+            </span>
+          )}
         </p>
         <p className="text-muted-foreground text-xs">
           {locationLabel(counterpart)} · {relativeTime(wave.createdAt)}
