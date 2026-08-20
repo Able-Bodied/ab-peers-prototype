@@ -3,11 +3,11 @@
  * Applies the events schema migration to Supabase
  */
 
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { createClient } from '@supabase/supabase-js';
 import dotenv from 'dotenv';
-import fs from 'fs/promises';
-import path from 'path';
-import { fileURLToPath } from 'url';
 
 // Load environment variables
 const __filename = fileURLToPath(import.meta.url);
@@ -31,9 +31,9 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 
 async function checkTableExists(tableName) {
   try {
-    const { data, error } = await supabase.from(tableName).select('*').limit(0);
+    const { error } = await supabase.from(tableName).select('*').limit(0);
 
-    return !error || error.code !== 'PGRST116';
+    return error?.code !== 'PGRST116';
   } catch {
     return false;
   }
@@ -76,7 +76,7 @@ async function setupDatabase() {
   console.log(`  event_photos: ${eventPhotosExists ? '✓ exists' : '✗ missing'}`);
 
   console.log('\nTo create the database schema:');
-  console.log('1. Open Supabase Dashboard: ' + supabaseUrl);
+  console.log(`1. Open Supabase Dashboard: ${supabaseUrl}`);
   console.log('2. Go to SQL Editor');
   console.log('3. Click "New query"');
   console.log('4. Paste the SQL below and execute it:\n');

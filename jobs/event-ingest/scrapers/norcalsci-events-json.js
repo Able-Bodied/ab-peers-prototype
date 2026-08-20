@@ -155,7 +155,7 @@ export class NorCalSCIEventsJsonScraper {
    * scraped from `.eventitem-column-content .sqs-html-content`.
    */
   extractBodyHtml(body) {
-    if (!body || !body.trim()) return '';
+    if (!body?.trim()) return '';
     const $ = cheerio.load(body, null, false);
 
     let blocks = $('.sqs-html-content').toArray();

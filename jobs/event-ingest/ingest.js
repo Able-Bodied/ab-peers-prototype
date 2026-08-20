@@ -4,10 +4,10 @@
  * Handles deduplication via UNIQUE(feed_id, external_id) composite key
  */
 
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { createClient } from '@supabase/supabase-js';
 import dotenv from 'dotenv';
-import path from 'path';
-import { fileURLToPath } from 'url';
 import { AdaptiveRecHubEventsScraper } from './scrapers/adaptiverechub-events.js';
 import { geocodeEvents } from './scrapers/geocode.js';
 import {
@@ -65,7 +65,7 @@ function validateEnvironment() {
   // Validate URL format
   try {
     new URL(supabaseUrl);
-  } catch (error) {
+  } catch {
     console.error('SUPABASE_URL is not a valid URL:', supabaseUrl);
     process.exit(1);
   }
@@ -531,7 +531,7 @@ class EventIngestionWorker {
               // Created before = updated
               updated++;
             }
-          } catch (e) {
+          } catch {
             // If we can't parse date, assume it's an update
             updated++;
           }
@@ -796,7 +796,7 @@ class EventIngestionWorker {
   async testConnection() {
     this.log('Testing Supabase connection...', 'info');
     try {
-      const { data, error } = await this.supabase
+      const { error } = await this.supabase
         .from('data_feeds')
         .select('count', { count: 'exact' })
         .limit(1);
@@ -820,7 +820,7 @@ class EventIngestionWorker {
   async run() {
     this.stats.startTime = new Date();
 
-    console.log('\n' + '='.repeat(70));
+    console.log(`\n${'='.repeat(70)}`);
     console.log('Event Ingestion Worker Starting');
     console.log('='.repeat(70));
     console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
@@ -883,7 +883,7 @@ class EventIngestionWorker {
     this.stats.endTime = new Date();
     const duration = (this.stats.endTime - this.stats.startTime) / 1000;
 
-    console.log('\n' + '='.repeat(70));
+    console.log(`\n${'='.repeat(70)}`);
     console.log('Ingestion Summary');
     console.log('='.repeat(70));
     console.log(`Feeds Processed: ${this.stats.feedsProcessed}`);
@@ -894,7 +894,7 @@ class EventIngestionWorker {
     console.log(`Events Flagged for AI Verification: ${this.stats.eventsNeedingVerification}`);
     console.log(`Events Failed: ${this.stats.eventsFailed}`);
     console.log(`Duration: ${duration.toFixed(2)}s`);
-    console.log('='.repeat(70) + '\n');
+    console.log(`${'='.repeat(70)}\n`);
   }
 }
 

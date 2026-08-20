@@ -2,10 +2,10 @@
  * Check and Configure Data Feeds
  */
 
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { createClient } from '@supabase/supabase-js';
 import dotenv from 'dotenv';
-import path from 'path';
-import { fileURLToPath } from 'url';
 
 // Load environment variables
 const __filename = fileURLToPath(import.meta.url);

@@ -2,10 +2,10 @@
  * Database Diagnostic Script
  */
 
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { createClient } from '@supabase/supabase-js';
 import dotenv from 'dotenv';
-import path from 'path';
-import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -54,13 +54,13 @@ async function run() {
     }
   }
 
-  console.log('\n' + '='.repeat(70));
+  console.log(`\n${'='.repeat(70)}`);
 
   if (!allExist) {
     console.log('\nSTATUS: ✗ Database schema is missing');
     console.log('\nACTION REQUIRED: Apply the database migration\n');
     console.log('Option 1: Using Supabase Dashboard');
-    console.log('1. Open: ' + supabaseUrl);
+    console.log(`1. Open: ${supabaseUrl}`);
     console.log('2. Go to SQL Editor');
     console.log('3. Create a new query');
     console.log('4. Copy the content from:');

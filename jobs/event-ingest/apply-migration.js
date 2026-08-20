@@ -7,10 +7,10 @@
  * to your Supabase database.
  */
 
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import dotenv from 'dotenv';
-import fs from 'fs/promises';
-import path from 'path';
-import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -23,7 +23,7 @@ dotenv.config({ path: path.join(projectRoot, '.env') });
 const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
 
 async function applyMigration() {
-  console.log('\n' + '='.repeat(80));
+  console.log(`\n${'='.repeat(80)}`);
   console.log('Event Ingestion Database Setup');
   console.log('='.repeat(80));
 
@@ -74,7 +74,7 @@ async function applyMigration() {
 
   console.log('─'.repeat(80));
   console.log(sqlToExecute);
-  console.log('─'.repeat(80) + '\n');
+  console.log(`${'─'.repeat(80)}\n`);
 
   console.log('5. Execute the query');
   console.log('   Click the "Run" button (Cmd/Ctrl + Enter)\n');
@@ -85,7 +85,7 @@ async function applyMigration() {
   console.log('7. Run the ingestion job');
   console.log('   pnpm -F event-ingest start\n');
 
-  console.log('='.repeat(80) + '\n');
+  console.log(`${'='.repeat(80)}\n`);
 }
 
 applyMigration().catch((error) => {

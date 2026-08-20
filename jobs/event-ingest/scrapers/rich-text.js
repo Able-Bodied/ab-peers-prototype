@@ -220,7 +220,7 @@ function tidyText(text) {
  * `baseUrl` resolves relative hrefs; pass the page the fragment came from.
  */
 export function convertRichText(sourceHtml, baseUrl) {
-  if (!sourceHtml || !sourceHtml.trim()) return { html: '', text: '' };
+  if (!sourceHtml?.trim()) return { html: '', text: '' };
 
   const $ = cheerio.load(sourceHtml, null, false);
   const roots = $.root().children().toArray();
