@@ -24,36 +24,24 @@ describe('App', () => {
     ).toBeInTheDocument();
   });
 
-  it('lets a user navigate to another flow from the sidebar', async () => {
-    const user = userEvent.setup();
-    render(
-      <MemoryRouter initialEntries={['/']}>
-        <App />
-      </MemoryRouter>,
-    );
-
-    await user.click(screen.getByRole('link', { name: /Mentor Map/ }));
-
-    expect(screen.getByRole('heading', { level: 1, name: 'Mentor Map' })).toBeInTheDocument();
-    // Mentor Map renders seed data, not just an empty skeleton.
-    expect(screen.getByText('Ilse V.')).toBeInTheDocument();
-  });
-
   it('shows a sign-in prompt on the profile flow when signed out', async () => {
-    const user = userEvent.setup();
+    // The nav's combined Join/Me tab shows Join while signed out, so profile
+    // is only reachable directly here (a bookmark, a stale link, etc.).
     render(
-      <MemoryRouter initialEntries={['/']}>
+      <MemoryRouter initialEntries={['/profile']}>
         <App />
       </MemoryRouter>,
     );
 
-    await user.click(screen.getByRole('link', { name: /^Profile/ }));
-
-    expect(screen.getByRole('heading', { level: 1, name: 'Profile' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 1, name: 'Profile' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Sign in' })).toBeInTheDocument();
   });
 
-  it('renders the connect flow', async () => {
+  it.each([
+    ['Discover', /^Discover/],
+    ['Chats', /^Chats/],
+    ['Activity', /^Activity/],
+  ])('gates the %s flow behind a sign-in prompt when signed out', async (_name, linkName) => {
     const user = userEvent.setup();
     render(
       <MemoryRouter initialEntries={['/']}>
@@ -61,29 +49,28 @@ describe('App', () => {
       </MemoryRouter>,
     );
 
-    await user.click(screen.getByRole('link', { name: /^Connect/ }));
+    await user.click(screen.getByRole('link', { name: linkName }));
 
-    expect(screen.getByRole('heading', { level: 1, name: 'Connect' })).toBeInTheDocument();
-    // Connect reads from the chat provider, not @/mocks/seed, so there is no seed
-    // name to look for here: signed out, the roster is behind sign-in.
+    expect(screen.getByRole('heading', { level: 1, name: 'Sign in required' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Sign in' })).toBeInTheDocument();
   });
 
-  it('renders the coordinator dashboard with seed roster data', async () => {
-    const user = userEvent.setup();
+  it('has no Roster tab, but the coordinator dashboard route still resolves directly', async () => {
     render(
       <MemoryRouter initialEntries={['/']}>
         <App />
       </MemoryRouter>,
     );
+    expect(screen.queryByRole('link', { name: /^Roster/ })).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole('link', { name: /Coordinator Dashboard/ }));
+    render(
+      <MemoryRouter initialEntries={['/coordinator']}>
+        <App />
+      </MemoryRouter>,
+    );
 
     expect(
-      screen.getByRole('heading', { level: 1, name: 'Coordinator Dashboard' }),
+      await screen.findByRole('heading', { level: 1, name: 'Sign in required' }),
     ).toBeInTheDocument();
-    expect(screen.getByText('Craig Hospital')).toBeInTheDocument();
-    // Roster table lists seed mentors.
-    expect(screen.getByRole('cell', { name: 'Ilse V.' })).toBeInTheDocument();
   });
 });
