@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
+import { useFollows } from '@/lib/follows';
 import { useRsvps } from '@/lib/rsvps';
 import { getSupabase } from '@/lib/supabase';
 import { cn } from '@/lib/utils';
@@ -33,7 +34,7 @@ import { GoingDialog } from '@/routes/events/going-dialog';
  *  - [x] Real org badge from `organizations`, matching the events list
  *  - [x] Real org events-this-year count from `organizations`/`events`
  *  - [x] AI-extracted start/end time and location as a fallback for the scraped columns
- *  - [ ] Wire an actual Follow feature (currently a disabled button)
+ *  - [x] Wire an actual Follow feature, shared with the events feed's Following tab
  */
 
 interface OrganizationEmbed {
@@ -104,6 +105,12 @@ function orgIdOf(row: EventDetailRow): string | null {
   return orgRow?.id ?? null;
 }
 
+function orgSlugOf(row: EventDetailRow): string | null {
+  const org = feedOf(row)?.organizations;
+  const orgRow = Array.isArray(org) ? org[0] : org;
+  return orgRow?.slug ?? null;
+}
+
 function dateTile(isoString: string): { weekday: string; day: string } {
   const date = new Date(isoString);
   return {
@@ -165,6 +172,8 @@ export default function EventPage() {
   const [orgEventsThisYear, setOrgEventsThisYear] = useState<number | null>(null);
   // Shared with the events feed, so the counts here and on the card agree.
   const { rsvpFor, setRsvp, countsFor, ensureCounts } = useRsvps();
+  // Shared with the events feed's Following tab, so a follow made here shows up there.
+  const { isFollowing, toggleFollow } = useFollows();
   const [goingOpen, setGoingOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -284,6 +293,8 @@ export default function EventPage() {
   const mock: MockEventAttributes = mockEventAttributes(event.id);
   const orgName = orgNameOf(event);
   const orgBadge = orgBadgeOf(event);
+  const orgSlug = orgSlugOf(event);
+  const following = orgSlug !== null && isFollowing(orgSlug);
   const startTime = event.start_time ?? event.ai_extracted_start_time;
   const endTime = event.end_time ?? event.ai_extracted_end_time;
   // A blank-but-present location (the feed's own "no venue" sentinel) counts as absent too, so it
@@ -335,11 +346,18 @@ export default function EventPage() {
           </div>
           <button
             type="button"
-            disabled
-            title="Not wired yet — no follow feature in this prototype."
-            className="border-primary text-primary min-h-9 shrink-0 rounded-xl border-2 px-3.5 text-[13px] font-bold opacity-60"
+            disabled={orgSlug === null}
+            aria-pressed={following}
+            onClick={() => {
+              if (orgSlug !== null) toggleFollow(orgSlug);
+            }}
+            className={cn(
+              'border-primary text-primary min-h-9 shrink-0 rounded-xl border-2 px-3.5 text-[13px] font-bold',
+              following && 'bg-primary text-primary-foreground',
+              orgSlug === null && 'opacity-60',
+            )}
           >
-            Follow
+            {following ? 'Following' : 'Follow'}
           </button>
         </div>
       )}

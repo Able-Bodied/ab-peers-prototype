@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { FollowsProvider } from '@/lib/follows';
 import { RsvpProvider } from '@/lib/rsvps';
 import EventPage from '@/routes/event/page';
 import { createEventRsvpsMock } from '@/test/rsvp-mock';
@@ -119,9 +120,11 @@ function renderEvent(id = 'e1') {
   return render(
     <MemoryRouter initialEntries={[`/event/${id}`]}>
       <RsvpProvider>
-        <Routes>
-          <Route path="/event/:id" element={<EventPage />} />
-        </Routes>
+        <FollowsProvider>
+          <Routes>
+            <Route path="/event/:id" element={<EventPage />} />
+          </Routes>
+        </FollowsProvider>
       </RsvpProvider>
     </MemoryRouter>,
   );
@@ -136,6 +139,7 @@ describe('EventPage', () => {
     relatedRows = [];
     orgEventCount = 0;
     eventRsvps.reset();
+    globalThis.localStorage.clear();
   });
 
   it('shows the title, organization and location for the loaded event', async () => {
@@ -302,6 +306,36 @@ describe('EventPage', () => {
     expect(screen.getByRole('button', { name: /^Going/ })).toHaveAttribute('aria-pressed', 'false');
   });
 
+  it('follows and unfollows the hosting organization', async () => {
+    eventRow = baseEvent({
+      data_feeds: {
+        name: 'BORP',
+        organizations: { id: 'org-2', slug: 'borp', name: 'BORP', logo_url: null },
+      },
+    });
+
+    renderEvent();
+    await screen.findByText('Adaptive handcycle ride');
+
+    const followButton = screen.getByRole('button', { name: 'Follow' });
+    expect(followButton).toHaveAttribute('aria-pressed', 'false');
+
+    await userEvent.click(followButton);
+
+    const followingButton = screen.getByRole('button', { name: 'Following' });
+    expect(followingButton).toHaveAttribute('aria-pressed', 'true');
+
+    await userEvent.click(followingButton);
+    expect(screen.getByRole('button', { name: 'Follow' })).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  it('disables the follow button when the event has no known organization', async () => {
+    renderEvent();
+    await screen.findByText('Hosting');
+
+    expect(screen.getByRole('button', { name: 'Follow' })).toBeDisabled();
+  });
+
   it('lists related events from the same organization', async () => {
     relatedRows = [
       {
@@ -358,10 +392,12 @@ describe('EventPage', () => {
     render(
       <MemoryRouter initialEntries={['/event/e1']}>
         <RsvpProvider>
-          <Routes>
-            <Route path="/event/:id" element={<EventPage />} />
-            <Route path="/events" element={<p>Events list</p>} />
-          </Routes>
+          <FollowsProvider>
+            <Routes>
+              <Route path="/event/:id" element={<EventPage />} />
+              <Route path="/events" element={<p>Events list</p>} />
+            </Routes>
+          </FollowsProvider>
         </RsvpProvider>
       </MemoryRouter>,
     );
@@ -384,10 +420,12 @@ describe('EventPage', () => {
     render(
       <MemoryRouter initialEntries={['/event/e1']}>
         <RsvpProvider>
-          <Routes>
-            <Route path="/event/:id" element={<EventPage />} />
-            <Route path="/events" element={<EventsListStub />} />
-          </Routes>
+          <FollowsProvider>
+            <Routes>
+              <Route path="/event/:id" element={<EventPage />} />
+              <Route path="/events" element={<EventsListStub />} />
+            </Routes>
+          </FollowsProvider>
         </RsvpProvider>
       </MemoryRouter>,
     );
