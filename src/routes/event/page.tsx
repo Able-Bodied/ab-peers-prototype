@@ -388,7 +388,7 @@ export default function EventPage() {
         <img
           src={photoUrl}
           alt={event.title}
-          className="mt-3.5 aspect-video max-h-72 w-full rounded-2xl object-cover"
+          className="mx-auto mt-3.5 block max-h-96 w-auto max-w-full rounded-2xl object-contain"
         />
       )}
 
