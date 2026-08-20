@@ -384,3 +384,104 @@ export interface EventFilters {
   /** 'All' is a valid value here too — it's just not distinguishable from any other activity at the type level. */
   activity?: string;
 }
+
+/* ------------------------------------------------------------------- chat */
+
+/**
+ * Waves, conversations and messages. These mirror the three views in
+ * supabase/migrations/20260820140000_chat_messaging.sql one for one — the
+ * client never reads the tables underneath, so this is the whole shape of chat
+ * as far as the app is concerned.
+ *
+ * Note what is missing on purpose: `ChatCounterpart` has no `phone` and no
+ * `birthDate`, because the views it comes from do not select those columns.
+ * PRD §14 — "email and phone are never exposed between members" — and the same
+ * cut is made in TypeScript and in the database so that neither one alone is
+ * load-bearing. This is the reasoning behind `BrowseMember` above, applied to
+ * the other surface that renders somebody who is not you.
+ */
+
+export const WAVE_STATUSES = ['pending', 'accepted', 'declined'] as const;
+export type WaveStatus = (typeof WAVE_STATUSES)[number];
+
+export const WAVE_DIRECTIONS = ['inbox', 'outbox'] as const;
+export type WaveDirection = (typeof WAVE_DIRECTIONS)[number];
+
+export const CONVERSATION_KINDS = ['peer', 'mentor'] as const;
+export type ConversationKind = (typeof CONVERSATION_KINDS)[number];
+
+export const REPORT_REASONS = ['harassment', 'spam', 'impersonation', 'safety', 'other'] as const;
+export type ReportReason = (typeof REPORT_REASONS)[number];
+
+/** As much of another member as any chat surface is allowed to know. */
+export interface ChatCounterpart {
+  id: string;
+  type: MemberType;
+  displayName: string;
+  photoUrl: string | null;
+  city: string;
+  state: UsState;
+  capacity: Capacity | null;
+  /** Prototype only: a seeded demo profile, with no account behind it. */
+  isSynthetic: boolean;
+}
+
+/** Somebody the viewer may start a conversation with, or already has one with. */
+export interface ChatMember extends ChatCounterpart {
+  disability: Disability;
+  level: InjuryLevel | null;
+  ageBand: AgeBand;
+  duration: DurationBucket;
+  interests: Interest[];
+  openToMessages: boolean;
+}
+
+export interface ChatMessage {
+  id: string;
+  conversationId: string;
+  senderId: string;
+  body: string;
+  createdAt: string;
+  /** Set when the sender retracted it. The row survives; the body is not shown. */
+  deletedAt: string | null;
+}
+
+export interface ChatConversation {
+  id: string;
+  kind: ConversationKind;
+  createdAt: string;
+  lastMessageAt: string;
+  lastReadAt: string;
+  archived: boolean;
+  muted: boolean;
+  /** True when *you* blocked them. You are never told about the reverse. */
+  blocked: boolean;
+  counterpart: ChatCounterpart;
+  unreadCount: number;
+  lastMessageBody: string | null;
+  lastMessageSenderId: string | null;
+}
+
+export interface ChatWave {
+  id: string;
+  direction: WaveDirection;
+  /**
+   * On an outbound wave this is never 'declined': turning somebody down does not
+   * notify them, so a declined wave goes on reading 'pending' to its sender.
+   * See the `chat_waves` view.
+   */
+  status: WaveStatus;
+  topic: Topic | null;
+  message: string | null;
+  createdAt: string;
+  conversationId: string | null;
+  counterpart: ChatCounterpart;
+}
+
+/** The daily caps and how much of them the viewer has spent, from the database. */
+export interface ChatLimits {
+  waveDailyLimit: number;
+  wavesSentToday: number;
+  conversationDailyLimit: number;
+  conversationsStartedToday: number;
+}
