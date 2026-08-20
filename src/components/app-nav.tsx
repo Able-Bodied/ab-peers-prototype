@@ -1,7 +1,10 @@
 import type { LucideIcon } from 'lucide-react';
-import { Calendar, ClipboardList, Compass, MessageCircle, Sparkles, UserRound } from 'lucide-react';
+import { Sparkles, UserRound } from 'lucide-react';
+import type { SVGProps } from 'react';
 import { NavLink } from 'react-router-dom';
 
+import { ActivityIcon, ChatsIcon, DiscoverIcon, EventsIcon } from '@/components/nav-icons';
+import { useSession } from '@/lib/session';
 import { cn } from '@/lib/utils';
 
 /**
@@ -21,7 +24,7 @@ export interface NavItem {
   label: string;
   /** Sidebar-only second line: what this flow is. Hidden in the tab bar. */
   description: string;
-  icon: LucideIcon;
+  icon: LucideIcon | ((props: SVGProps<SVGSVGElement>) => React.JSX.Element);
 }
 
 export const navItems: NavItem[] = [
@@ -29,21 +32,46 @@ export const navItems: NavItem[] = [
     to: '/map',
     label: 'Discover',
     description: 'Filterable map of peers and mentors',
-    icon: Compass,
+    icon: DiscoverIcon,
   },
-  { to: '/events', label: 'Events', description: 'Adaptive sports & peer events', icon: Calendar },
-  { to: '/connect', label: 'Chats', description: 'Message or reveal contact', icon: MessageCircle },
   {
-    to: '/coordinator',
-    label: 'Roster',
-    description: 'Coordinator roster, PII & touchpoints',
-    icon: ClipboardList,
+    to: '/events',
+    label: 'Events',
+    description: 'Adaptive sports & peer events',
+    icon: EventsIcon,
   },
-  { to: '/profile', label: 'Me', description: 'Your peer/mentor profile', icon: UserRound },
-  { to: '/onboarding', label: 'Join', description: 'Wizard for new peers/mentors', icon: Sparkles },
+  { to: '/connect', label: 'Chats', description: 'Message or reveal contact', icon: ChatsIcon },
+  {
+    to: '/activity',
+    label: 'Activity',
+    description: 'Waves, replies & event reminders',
+    icon: ActivityIcon,
+  },
 ];
 
+// The coordinator dashboard (docs/PRD.md's roster/upload flow) has no nav tab — Activity
+// took its slot — but the route itself still resolves for anyone who links to it directly.
+
+// The last tab is one slot shared by two destinations: a signed-out visitor gets the
+// join/sign-in wizard, a signed-in member gets their own profile. They never both apply,
+// so it's one tab that swaps identity rather than two tabs where one hides.
+const joinItem: NavItem = {
+  to: '/onboarding',
+  label: 'Join',
+  description: 'Wizard for new peers/mentors',
+  icon: Sparkles,
+};
+const profileItem: NavItem = {
+  to: '/profile',
+  label: 'Me',
+  description: 'Your peer/mentor profile',
+  icon: UserRound,
+};
+
 export function AppNav() {
+  const { member } = useSession();
+  const items = [...navItems, member ? profileItem : joinItem];
+
   return (
     <nav
       aria-label="Main"
@@ -61,7 +89,7 @@ export function AppNav() {
         <p className="text-muted-foreground text-xs">Peer mentor matching — prototype</p>
       </div>
 
-      {navItems.map(({ to, label, description, icon: Icon }) => (
+      {items.map(({ to, label, description, icon: Icon }) => (
         <NavLink
           key={to}
           to={to}

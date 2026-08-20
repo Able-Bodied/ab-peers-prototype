@@ -1,10 +1,12 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
 
 import { AppNav } from '@/components/app-nav';
+import { RequireSession } from '@/components/require-session';
 import { DismissalsProvider } from '@/lib/dismissals';
 import { FollowsProvider } from '@/lib/follows';
 import { RsvpProvider } from '@/lib/rsvps';
 import { SessionProvider, useSession } from '@/lib/session';
+import ActivityPage from '@/routes/activity/page';
 import ConnectPage from '@/routes/connect/page';
 import CoordinatorPage from '@/routes/coordinator/page';
 import EventPage from '@/routes/event/page';
@@ -32,12 +34,55 @@ export function App() {
                 <Routes>
                   <Route path="/" element={<RootRedirect />} />
                   <Route path="/onboarding" element={<OnboardingPage />} />
-                  <Route path="/map" element={<MapPage />} />
+                  <Route
+                    path="/map"
+                    element={
+                      <RequireSession>
+                        <MapPage />
+                      </RequireSession>
+                    }
+                  />
                   <Route path="/profile" element={<ProfilePage />} />
-                  <Route path="/connect" element={<ConnectPage />} />
-                  <Route path="/coordinator" element={<CoordinatorPage />} />
-                  <Route path="/events" element={<EventsPage />} />
-                  <Route path="/event/:id" element={<EventPage />} />
+                  <Route
+                    path="/connect"
+                    element={
+                      <RequireSession>
+                        <ConnectPage />
+                      </RequireSession>
+                    }
+                  />
+                  <Route
+                    path="/coordinator"
+                    element={
+                      <RequireSession>
+                        <CoordinatorPage />
+                      </RequireSession>
+                    }
+                  />
+                  <Route
+                    path="/events"
+                    element={
+                      <RequireSession>
+                        <EventsPage />
+                      </RequireSession>
+                    }
+                  />
+                  <Route
+                    path="/activity"
+                    element={
+                      <RequireSession>
+                        <ActivityPage />
+                      </RequireSession>
+                    }
+                  />
+                  <Route
+                    path="/event/:id"
+                    element={
+                      <RequireSession>
+                        <EventPage />
+                      </RequireSession>
+                    }
+                  />
                 </Routes>
               </main>
             </div>
