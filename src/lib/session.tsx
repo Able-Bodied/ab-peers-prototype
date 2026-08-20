@@ -4,15 +4,21 @@ import { createContext, useCallback, useContext, useEffect, useState } from 'rea
 import { getSupabase } from '@/lib/supabase';
 import type {
   AgeBand,
+  ChildrenStatus,
   Disability,
   DurationBucket,
+  Independence,
   InjuryLevel,
+  InjuryMechanism,
   Interest,
   MemberType,
+  RelationshipStatus,
+  Topic,
   UsState,
 } from '@/types/domain';
 
-/** Matches supabase/migrations/20260817203100_onboarding_members.sql's `members` table. */
+/** Matches supabase/migrations/20260817203100_onboarding_members.sql and
+ * 20260820194122_profile_editor_fields.sql's `members` table. */
 interface MemberRow {
   id: string;
   type: string;
@@ -26,6 +32,17 @@ interface MemberRow {
   state: string;
   interests: string[];
   photo_url: string | null;
+  bio: string | null;
+  mentor_interest: boolean;
+  completeness: string | null;
+  injury_mechanism: string | null;
+  independence: string | null;
+  relationship_status: string | null;
+  children: string | null;
+  employment: string | null;
+  languages: string[];
+  topics: string[];
+  life_now_visible: boolean;
 }
 
 /**
@@ -48,6 +65,17 @@ export interface AccountMember {
   state: UsState;
   interests: Interest[];
   photoUrl: string | null;
+  bio: string;
+  mentorInterest: boolean;
+  completeness: string | null;
+  injuryMechanism: InjuryMechanism | null;
+  independence: Independence | null;
+  relationshipStatus: RelationshipStatus | null;
+  children: ChildrenStatus | null;
+  employment: string | null;
+  languages: string[];
+  topics: Topic[];
+  lifeNowVisible: boolean;
 }
 
 function mapRowToMember(row: MemberRow): AccountMember {
@@ -64,6 +92,17 @@ function mapRowToMember(row: MemberRow): AccountMember {
     state: row.state as UsState,
     interests: row.interests as Interest[],
     photoUrl: row.photo_url,
+    bio: row.bio ?? '',
+    mentorInterest: row.mentor_interest,
+    completeness: row.completeness,
+    injuryMechanism: row.injury_mechanism as InjuryMechanism | null,
+    independence: row.independence as Independence | null,
+    relationshipStatus: row.relationship_status as RelationshipStatus | null,
+    children: row.children as ChildrenStatus | null,
+    employment: row.employment,
+    languages: row.languages,
+    topics: row.topics as Topic[],
+    lifeNowVisible: row.life_now_visible,
   };
 }
 

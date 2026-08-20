@@ -1,5 +1,7 @@
+import { ChevronLeft } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
 import { fetchOwnMember, useSession } from '@/lib/session';
 import { getSupabase } from '@/lib/supabase';
 import { ageBandFor } from '@/routes/onboarding/age';
@@ -14,11 +16,13 @@ import { submitOnboarding } from '@/routes/onboarding/submit-onboarding';
 import {
   INITIAL_ONBOARDING_DATA,
   isProfileStep,
+  type OnboardingData,
   PROFILE_STEP_IDS,
   STEP_ORDER,
 } from '@/routes/onboarding/types';
 import { VerifyStep } from '@/routes/onboarding/verify-step';
 import { WelcomeStep } from '@/routes/onboarding/welcome-step';
+import type { Interest } from '@/types/domain';
 
 export default function OnboardingPage() {
   const navigate = useNavigate();
@@ -60,9 +64,7 @@ export default function OnboardingPage() {
     goNext();
   }
 
-  async function handleComplete(photoFile: File | null) {
-    const finalData = { ...data, photoFile };
-    setData(finalData);
+  async function handleComplete(finalData: OnboardingData) {
     setSubmitting(true);
     setSubmitError(null);
     try {
@@ -76,12 +78,47 @@ export default function OnboardingPage() {
     }
   }
 
+  // Adding a photo unlocks the (still-skippable) interests step; skipping the
+  // photo skips interests too and finishes setup right away.
+  function handlePhotoNext(photoFile: File | null) {
+    const finalData = { ...data, photoFile };
+    setData(finalData);
+    if (photoFile) {
+      goNext();
+    } else {
+      void handleComplete(finalData);
+    }
+  }
+
+  function handleInterestsNext(interests: Interest[]) {
+    const finalData = { ...data, interests };
+    setData(finalData);
+    void handleComplete(finalData);
+  }
+
+  function handleInterestsSkip() {
+    const finalData = { ...data, interests: [] };
+    setData(finalData);
+    void handleComplete(finalData);
+  }
+
   return (
     <div className="mx-auto max-w-sm">
       {isProfileStep(step) && (
         <div className="mb-6 space-y-2">
           <div className="flex items-center justify-between">
-            <p className="text-primary text-sm font-semibold">PeerConnect</p>
+            <div className="flex items-center gap-1">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="-ml-2"
+                onClick={goBack}
+                aria-label="Back"
+              >
+                <ChevronLeft />
+              </Button>
+              <p className="text-primary text-sm font-semibold">PeerConnect</p>
+            </div>
             <p className="text-muted-foreground text-xs">
               Step {PROFILE_STEP_IDS.indexOf(step) + 1} of {PROFILE_STEP_IDS.length}
             </p>
@@ -130,7 +167,6 @@ export default function OnboardingPage() {
       {step === 'birthday' && (
         <BirthdayStep
           birthDate={data.birthDate}
-          onBack={goBack}
           onNext={(birthDate, age) => {
             setData((d) => ({ ...d, birthDate, ageBand: ageBandFor(age) }));
             goNext();
@@ -162,24 +198,22 @@ export default function OnboardingPage() {
         />
       )}
 
-      {step === 'interests' && (
-        <InterestsStep
-          interests={data.interests}
-          onNext={(interests) => {
-            setData((d) => ({ ...d, interests }));
-            goNext();
-          }}
-        />
-      )}
-
       {step === 'photo' && (
         <PhotoStep
           photoPreviewUrl={data.photoPreviewUrl}
           submitting={submitting}
           submitError={submitError}
-          onComplete={(photoFile) => {
-            void handleComplete(photoFile);
-          }}
+          onNext={handlePhotoNext}
+        />
+      )}
+
+      {step === 'interests' && (
+        <InterestsStep
+          interests={data.interests}
+          submitting={submitting}
+          submitError={submitError}
+          onNext={handleInterestsNext}
+          onSkip={handleInterestsSkip}
         />
       )}
     </div>
