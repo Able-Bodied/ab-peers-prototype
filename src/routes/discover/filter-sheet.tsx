@@ -1,10 +1,12 @@
 /**
- * The Discover filter sheet — everything PRD §7.1 puts behind the Filters button.
+ * The Discover filter sheet — everything behind the Filters button, so the top row stays the
+ * three buttons in docs/screens/events-screen.html's `.top` bar (Peers, Mentors, Filters).
  *
- * The bar keeps State and Disability, because that is what fits on a phone. In here, in the
- * order the PRD argues for: Equipment first (manual versus power is a larger difference in daily
- * life than two levels of injury), then Organization (how someone referred by Craig will look for
- * their own hospital's mentors), then Level, Time since disability, Languages, Topics, Age band.
+ * State and Disability come first, since they used to live on the bar and still narrow the most.
+ * Then, in the order the PRD argues for: Equipment (manual versus power is a larger difference in
+ * daily life than two levels of injury), then Organization (how someone referred by Craig will
+ * look for their own hospital's mentors), then Level, Time since disability, Languages, Topics,
+ * Age band.
  *
  * Presentational only. It renders the `filters` it is handed and calls `onChange` with the next
  * whole object — there is no source of truth in here, so the page and the sheet can never drift.
@@ -31,15 +33,18 @@ import {
   clearedFilters,
   EQUIPMENT_FILTER_OPTIONS,
   levelApplies,
+  setDisability,
   setFilter,
 } from '@/routes/discover/filters';
 import {
   AGE_BANDS,
+  DISABILITIES,
   DURATIONS,
   INJURY_LEVELS,
   type MemberFilters,
   TOPICS,
   type Topic,
+  US_STATES,
 } from '@/types/domain';
 
 export interface DiscoverFilterSheetProps {
@@ -177,8 +182,7 @@ export function DiscoverFilterSheet({
             </button>
           </div>
           <DialogDescription>
-            State and disability stay on the bar. Everything here narrows further, and nothing is
-            permanent.
+            Everything here narrows the deck further, and nothing is permanent.
           </DialogDescription>
           <p className="text-[13px] font-semibold">
             {activeCount === 0
@@ -188,6 +192,28 @@ export function DiscoverFilterSheet({
         </DialogHeader>
 
         <div className="min-h-0 overflow-y-auto px-5 pb-4">
+          <Section title="State">
+            <ChipGroup
+              allLabel="All states"
+              options={US_STATES}
+              value={filters.state}
+              onSelect={(state) => {
+                onChange({ ...filters, state: state ?? 'All' });
+              }}
+            />
+          </Section>
+
+          <Section title="Disability">
+            <ChipGroup
+              allLabel="All disabilities"
+              options={DISABILITIES}
+              value={filters.disability}
+              onSelect={(disability) => {
+                onChange(setDisability(filters, disability ?? 'All'));
+              }}
+            />
+          </Section>
+
           <Section
             title="Equipment"
             hint="Manual versus power is a big difference in daily life — often bigger than two levels of injury."
@@ -229,7 +255,7 @@ export function DiscoverFilterSheet({
             hint={
               canFilterByLevel
                 ? undefined
-                : 'Level applies to spinal cord injuries. Pick SCI - para, SCI - quad or Combo on the bar to filter by it.'
+                : 'Level applies to spinal cord injuries. Pick SCI - para, SCI - quad or Combo for Disability above to filter by it.'
             }
           >
             <label htmlFor={levelSelectId} className="sr-only">

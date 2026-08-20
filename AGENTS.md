@@ -76,6 +76,24 @@ gone wrong in more than one way:
 - Pick a port no other active worktree is already using — check `lsof -iTCP -sTCP:LISTEN -n -P` up
   front if unsure.
 
+## Test login, for agents
+
+Discover, Profile, and other signed-in routes gate on a real Supabase auth session (phone + OTP
+via `signInWithOtp`/`verifyOtp`) — there's no local mock for that part. Clicking through the phone
+number and 6-digit code screens every time you want to check a signed-in flow is slow, so
+`/dev-login` runs those same two Supabase calls programmatically instead of through the wizard UI.
+It is unlisted (not in `App.tsx`'s sidebar `flows`) but not a bypass: a wrong phone or code fails
+exactly the way it would in the UI, because it's the same credential check.
+
+The hosted project this repo's `.env.local` points at has a fixed test user for this: phone
+`1111111111`, code `111111`. To land signed in on any route:
+
+```
+/dev-login?phone=1111111111&code=111111&next=/discover
+```
+
+`next` defaults to `/discover` if omitted. See `src/routes/dev-login/page.tsx`.
+
 ## Conventions
 
 - TypeScript strict; no default exports except route components (`src/routes/*/page.tsx`); named

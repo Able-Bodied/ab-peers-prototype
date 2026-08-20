@@ -62,6 +62,8 @@ describe('DiscoverFilterSheet', () => {
     renderSheet();
     const headings = screen.getAllByRole('heading', { level: 3 }).map((h) => h.textContent);
     expect(headings).toEqual([
+      'State',
+      'Disability',
       'Equipment',
       'Organization',
       'Level',
@@ -72,10 +74,23 @@ describe('DiscoverFilterSheet', () => {
     ]);
   });
 
-  it('leaves state and disability out — they stay on the bar', () => {
-    renderSheet();
-    expect(screen.queryByRole('heading', { level: 3, name: 'State' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('heading', { level: 3, name: 'Disability' })).not.toBeInTheDocument();
+  it('narrows by state or disability from inside the sheet', async () => {
+    const { onChange, user } = renderSheet();
+
+    await user.click(screen.getByRole('button', { name: 'Texas' }));
+    expect(onChange).toHaveBeenLastCalledWith(
+      expect.objectContaining({ state: 'Texas', disability: 'All' }),
+    );
+
+    await user.click(screen.getByRole('button', { name: 'SCI - para' }));
+    expect(onChange).toHaveBeenLastCalledWith(
+      expect.objectContaining({ state: 'Texas', disability: 'SCI - para' }),
+    );
+
+    await user.click(screen.getByRole('button', { name: 'All states' }));
+    expect(onChange).toHaveBeenLastCalledWith(
+      expect.objectContaining({ state: 'All', disability: 'SCI - para' }),
+    );
   });
 
   it('sends the whole next filter object when a filter is picked', async () => {
@@ -213,7 +228,7 @@ describe('DiscoverFilterSheet', () => {
       expect(screen.getByLabelText('Level of injury')).toBeDisabled();
       expect(
         screen.getByText(
-          'Level applies to spinal cord injuries. Pick SCI - para, SCI - quad or Combo on the bar to filter by it.',
+          'Level applies to spinal cord injuries. Pick SCI - para, SCI - quad or Combo for Disability above to filter by it.',
         ),
       ).toBeInTheDocument();
     });
