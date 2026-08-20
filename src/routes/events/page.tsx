@@ -14,6 +14,7 @@ import { mockEventAttributes } from '@/routes/events/event-mocks';
 import { FilterSheet } from '@/routes/events/filter-sheet';
 import {
   DATE_WINDOW_LABELS,
+  dateWindowAscending,
   dateWindowRange,
   defaultFilters,
   EVENT_FORMAT_LABELS,
@@ -282,7 +283,8 @@ export default function EventsPage() {
 
       let query = supabase.from('events').select(selectFor(activeTags, activeOrgs));
       if (range) {
-        query = query.gte('start_time', range.from).lte('start_time', range.to);
+        if (range.from) query = query.gte('start_time', range.from);
+        query = query.lte('start_time', range.to);
       }
       if (activeFormats) {
         query = query.in('event_format', activeFormats);
@@ -301,7 +303,7 @@ export default function EventsPage() {
       }
 
       const { data, error: queryError } = await query
-        .order('start_time', { ascending: true })
+        .order('start_time', { ascending: dateWindowAscending(filters.when) })
         .range(from, from + BATCH_SIZE - 1)
         .overrideTypes<EventRow[], { merge: false }>();
 
