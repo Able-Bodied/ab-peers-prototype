@@ -341,6 +341,35 @@ describe('EventsPage', () => {
     expect(screen.getByRole('button', { name: 'Kayaking' })).toBeInTheDocument();
   });
 
+  it('deselects "All" when a specific activity tag is picked, and vice versa', async () => {
+    rows = [eventRow({ id: 'e1', title: 'Event' })];
+
+    renderEvents();
+    await screen.findByText('Event');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Filters' }));
+    const allChip = await screen.findByRole('button', { name: 'All' });
+    const kayakingChip = await screen.findByRole('button', { name: 'Kayaking' });
+
+    // No tags picked yet — "All" reads as active and every tag chip is blank.
+    expect(allChip).toHaveAttribute('aria-pressed', 'true');
+    expect(kayakingChip).toHaveAttribute('aria-pressed', 'false');
+
+    await userEvent.click(kayakingChip);
+    expect(allChip).toHaveAttribute('aria-pressed', 'false');
+    expect(kayakingChip).toHaveAttribute('aria-pressed', 'true');
+
+    await userEvent.click(allChip);
+    expect(allChip).toHaveAttribute('aria-pressed', 'true');
+    expect(kayakingChip).toHaveAttribute('aria-pressed', 'false');
+
+    appliedFilters = [];
+    await userEvent.click(screen.getByRole('button', { name: /Show \d+ events/ }));
+    expect(appliedFilters).not.toContainEqual(
+      expect.objectContaining({ column: 'event_tags.tags.slug' }),
+    );
+  });
+
   it('narrows the feed to one city from the filter sheet', async () => {
     rows = [eventRow({ id: 'e1', title: 'Event' })];
     cityRows = [{ city: 'Berkeley' }, { city: 'Oakland' }];
