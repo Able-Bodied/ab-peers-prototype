@@ -1,5 +1,5 @@
 import { SlidersHorizontal, X } from 'lucide-react';
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { useBrowseMembers } from '@/lib/browse-members';
 import { useOrganizations } from '@/lib/organizations';
@@ -66,6 +66,7 @@ import {
  *  - [x] State and disability in the Filters sheet, alongside everything else it holds
  *  - [x] "Ask me about" chips filter the deck rather than sending a message
  *  - [x] Say hi, rate limited, with the mentor-capacity rules applied
+ *  - [x] Infinite scroll — the ranked deck reveals a page at a time as the sentinel scrolls in
  *  - [ ] Waves inbox — the other half of §8, and where a wave back opens a thread
  *  - [ ] Ranking should fold in who a coordinator introduced, once introductions exist
  */
@@ -79,6 +80,15 @@ const SEGMENT_EMPTY_COPY: Record<DiscoverSegment, string> = {
   peers: 'No peers match these filters yet.',
   mentors: 'No mentors match these filters yet.',
 };
+
+/**
+ * How many ranked cards render at a time. The whole set is already in memory (see
+ * useBrowseMembers) and the Filters sheet's result count is the real, exact total — this has
+ * nothing to do with fetching. It exists purely to keep the DOM small and the scroll fast on a
+ * deck that can run past a hundred cards, revealing another page as the sentinel scrolls into
+ * view rather than mounting every card up front.
+ */
+const PAGE_SIZE = 12;
 
 export default function DiscoverPage() {
   const { member: account, loading: sessionLoading } = useSession();
@@ -130,6 +140,44 @@ export default function DiscoverPage() {
     () => rankMembers(filterMembers(inSegment, filters), viewer),
     [inSegment, filters, viewer],
   );
+
+  const [pageCount, setPageCount] = useState(1);
+  // A segment switch or a filter change re-ranks the whole set, so the deck should reopen on its
+  // first page rather than keep whatever depth the previous list had scrolled to. Adjusted here,
+  // during render, rather than in an effect — this only ever runs when the segment or filters
+  // object actually changed, so it settles in the same render pass instead of flashing the old
+  // page before an effect catches up.
+  const paginationKeyRef = useRef({ segment: activeSegment, filters });
+  if (
+    paginationKeyRef.current.segment !== activeSegment ||
+    paginationKeyRef.current.filters !== filters
+  ) {
+    paginationKeyRef.current = { segment: activeSegment, filters };
+    if (pageCount !== 1) setPageCount(1);
+  }
+
+  const visibleCount = Math.min(pageCount * PAGE_SIZE, visible.length);
+  const shown = visible.slice(0, visibleCount);
+  const hasMore = visibleCount < visible.length;
+
+  const sentinelRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!sentinel || !hasMore) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) {
+          setPageCount((count) => count + 1);
+        }
+      },
+      { threshold: 0.1 },
+    );
+    observer.observe(sentinel);
+    return () => {
+      observer.disconnect();
+    };
+  }, [hasMore]);
 
   const detailMember = useMemo(
     () => (detailId ? (members.find((m) => m.id === detailId) ?? null) : null),
@@ -334,7 +382,7 @@ export default function DiscoverPage() {
             )}
           </div>
         ) : (
-          visible.map((member) => (
+          shown.map((member) => (
             <MemberCard
               key={member.id}
               member={member}
@@ -353,6 +401,22 @@ export default function DiscoverPage() {
           ))
         )}
       </div>
+
+      {visible.length > 0 ? (
+        <div
+          ref={sentinelRef}
+          data-testid="discover-scroll-sentinel"
+          className="flex justify-center py-6"
+        >
+          {hasMore ? (
+            <p className="text-muted-foreground text-sm" role="status">
+              Loading more people…
+            </p>
+          ) : (
+            <p className="text-muted-foreground text-sm">That's everyone.</p>
+          )}
+        </div>
+      ) : null}
 
       <DiscoverFilterSheet
         open={sheetOpen}
