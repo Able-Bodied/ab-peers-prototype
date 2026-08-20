@@ -8,10 +8,16 @@ const MIN_INTERESTS = 3;
 
 export function InterestsStep({
   interests,
+  submitting,
+  submitError,
   onNext,
+  onSkip,
 }: {
   interests: Interest[];
+  submitting: boolean;
+  submitError: string | null;
   onNext: (interests: Interest[]) => void;
+  onSkip: () => void;
 }) {
   const [selected, setSelected] = useState<Interest[]>(interests);
 
@@ -51,8 +57,13 @@ export function InterestsStep({
         ))}
       </div>
 
-      <Button type="submit" disabled={!canContinue}>
+      {submitError && <p className="text-destructive text-sm">{submitError}</p>}
+
+      <Button type="submit" disabled={!canContinue || submitting}>
         Continue
+      </Button>
+      <Button type="button" variant="ghost" onClick={onSkip} disabled={submitting}>
+        {submitting ? 'Setting up your profile…' : 'Skip for now'}
       </Button>
     </form>
   );

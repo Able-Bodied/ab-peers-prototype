@@ -7,12 +7,12 @@ export function PhotoStep({
   photoPreviewUrl,
   submitting,
   submitError,
-  onComplete,
+  onNext,
 }: {
   photoPreviewUrl: string | null;
   submitting: boolean;
   submitError: string | null;
-  onComplete: (photoFile: File | null) => void;
+  onNext: (photoFile: File | null) => void;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
@@ -23,6 +23,8 @@ export function PhotoStep({
     setFile(selected);
     setPreviewUrl(selected ? URL.createObjectURL(selected) : null);
   }
+
+  const canContinue = file !== null;
 
   return (
     <div className="grid gap-6">
@@ -50,6 +52,7 @@ export function PhotoStep({
           type="file"
           accept="image/*"
           className="hidden"
+          aria-label="Profile photo"
           onChange={handleFileChange}
         />
         <Button type="button" variant="link" onClick={() => inputRef.current?.click()}>
@@ -65,20 +68,20 @@ export function PhotoStep({
 
       <Button
         onClick={() => {
-          onComplete(file);
+          onNext(file);
         }}
-        disabled={submitting}
+        disabled={!canContinue || submitting}
       >
-        {submitting ? 'Setting up your profile…' : 'Complete setup'}
+        Continue
       </Button>
       <Button
         variant="ghost"
         onClick={() => {
-          onComplete(null);
+          onNext(null);
         }}
         disabled={submitting}
       >
-        Skip for now
+        {submitting ? 'Setting up your profile…' : 'Skip for now'}
       </Button>
     </div>
   );
