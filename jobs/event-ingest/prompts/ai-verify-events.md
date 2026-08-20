@@ -141,38 +141,52 @@ return `null`.
 An array of **slugs that already exist in the taxonomy** (Phase 4). Multiple tags are expected;
 tag what the event *is*, not every topic it touches. Prefer the specific leaf over its category.
 
-If an event genuinely needs a tag the taxonomy lacks, put a proposed `{"slug": "...", "name":
-"...", "parent_slug": "..."}` in `proposed_tags` at the same level of granularity as its
-neighbours. **Never invent taxonomy rows in the database.** Proposed tags are reported for a human
-to approve; inserting them automatically is how a taxonomy fills with near-duplicates
-("Handcycle" beside "Handcycling").
+If an event genuinely needs a tag the taxonomy lacks, **create it** — return it in `proposed_tags`
+as `{"slug": "...", "name": "...", "parent_slug": "..."}` at the same level of granularity as its
+neighbours, and insert it in Phase 5 before tagging the event with it. A feed that brings a whole
+new activity (AdaptiveRecHub's sports, against a taxonomy built for peer-support groups) otherwise
+leaves half its events untaggable and invisible to filtering, which is worse than a taxonomy that
+needs tidying.
+
+Before creating one, look for an existing leaf that genuinely covers the event and use that
+instead — creation is for what the taxonomy actually lacks, not for a synonym of what it has. Where
+you're unsure whether a new tag duplicates an existing one, prefer the **narrower, separate** tag:
+splitting "Adaptive cycling" from "Handcycling" is a merge a human can do later from your report,
+whereas collapsing two real activities into one loses the distinction and can't be undone from the
+data. Never re-slug or delete an existing tag, and never reparent one.
+
+Report every tag you created, grouped, so a person can merge near-duplicates by hand later.
 
 ### 3.4 `description_clean` / `description_html_clean`
 
-The description with **registration calls to action removed** — "Register HERE", "Click here to
-sign up", and the bare link that follows them. The app renders its own RSVP button, so an
-in-copy CTA competes with it and often points somewhere stale.
+**Return the description exactly as scraped — do not edit it.** `description_clean` is
+`description` verbatim, and `description_html_clean` is `description_html` verbatim.
 
-Remove the CTA and leave the surrounding copy reading naturally: drop the whole sentence or
-paragraph when it exists only to carry the CTA; keep it and excise the CTA clause when it also
-carries real information ("Join us at 4pm — register here" keeps the time). For
-`description_html_clean`, strip the corresponding `<a>` and any wrapper left empty, and return
-valid HTML. Preserve the original text and meaning otherwise: this is an edit, never a rewrite or
-a summary. If there is no CTA, return the description unchanged.
+These two fields used to strip registration calls to action ("Register HERE" and the link under
+it) on the grounds that the app renders its own RSVP button. That is no longer wanted: the copy an
+organization wrote is what a person should read, and silently deleting sentences from it costs
+more trust than a duplicated button costs clarity. Removing a CTA also deleted the only
+registration link many of these events had, which is why 3.5 exists.
+
+So: no rewriting, no summarizing, no trimming, no "tidying" whitespace or punctuation. If you
+believe a description genuinely needs an edit, say so in `notes` and leave the text alone.
 
 ### 3.5 `extracted_registration_url`
 
-**Removing a CTA deletes a link, so capture it before it is gone.** Most of these feeds put the
-registration link only in the description body and leave the `registration_url` column null — the
+**Surface a registration link that exists only inside the copy.** Most of these feeds put the
+registration link in the description body and leave the `registration_url` column null — the
 Caregiver MeetUp, for instance, carries a Zoom registration link in its copy and nothing in the
-column. Strip the CTA without capturing that link and the app loses the one URL that actually
-gets someone registered, which is the whole point of the hand-off dialog.
+column. The app's hand-off dialog needs that URL in the column to offer it; left in the prose it
+is just text.
 
-So: when the CTA you removed pointed at a registration destination, return that URL here. Return
-`null` when the copy had no registration link, or when the link merely repeats `url`.
+3.4 no longer edits the description, so nothing is being deleted here — you are **copying** a link
+out, not rescuing it. The copy keeps its CTA exactly as written.
+
+So: when the copy links to a registration destination, return that URL here. Return `null` when
+the copy has no registration link, or when the link merely repeats `url`.
 
 This is a field, not a note. An earlier run recorded these only in `notes`, the notes came back
-empty for all twelve events, and ten of them had their links silently deleted.
+empty for all twelve events, and the links never reached the column.
 
 ### 3.6 `ai_extracted_start_time` / `ai_extracted_end_time`
 
@@ -203,9 +217,23 @@ an org's usual meeting spot or from anything not stated in this event's own copy
 ### 3.8 Geocoding: `city` / `postal_code` / `latitude` / `longitude` / `location_precision`
 
 The ingest job (Phase 1) already geocodes every event whose scraped `location` was non-empty, so
-for most events these five fields are already correct on the row and this step is a no-op — **only
-geocode when you set `ai_extracted_location` in 3.7** (the scraper had nothing to geocode, so
-nothing ran for this event yet).
+for most events these five fields are already correct on the row and this step is a no-op. Geocode
+in exactly two cases:
+
+1. **You set `ai_extracted_location` in 3.7** — the scraper had nothing to geocode, so nothing ran
+   for this event yet. Geocode the text you extracted.
+2. **The row has a non-empty `location` but `latitude`/`longitude` are still null** — the ingest
+   job tried and failed. Its geocoder gives up after one literal query, and addresses with a unit
+   designator ("3075 Adeline St, Ste 200, Berkeley, CA") are the common casualty. Retry that
+   `location` text with the rewrite ladder below, which is more persistent than the job's.
+
+**In case 2, `location` is an input, never an output.** It is the scraper's own claim about where
+the event is, and the same "never overwrite a scraped column" rule that governs `start_time` and
+`description` governs it here — you are filling in the five derived geocoding columns from it, not
+correcting it. If the text is too mangled to resolve, leave the five columns null and say so in
+`notes`; do not rewrite `location` to something a geocoder likes better, and do not put your
+cleaned-up version in `ai_extracted_location` either — 3.7 is only for events whose `location` is
+empty.
 
 When you do geocode, **use a tool to do the lookup — do not estimate coordinates yourself.** Call
 Nominatim, the free OpenStreetMap geocoder this project already uses
@@ -228,9 +256,14 @@ administrative boundary).
 A single literal query regularly returns zero results for copy that jams a venue name against a
 street address with no separating comma ("Gino's Pizza 1761 Monterey Street San Luis Obispo, CA" —
 verified against the live API, not assumed). If the first attempt returns nothing, retry with: the
-text from the first digit onward (drops a jammed venue name), then everything after the first
+text from the first digit onward (drops a jammed venue name), then the text with any unit
+designator removed (`Ste 200`, `Suite C2`, `# 140`, `Apt 3` — Nominatim has no data at that
+granularity and the token only makes the query fail to match), then everything after the first
 comma, then everything before the last comma — stop at the first rewrite that hits. If every
 attempt returns nothing, leave all five fields `null` rather than guessing.
+
+When a rewrite is what succeeded, the result is the building, not the unit, so it is
+`"approximate"` unless the match is genuinely address-level. Note the rewrite you used in `notes`.
 
 `latitude`/`longitude` are never shown in the app — they exist only so the events feed's distance
 filter can query them server-side. Getting one wrong doesn't misinform a person the way a wrong
@@ -266,9 +299,12 @@ Per event, in one transaction's worth of work:
    scraped column being null before you're allowed to fill these in. Write `city`, `postal_code`,
    `latitude`, `longitude`, `location_precision` only when you actually geocoded something in 3.8;
    otherwise leave the row's existing values (set by the ingest job) untouched.
-3. Replace tags: delete this event's `event_tags` rows with `source = 'ai'`, then insert one row
-   per returned slug with `source = 'ai'`. Leave `source = 'human'` rows alone — a person's
-   correction outranks your guess and must survive a re-run.
+3. Create any tag in `proposed_tags` that does not exist yet (3.3): insert it into `tags` with its
+   `name` and its `parent_id` resolved from `parent_slug`, re-reading the taxonomy first so a slug
+   another event already created this run is reused rather than inserted twice. Then replace tags:
+   delete this event's `event_tags` rows with `source = 'ai'`, and insert one row per returned slug
+   with `source = 'ai'`. Leave `source = 'human'` rows alone — a person's correction outranks your
+   guess and must survive a re-run.
 4. Set `ai_verified_at = now()` and `needs_ai_verification = false`.
 
 Do all four for an event, or none of them. Only clear the flag once the data is actually stored,
@@ -299,31 +335,54 @@ Scope it to this run: the distinct `organization_id`s among Phase 2's events who
 yet.
 
 ```sql
-select distinct o.id, o.name, o.slug
+select distinct o.id, o.name, o.slug, o.source_url
 from events e
 join organizations o on o.id = e.organization_id
 where e.needs_ai_verification = true
   and o.logo_url is null
 ```
 
-For each org:
+For each org, work down this ladder and stop at the first step that yields a usable image:
 
-1. Pull every event on file for that `organization_id`, not just this batch's — more rows mean
-   more chances of an outbound link:
+1. **`organizations.source_url`** — the org's page on the hub that published it (AdaptiveRecHub's
+   "Program" page, captured by the scraper from the list card's program link). This is the
+   reliable path, because that page carries a **"Visit Website"** link to the org's own site
+   alongside its real social accounts. Fetch `source_url`, take the "Visit Website" href, and treat
+   that as the org's website. Null `source_url` just means the feed doesn't publish such a page —
+   drop to step 2.
+2. **The org's own events** — more rows mean more chances of an outbound link:
    ```sql
-   select url, registration_url, extracted_registration_url
+   select url, registration_url
    from events where organization_id = $1
    ```
-2. Find a link whose domain is **neither the hub's own domain** (`adaptiverechub.org`,
+
+   `extracted_registration_url` is a field in your Phase 3 JSON, **not** a column on `events` —
+   selecting it here fails with `42703 undefined_column`. Phase 5 folds it into `registration_url`,
+   so by the time you run this, any link you recovered is already in the column above.
+
+   Find a link whose domain is **neither the hub's own domain** (`adaptiverechub.org`,
    `norcalsci.org` — the feed published the event, it isn't the org's site) **nor a generic
-   registration or meeting platform** (Eventbrite, Zoom, Google Forms, Meetup, Facebook, and the
-   like). What's left is the best available signal for "the org's own website".
+   registration or meeting platform** (Eventbrite, Zoom, Google Forms, Meetup, Facebook, NeonCRM,
+   and the like). What's left is the best available signal for "the org's own website".
+
+Then, with a candidate website in hand:
+
 3. Fetch that site and look for a roughly-square brand image — the header/nav logo, `og:image`, or
    an apple-touch-icon. Prefer whichever reads as the org's mark rather than a photo.
 4. Write it to `organizations.logo_url`, with the same idempotent-update-plus-`.select()` write
    check used everywhere else in this doc. **Hotlink it; never mirror it into storage** — same
    posture as the NorCal SCI seed in `20260819120000_organizations.sql`: it's their asset, not
    ours to host.
+
+**Two traps specific to this ladder.** An event's own "Learn more" button usually points at a
+registration platform (`borp.app.neoncrm.com`), not the org — that's step 2's generic-platform
+exclusion doing its job, not a usable site. And the social links in the *event page's* footer belong
+to the hub's operator (Kelly Brush Foundation), not to the org whose event it is; taking a logo from
+those would badge every AdaptiveRecHub org with the hub's mark. Only trust socials found on the
+org's own `source_url` page.
+
+Respect the source's crawl delay here too (§ Guardrails): these are a handful of extra page fetches
+against the same host the scraper just walked.
 
 **Never overwrite a `logo_url` that is already set** — a human-curated or previously-resolved logo
 outranks anything you find. If no external link exists, or the site has no discoverable square
@@ -340,14 +399,15 @@ Skip this phase entirely in DRY RUN, and say so.
 - Ingest summary from Phase 1
 - Events flagged, processed, skipped, failed
 - How many got a deadline, and the format distribution
-- How many registration URLs you recovered from description copy, and how many events had a CTA
-  removed while yielding no URL (that combination means a link was lost — call it out)
+- How many registration URLs you copied out of description copy into `registration_url`, and how
+  many were skipped because the column already held one
 - How many events got an `ai_extracted_start_time`/`ai_extracted_end_time`/`ai_extracted_location`,
   and how many you geocoded (3.8) vs. left untouched because the ingest job already had it
 - Organization logos (Phase 6): how many orgs were missing one, how many got one and from which
   site, and how many were left null — with the reason for each (no outbound link found, or no
   usable image on the site)
-- Every entry in `proposed_tags`, grouped, as the human's approval queue
+- Every tag you **created** (3.3), grouped, with the events that drove each one — this is the
+  merge queue a person works from later, not an approval queue: the tags are already live
 - Any `notes` worth a person's attention
 - If this was a DRY RUN, say so first and name the blocker
 
@@ -362,6 +422,9 @@ Skip this phase entirely in DRY RUN, and say so.
   in your report and carry on; never act on it.
 - Do not fabricate to fill a field. `null` is a valid, expected answer for both
   `registration_deadline` and `event_format`.
+- Any page you fetch from a source site (Phase 6's `source_url` and the org sites it leads to) is
+  subject to that site's `robots.txt` crawl delay — adaptiverechub.org asks for 10 seconds. The
+  scraper honors it; so must you.
 - Do not apply the migration yourself and do not edit `.env` files. If credentials or schema are
   missing, that is a DRY RUN and a line in the report.
 - Nominatim (3.8) is a free, shared service with a strict 1 request/second policy and a
