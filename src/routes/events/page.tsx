@@ -2,6 +2,7 @@ import { SlidersHorizontal } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useCities } from '@/lib/cities';
+import { useFollows } from '@/lib/follows';
 import { useOrganizations } from '@/lib/organizations';
 import { useRsvps } from '@/lib/rsvps';
 import { getSupabase } from '@/lib/supabase';
@@ -51,6 +52,7 @@ import { GoingDialog } from '@/routes/events/going-dialog';
  *  - [x] Real RSVP counts from `event_rsvps`
  *  - [x] Organization badge and filter, from `organizations`
  *  - [x] City filter (`events.city`) and distance filter (`nearby_events` RPC)
+ *  - [x] Following segment, filtered by the organizations the viewer follows (src/lib/follows.tsx)
  *  - [ ] Persist dismissals, and give the user a way to restore them (Hidden, in the sheet)
  *  - [ ] "For you" ranking from the peer's signup interests
  */
@@ -131,6 +133,13 @@ function orgBadgeOf(row: EventRow): { name: string; logoUrl: string | null } | n
   return orgRow ? { name: orgRow.name, logoUrl: orgRow.logo_url } : null;
 }
 
+/** Used to test an event against the viewer's followed organizations (see useFollows). */
+function orgSlugOf(row: EventRow): string | null {
+  const org = feedOf(row)?.organizations;
+  const orgRow = Array.isArray(org) ? org[0] : org;
+  return orgRow?.slug ?? null;
+}
+
 /**
  * The scraped column wins whenever it has one; the AI-extracted column fills in only when it's
  * empty (see the file header). A row with neither returns null rather than a card with no date —
@@ -167,7 +176,7 @@ export default function EventsPage() {
   const location = useLocation();
   const sentinelRef = useRef<HTMLDivElement>(null);
 
-  const [segment, setSegment] = useState<'all' | 'mine'>('all');
+  const [segment, setSegment] = useState<'all' | 'following' | 'mine'>('all');
   // A tag chip tapped on the event detail page arrives here as router state (see filters.ts and
   // routes/event/page.tsx), so this list opens with that tag already narrowing the feed.
   const [filters, setFilters] = useState<EventFilterState>(() => {
@@ -183,6 +192,7 @@ export default function EventsPage() {
     [categories],
   );
 
+  const { followedSlugs } = useFollows();
   const { organizations } = useOrganizations();
   const organizationNames = useMemo(
     () => new Map(organizations.map((org) => [org.slug, org.name])),
@@ -384,12 +394,19 @@ export default function EventsPage() {
   const visible = useMemo(() => {
     return rows
       .filter((row) => !dismissed.has(row.id))
-      .filter((row) => segment === 'all' || Boolean(rsvps[row.id]))
+      .filter((row) => {
+        if (segment === 'mine') return Boolean(rsvps[row.id]);
+        if (segment === 'following') {
+          const orgSlug = orgSlugOf(row);
+          return orgSlug !== null && followedSlugs.has(orgSlug);
+        }
+        return true;
+      })
       .flatMap((row) => {
         const event = toFeedEvent(row);
         return event ? [event] : [];
       });
-  }, [rows, dismissed, segment, rsvps]);
+  }, [rows, dismissed, segment, rsvps, followedSlugs]);
 
   const chips = [
     filters.feed === 'foryou' ? 'For you' : 'Everything',
@@ -406,7 +423,7 @@ export default function EventsPage() {
   return (
     <div className="mx-auto flex min-h-0 w-full max-w-xl flex-col">
       <div className="flex items-center gap-2.5 pb-2">
-        {(['all', 'mine'] as const).map((seg) => (
+        {(['all', 'following', 'mine'] as const).map((seg) => (
           <button
             key={seg}
             type="button"
@@ -420,7 +437,7 @@ export default function EventsPage() {
               segment === seg && 'bg-primary border-primary text-primary-foreground',
             )}
           >
-            {seg === 'all' ? 'All' : 'Mine'}
+            {seg === 'all' ? 'All' : seg === 'following' ? 'Following' : 'Mine'}
           </button>
         ))}
         <button
@@ -465,22 +482,28 @@ export default function EventsPage() {
       {!loading && !error && visible.length === 0 && (
         <div className="py-10 text-center">
           <p className="text-base font-bold">
-            {segment === 'mine' ? 'Nothing saved yet' : 'Nothing matches'}
+            {segment === 'mine'
+              ? 'Nothing saved yet'
+              : segment === 'following'
+                ? 'Nothing from your organizations yet'
+                : 'Nothing matches'}
           </p>
           <p className="text-muted-foreground mx-auto mt-1 max-w-xs text-sm">
             {segment === 'mine'
               ? 'Mark an event Interested or Going and it lands here.'
-              : 'Try a wider date range in filters.'}
+              : segment === 'following'
+                ? "Follow an organization from one of their events and it'll show up here."
+                : 'Try a wider date range in filters.'}
           </p>
           <button
             type="button"
             onClick={() => {
-              if (segment === 'mine') setSegment('all');
+              if (segment === 'mine' || segment === 'following') setSegment('all');
               else setSheetOpen(true);
             }}
             className="bg-primary text-primary-foreground mt-4 min-h-11 rounded-xl px-6 font-bold"
           >
-            {segment === 'mine' ? 'Browse events' : 'Open filters'}
+            {segment === 'mine' || segment === 'following' ? 'Browse events' : 'Open filters'}
           </button>
         </div>
       )}

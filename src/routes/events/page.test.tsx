@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { FollowsProvider } from '@/lib/follows';
 import { RsvpProvider } from '@/lib/rsvps';
 import EventsPage from '@/routes/events/page';
 import { createEventRsvpsMock } from '@/test/rsvp-mock';
@@ -141,7 +142,9 @@ function renderEvents() {
   return render(
     <MemoryRouter initialEntries={['/events']}>
       <RsvpProvider>
-        <EventsPage />
+        <FollowsProvider>
+          <EventsPage />
+        </FollowsProvider>
       </RsvpProvider>
     </MemoryRouter>,
   );
@@ -152,7 +155,9 @@ function renderEventsWithTag(tagSlug: string) {
   return render(
     <MemoryRouter initialEntries={[{ pathname: '/events', state: { tagSlug } }]}>
       <RsvpProvider>
-        <EventsPage />
+        <FollowsProvider>
+          <EventsPage />
+        </FollowsProvider>
       </RsvpProvider>
     </MemoryRouter>,
   );
@@ -480,6 +485,47 @@ describe('EventsPage', () => {
     await userEvent.click(screen.getByRole('tab', { name: 'Mine' }));
 
     expect(screen.getByText('Adaptive handcycle ride')).toBeInTheDocument();
+  });
+
+  it('shows only events from organizations the viewer follows in Following', async () => {
+    rows = [
+      eventRow({
+        id: 'e1',
+        title: 'NorCal ride',
+        data_feeds: {
+          name: 'NorCal SCI',
+          organizations: { slug: 'norcal-sci', name: 'NorCal SCI', logo_url: null },
+        },
+      }),
+      eventRow({
+        id: 'e2',
+        title: 'BORP swim',
+        data_feeds: { name: 'BORP', organizations: { slug: 'borp', name: 'BORP', logo_url: null } },
+      }),
+    ];
+    globalThis.localStorage.setItem('ab-peers:followed-orgs', JSON.stringify(['norcal-sci']));
+
+    renderEvents();
+    await screen.findByText('NorCal ride');
+
+    await userEvent.click(screen.getByRole('tab', { name: 'Following' }));
+
+    expect(screen.getByText('NorCal ride')).toBeInTheDocument();
+    expect(screen.queryByText('BORP swim')).not.toBeInTheDocument();
+  });
+
+  it('shows the Following empty state when the viewer follows no organizations', async () => {
+    rows = [eventRow({ id: 'e1', title: 'Event' })];
+
+    renderEvents();
+    await screen.findByText('Event');
+
+    await userEvent.click(screen.getByRole('tab', { name: 'Following' }));
+
+    expect(screen.getByText('Nothing from your organizations yet')).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Browse events' }));
+    expect(screen.getByRole('tab', { name: 'All' })).toHaveAttribute('aria-selected', 'true');
   });
 
   it('hands off to the host when an event is marked Going', async () => {
