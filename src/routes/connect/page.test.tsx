@@ -139,6 +139,26 @@ describe('ConnectPage', () => {
     expect(screen.getByRole('link', { name: 'Sign in' })).toBeInTheDocument();
   });
 
+  it('heads back to Messages rather than describing itself', async () => {
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter initialEntries={['/connect']}>
+        <ChatProvider>
+          <Routes>
+            <Route path="/connect" element={<ConnectPage />} />
+            <Route path="/messages" element={<p>Messages screen</p>} />
+          </Routes>
+        </ChatProvider>
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByText('Rosa Nunez')).toBeInTheDocument();
+    expect(screen.queryByText(/find someone who has been where you are/i)).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('link', { name: 'Back to messages' }));
+    expect(await screen.findByText('Messages screen')).toBeInTheDocument();
+  });
+
   it('says a wave to an open mentor opens the conversation straight away', async () => {
     const user = userEvent.setup();
     renderConnect();
@@ -218,9 +238,7 @@ describe('ConnectPage', () => {
     const user = userEvent.setup();
     renderConnect();
 
-    expect(await screen.findByText(/0 of 20 waves left today/i)).toBeInTheDocument();
-
-    await user.click(screen.getByRole('button', { name: 'Say hi to Rosa Nunez' }));
+    await user.click(await screen.findByRole('button', { name: 'Say hi to Rosa Nunez' }));
 
     expect(screen.getByRole('button', { name: 'Send hello' })).toBeDisabled();
     expect(screen.getByText(/used up today's waves/i)).toBeInTheDocument();

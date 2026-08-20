@@ -137,6 +137,7 @@ function renderMessages(path = '/messages') {
         <Routes>
           <Route path="/messages" element={<MessagesPage />} />
           <Route path="/messages/:conversationId" element={<MessagesPage />} />
+          <Route path="/connect" element={<p>Connect screen</p>} />
         </Routes>
       </ChatProvider>
     </MemoryRouter>,
@@ -363,6 +364,33 @@ describe('MessagesPage', () => {
     expect(await screen.findByText('Waiting to hear back')).toBeInTheDocument();
     expect(screen.getByText('Rae Whitfield')).toBeInTheDocument();
     expect(document.body.textContent).not.toMatch(/declin/i);
+  });
+
+  it('shows the daily wave and conversation allowance in the Waves tab, not the Messages tab', async () => {
+    fetchLimits.mockResolvedValue({
+      waveDailyLimit: 20,
+      wavesSentToday: 17,
+      conversationDailyLimit: 5,
+      conversationsStartedToday: 2,
+    });
+    const user = setupUser();
+    renderMessages();
+
+    await screen.findByText('Dana Ruiz');
+    expect(screen.queryByText(/waves left today/i)).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('tab', { name: /Waves/ }));
+    expect(
+      await screen.findByText(/3 of 20 waves left today · 3 of 5 new conversations left/i),
+    ).toBeInTheDocument();
+  });
+
+  it('opens Connect to start a new message from the "+" button', async () => {
+    const user = setupUser();
+    renderMessages();
+
+    await user.click(await screen.findByRole('link', { name: 'Start a new message' }));
+    expect(await screen.findByText('Connect screen')).toBeInTheDocument();
   });
 
   it('offers no composer in a blocked conversation', async () => {

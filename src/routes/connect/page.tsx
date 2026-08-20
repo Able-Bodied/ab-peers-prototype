@@ -1,10 +1,10 @@
+import { ArrowLeft } from 'lucide-react';
 import { useId, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useChat } from '@/lib/chat';
-import { newConversationsRemaining, wavesRemaining } from '@/lib/chat-rules';
 import { useSession } from '@/lib/session';
 import { ComposeDialog } from '@/routes/connect/compose-dialog';
 import { ErrorBanner } from '@/routes/connect/error-banner';
@@ -25,7 +25,7 @@ import type { ChatMember } from '@/types/domain';
  */
 export default function ConnectPage() {
   const { member: viewer, loading: sessionLoading } = useSession();
-  const { members, limits, loading, error, dismissError, conversationWith } = useChat();
+  const { members, loading, error, dismissError, conversationWith } = useChat();
 
   const [query, setQuery] = useState('');
   const [selected, setSelected] = useState<ChatMember | null>(null);
@@ -53,33 +53,28 @@ export default function ConnectPage() {
     );
   }
 
-  const wavesLeft = wavesRemaining(limits);
-  const conversationsLeft = newConversationsRemaining(limits);
-
   return (
     <div className="mx-auto max-w-xl pb-8">
-      <h1 className="text-2xl font-semibold">Connect</h1>
-      <p className="text-muted-foreground mt-2 text-sm">
-        Find someone who has been where you are and say hi. A wave takes one tap and no words; if
-        you would rather open with a question, write instead. Nobody's contact details change hands
-        — the conversation is the connection.
-      </p>
+      <header className="-mx-4 mb-4 flex items-center gap-2 border-b px-4 py-3 md:-mx-8 md:px-8">
+        <Button
+          asChild
+          type="button"
+          variant="ghost"
+          className="size-11 shrink-0"
+          aria-label="Back to messages"
+        >
+          <Link to="/messages">
+            <ArrowLeft aria-hidden="true" />
+          </Link>
+        </Button>
+        <h1 className="flex-1 text-lg font-bold">Connect</h1>
+      </header>
 
       {/* The banner is hidden while the compose panel is open, because the panel
           renders the same error over its own overlay — one error, one place to
           read it, wherever the member is actually looking. */}
       {error !== null && selected === null ? (
-        <div className="mt-4">
-          <ErrorBanner message={error} onDismiss={dismissError} />
-        </div>
-      ) : null}
-
-      {limits ? (
-        <p role="status" className="bg-muted/60 mt-4 rounded-md px-3 py-2 text-sm">
-          {wavesLeft} of {limits.waveDailyLimit} waves left today · {conversationsLeft} of{' '}
-          {limits.conversationDailyLimit} new conversations left
-          {wavesLeft === 0 ? '. Waving is off until tomorrow.' : ''}
-        </p>
+        <ErrorBanner message={error} onDismiss={dismissError} />
       ) : null}
 
       <div className="mt-4">

@@ -40,7 +40,7 @@ export const navItems: NavItem[] = [
     description: 'Adaptive sports & peer events',
     icon: EventsIcon,
   },
-  { to: '/connect', label: 'Chats', description: 'Message or reveal contact', icon: ChatsIcon },
+  { to: '/messages', label: 'Chats', description: 'Waves and conversations', icon: ChatsIcon },
   {
     to: '/activity',
     label: 'Activity',

@@ -1,8 +1,10 @@
+import { Plus } from 'lucide-react';
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 
 import { Button } from '@/components/ui/button';
 import { useChat } from '@/lib/chat';
+import { newConversationsRemaining, wavesRemaining } from '@/lib/chat-rules';
 import { useSession } from '@/lib/session';
 import { cn } from '@/lib/utils';
 import { ConversationList } from '@/routes/messages/conversation-list';
@@ -44,9 +46,12 @@ export default function MessagesPage() {
   const navigate = useNavigate();
   const { conversationId } = useParams<{ conversationId: string }>();
   const { member, loading: sessionLoading } = useSession();
-  const { conversations, waves, loading, error, dismissError } = useChat();
+  const { conversations, waves, limits, loading, error, dismissError } = useChat();
 
   const [segment, setSegment] = useState<Segment>('messages');
+
+  const wavesLeft = wavesRemaining(limits);
+  const conversationsLeft = newConversationsRemaining(limits);
 
   const viewerId = member?.id ?? null;
   const openConversation = conversations.find((c) => c.id === conversationId);
@@ -99,6 +104,21 @@ export default function MessagesPage() {
             openConversation ? 'hidden' : 'flex',
           )}
         >
+          <div className="flex items-center gap-2 border-b px-4 py-3">
+            <h1 className="flex-1 text-lg font-bold">Messages</h1>
+            <Button
+              asChild
+              type="button"
+              variant="ghost"
+              className="size-11 shrink-0"
+              aria-label="Start a new message"
+            >
+              <Link to="/connect">
+                <Plus aria-hidden="true" />
+              </Link>
+            </Button>
+          </div>
+
           <div role="tablist" aria-label="Message inboxes" className="flex gap-2.5 px-4 py-2">
             <SegmentTab
               label="Messages"
@@ -133,12 +153,21 @@ export default function MessagesPage() {
                 }}
               />
             ) : (
-              <WaveInbox
-                waves={waves}
-                onOpenConversation={(id) => {
-                  void navigate(`/messages/${id}`);
-                }}
-              />
+              <>
+                {limits ? (
+                  <p role="status" className="bg-muted/60 mx-4 mt-3 rounded-md px-3 py-2 text-sm">
+                    {wavesLeft} of {limits.waveDailyLimit} waves left today · {conversationsLeft} of{' '}
+                    {limits.conversationDailyLimit} new conversations left
+                    {wavesLeft === 0 ? '. Waving is off until tomorrow.' : ''}
+                  </p>
+                ) : null}
+                <WaveInbox
+                  waves={waves}
+                  onOpenConversation={(id) => {
+                    void navigate(`/messages/${id}`);
+                  }}
+                />
+              </>
             )}
           </div>
         </div>
