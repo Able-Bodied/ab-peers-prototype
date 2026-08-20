@@ -421,4 +421,32 @@ describe('EventPage', () => {
 
     expect(await screen.findByText('Events list — tag: kayaking')).toBeInTheDocument();
   });
+
+  it('navigates to the events list with that format preselected when the format chip is tapped', async () => {
+    eventRow = baseEvent({ event_format: 'online' });
+
+    function EventsListStub() {
+      const location = useLocation();
+      const state = location.state as { format?: string } | null;
+      return <p>Events list — format: {state?.format ?? 'none'}</p>;
+    }
+
+    render(
+      <MemoryRouter initialEntries={['/event/e1']}>
+        <RsvpProvider>
+          <FollowsProvider>
+            <Routes>
+              <Route path="/event/:id" element={<EventPage />} />
+              <Route path="/events" element={<EventsListStub />} />
+            </Routes>
+          </FollowsProvider>
+        </RsvpProvider>
+      </MemoryRouter>,
+    );
+
+    await screen.findByText('Adaptive handcycle ride');
+    await userEvent.click(screen.getByRole('button', { name: 'Online' }));
+
+    expect(await screen.findByText('Events list — format: online')).toBeInTheDocument();
+  });
 });

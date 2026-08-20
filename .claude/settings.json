@@ -24,6 +24,7 @@
     ]
   },
   "worktree": {
-    "baseRef": "head"
+    "baseRef": "head",
+    "symlinkDirectories": [".env.local", "jobs/event-ingest/.env"]
   }
 }
