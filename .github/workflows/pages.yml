@@ -1,0 +1,97 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  # Lets you redeploy the current main from the Actions tab without an empty commit.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Never let two deploys race. Unlike ci.yml this does not cancel in progress runs:
+# a half finished deploy is worse than a slightly stale one.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: build and deploy
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      # pnpm must be set up before setup-node so `cache: pnpm` can find it.
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # ci.yml already runs these on every push to main, but it has no idea this
+      # workflow exists and cannot stop it. Repeating them here is what actually
+      # keeps a red build from reaching the live URL. Actions minutes are free on
+      # public repos, so the duplicated work costs nothing but wall clock.
+      - name: Check (biome ci + eslint + tsc)
+        run: pnpm check
+
+      - name: Test
+        run: pnpm test
+
+      # `tsc -b` and `vite build` are separate steps rather than `pnpm build` so the
+      # env below is unambiguous, and so no argument ever has to survive pnpm's
+      # forwarding (see the worktree notes in AGENTS.md for how that goes wrong).
+      - name: Typecheck
+        run: pnpm exec tsc -b
+
+      - name: Build
+        run: pnpm exec vite build
+        env:
+          # A project site is served from /<repo>/, not the domain root. Drop this
+          # (and the router basename follows automatically) if the site ever moves
+          # to a custom domain at the root.
+          VITE_BASE: /ab-peers-prototype/
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+
+      # GitHub Pages has no rewrite rules, so a deep link like /discover has no file
+      # to match and 404s on refresh. Pages serves 404.html as the *body* of that
+      # response, and a browser runs the scripts in an error body exactly as it would
+      # any other document -- so React Router boots, reads the path and renders the
+      # right screen. The status line stays 404; the user sees the app.
+      #
+      # In practice they rarely see even that: vite-plugin-pwa registers a Workbox
+      # NavigationRoute bound to index.html, so once the service worker is active it
+      # answers navigations from the precache with a real 200 and never reaches here.
+      # The 404 is a cold start artifact -- first visit, or a hard refresh.
+      #
+      # Switching BrowserRouter to HashRouter would make every path a genuine 200 at
+      # the cost of '#/' in the URL. That trade is open; this is the version that
+      # needs no application change.
+      - name: Add SPA fallback for deep links
+        run: cp dist/index.html dist/404.html
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4
