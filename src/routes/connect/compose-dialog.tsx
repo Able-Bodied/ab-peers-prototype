@@ -12,8 +12,8 @@ import {
 } from '@/components/ui/dialog';
 import { useChat } from '@/lib/chat';
 import {
-  newConversationsRemaining,
   validateMessage,
+  WAVE_MESSAGE,
   WAVE_MESSAGE_MAX_LENGTH,
   waveOutcome,
   waveOutcomeLabel,
@@ -34,6 +34,14 @@ import { TOPICS } from '@/types/domain';
  * talk to you. Writing first is still here for people who already know what they
  * want to ask; it is just not the thing you have to do.
  *
+ * **Both tabs send the same thing: a wave.** "Say hi" sends `WAVE_MESSAGE` and
+ * nothing else; "Write a message" sends the same wave carrying your own words and
+ * the topic you picked. So the PRD §8 asymmetry holds either way — a peer sees it
+ * in their waves inbox and the thread opens when they wave back, an open mentor's
+ * thread opens on the spot — and the recipient's inbox can still say what you
+ * asked about, because the topic reaches `send_wave` rather than only seeding the
+ * box on this screen.
+ *
  * **Why there is no "reveal contact info".** The old stub offered to hand over a
  * mentor's phone number once they accepted. That is gone on purpose and is not
  * coming back: a member's phone and email are never shown to another member
@@ -45,6 +53,22 @@ import { TOPICS } from '@/types/domain';
 type Mode = 'wave' | 'write';
 
 /**
+ * The picker's own vocabulary: the controlled topics, plus a slot for words of your own.
+ *
+ * "Other" is not a `Topic` and never reaches the database as one — it is how the picker represents
+ * "this message is mine, not a starting sentence", which is a state the list otherwise has no way
+ * to show once somebody has typed over an opener.
+ */
+const OTHER = 'Other';
+type ComposeTopic = Topic | typeof OTHER;
+
+/**
+ * The list as it is offered. "Other" leads rather than trailing because typing selects it, and a
+ * chip that selects itself somewhere down a scrolling list is feedback nobody sees.
+ */
+const COMPOSE_TOPICS: ComposeTopic[] = [OTHER, ...TOPICS];
+
+/**
  * What picking a topic puts in the box. A topic is a starting sentence, not a
  * finished message — it gets somebody past the empty field and they edit from
  * there, which is the whole point.
@@ -54,14 +78,18 @@ function openerFor(topic: Topic): string {
 }
 
 export function ComposeDialog({ member, onClose }: { member: ChatMember; onClose: () => void }) {
-  const { limits, error, dismissError, sendWave, startConversation } = useChat();
+  const { limits, error, dismissError, sendWave } = useChat();
   const navigate = useNavigate();
 
   const [mode, setMode] = useState<Mode>('wave');
-  const [topic, setTopic] = useState<Topic | null>(null);
-  const [body, setBody] = useState('');
-  /** The opener we last wrote into the box, so a second topic tap can replace it without eating typed words. */
-  const [prefill, setPrefill] = useState('');
+  const [topic, setTopic] = useState<ComposeTopic | null>(null);
+  const [body, setBody] = useState(WAVE_MESSAGE);
+  /**
+   * The words the member wrote themselves, parked so that wandering off to another topic and back
+   * does not throw them away. Starts as the greeting the box starts with, so "Other" always has
+   * something to restore even before anyone types.
+   */
+  const [otherDraft, setOtherDraft] = useState(WAVE_MESSAGE);
   const [problem, setProblem] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [sent, setSent] = useState(false);
@@ -70,39 +98,41 @@ export function ComposeDialog({ member, onClose }: { member: ChatMember; onClose
 
   const outcome = waveOutcome(member);
   const wavesLeft = wavesRemaining(limits);
-  const conversationsLeft = newConversationsRemaining(limits);
   const blockedReason =
-    mode === 'wave'
-      ? wavesLeft === 0
-        ? "You have used up today's waves. The allowance resets tomorrow."
-        : null
-      : conversationsLeft === 0
-        ? "You have started as many conversations as today's allowance covers. It resets tomorrow."
-        : null;
+    wavesLeft === 0 ? "You have used up today's waves. The allowance resets tomorrow." : null;
 
-  const maxLength = mode === 'wave' ? WAVE_MESSAGE_MAX_LENGTH : undefined;
-
-  function chooseTopic(next: Topic | null): void {
+  function chooseTopic(next: ComposeTopic): void {
     setTopic(next);
-    const opener = next === null ? '' : openerFor(next);
-    // Only ever overwrite an empty box or an opener nobody has touched.
-    if (body.trim() === '' || body === prefill) {
-      setBody(opener);
-      setPrefill(opener);
-    }
+    setBody(next === OTHER ? otherDraft : openerFor(next));
+    setProblem(null);
   }
 
-  async function submitWave(): Promise<void> {
-    const note = body.trim();
-    const invalid = note === '' ? null : validateMessage(note, WAVE_MESSAGE_MAX_LENGTH);
-    if (invalid) {
-      setProblem(invalid);
-      return;
+  function editBody(next: string): void {
+    setBody(next);
+    // Words of your own *are* the "Other" option, so selecting it is the list catching up with
+    // what the box already says rather than a second thing to remember to do. Banking the draft on
+    // every keystroke is what lets a detour through another topic come back to these words.
+    setTopic(OTHER);
+    setOtherDraft(next);
+    setProblem(null);
+  }
+
+  async function submit(): Promise<void> {
+    const message = mode === 'wave' ? WAVE_MESSAGE : body.trim();
+    if (mode === 'write') {
+      const invalid = validateMessage(message, WAVE_MESSAGE_MAX_LENGTH);
+      if (invalid) {
+        setProblem(invalid);
+        return;
+      }
     }
     setProblem(null);
     dismissError();
     setBusy(true);
-    const result = await sendWave(member.id, topic, note === '' ? null : note);
+    // "Other" is this screen's word for "no topic", so it stops here rather than being stored as
+    // one — `waves.topic` holds the controlled vocabulary or nothing.
+    const sentTopic = mode === 'write' && topic !== null && topic !== OTHER ? topic : null;
+    const result = await sendWave(member.id, sentTopic, message);
     setBusy(false);
     // Refused. `error` already carries the database's own sentence and the
     // banner above renders it, so there is nothing to confirm and nothing to add.
@@ -113,26 +143,6 @@ export function ComposeDialog({ member, onClose }: { member: ChatMember; onClose
       return;
     }
     setSent(true);
-  }
-
-  async function submitMessage(): Promise<void> {
-    const invalid = validateMessage(body);
-    if (invalid) {
-      setProblem(invalid);
-      return;
-    }
-    setProblem(null);
-    dismissError();
-    setBusy(true);
-    try {
-      const conversationId = await startConversation(member.id, body.trim());
-      void navigate(`/messages/${conversationId}`);
-    } catch {
-      // The provider has already put the database's own sentence in `error`;
-      // the banner above renders it. Nothing useful to add here.
-    } finally {
-      setBusy(false);
-    }
   }
 
   return (
@@ -186,72 +196,63 @@ export function ComposeDialog({ member, onClose }: { member: ChatMember; onClose
             </fieldset>
 
             {mode === 'wave' ? (
-              <p className="bg-muted/60 rounded-md px-3 py-2 text-sm">
-                {waveOutcomeLabel(outcome)}
-              </p>
-            ) : null}
+              // One tap, so there is nothing to fill in — just what will be sent, and what it will
+              // do when it lands.
+              <div className="flex flex-col gap-2">
+                <p className="bg-secondary text-secondary-foreground rounded-2xl px-4 py-3 text-base font-semibold">
+                  {WAVE_MESSAGE}
+                </p>
+                <p className="text-muted-foreground text-sm">{waveOutcomeLabel(outcome)}</p>
+              </div>
+            ) : (
+              <>
+                <fieldset className="min-w-0">
+                  <legend className="text-sm font-medium">What is it about?</legend>
+                  {/* The controlled vocabulary from src/types/domain.ts, unfiltered:
+                      `ChatMember` carries interests but not topics, so there is no
+                      per-person shortlist to narrow this to yet. */}
+                  <div className="mt-2 flex max-h-40 flex-wrap gap-2 overflow-y-auto p-0.5">
+                    {COMPOSE_TOPICS.map((option) => (
+                      <button
+                        key={option}
+                        type="button"
+                        aria-pressed={topic === option}
+                        onClick={() => {
+                          chooseTopic(option);
+                        }}
+                        className={cn(
+                          'rounded-full border px-3 py-2 text-sm font-medium transition-colors',
+                          topic === option
+                            ? 'border-primary bg-primary text-primary-foreground'
+                            : 'border-input bg-background hover:bg-accent hover:text-accent-foreground',
+                        )}
+                      >
+                        {option}
+                      </button>
+                    ))}
+                  </div>
+                </fieldset>
 
-            <div>
-              <fieldset className="min-w-0">
-                <legend className="text-sm font-medium">
-                  What is it about? <span className="text-muted-foreground">(optional)</span>
-                </legend>
-                {/* The controlled vocabulary from src/types/domain.ts, unfiltered:
-                    `ChatMember` carries interests but not topics, so there is no
-                    per-person shortlist to narrow this to yet. */}
-                <div className="mt-2 flex max-h-40 flex-wrap gap-2 overflow-y-auto p-0.5">
-                  {TOPICS.map((option) => (
-                    <button
-                      key={option}
-                      type="button"
-                      aria-pressed={topic === option}
-                      onClick={() => {
-                        chooseTopic(topic === option ? null : option);
-                      }}
-                      className={cn(
-                        'rounded-full border px-3 py-2 text-sm font-medium transition-colors',
-                        topic === option
-                          ? 'border-primary bg-primary text-primary-foreground'
-                          : 'border-input bg-background hover:bg-accent hover:text-accent-foreground',
-                      )}
-                    >
-                      {option}
-                    </button>
-                  ))}
+                <div>
+                  <label htmlFor={bodyId} className="text-sm font-medium">
+                    Your message
+                  </label>
+                  <textarea
+                    id={bodyId}
+                    rows={4}
+                    value={body}
+                    maxLength={WAVE_MESSAGE_MAX_LENGTH}
+                    onChange={(event) => {
+                      editBody(event.target.value);
+                    }}
+                    className="border-input focus-visible:border-ring focus-visible:ring-ring/50 mt-1 w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-[3px]"
+                  />
+                  <p className="text-muted-foreground mt-1 text-xs">
+                    {body.trim().length} of {WAVE_MESSAGE_MAX_LENGTH} characters
+                  </p>
                 </div>
-              </fieldset>
-              {mode === 'write' && topic !== null ? (
-                <p className="text-muted-foreground mt-2 text-xs">
-                  A topic only starts the sentence for you here — a written message carries your
-                  words, not a label.
-                </p>
-              ) : null}
-            </div>
-
-            <div>
-              <label htmlFor={bodyId} className="text-sm font-medium">
-                {mode === 'wave' ? 'Add a note (optional)' : 'Your message'}
-              </label>
-              <textarea
-                id={bodyId}
-                rows={4}
-                value={body}
-                maxLength={maxLength}
-                onChange={(event) => {
-                  setBody(event.target.value);
-                  setProblem(null);
-                }}
-                placeholder={
-                  mode === 'wave' ? 'Nice to find someone nearby…' : "Hi! I'm hoping to ask about…"
-                }
-                className="border-input focus-visible:border-ring focus-visible:ring-ring/50 mt-1 w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-[3px]"
-              />
-              {mode === 'wave' ? (
-                <p className="text-muted-foreground mt-1 text-xs">
-                  {body.trim().length} of {WAVE_MESSAGE_MAX_LENGTH} characters
-                </p>
-              ) : null}
-            </div>
+              </>
+            )}
 
             {problem !== null ? (
               <p role="alert" className="text-destructive text-sm">
@@ -267,13 +268,13 @@ export function ComposeDialog({ member, onClose }: { member: ChatMember; onClose
             <DialogFooter>
               <Button
                 type="button"
-                className="min-h-[46px] w-full"
+                className="bg-accent text-accent-foreground hover:bg-accent/90 min-h-[46px] w-full text-base font-bold"
                 disabled={busy || blockedReason !== null}
                 onClick={() => {
-                  void (mode === 'wave' ? submitWave() : submitMessage());
+                  void submit();
                 }}
               >
-                {mode === 'wave' ? 'Send hello' : 'Send message'}
+                Send
               </Button>
             </DialogFooter>
           </>

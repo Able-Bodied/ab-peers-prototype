@@ -174,7 +174,7 @@ describe('ConnectPage', () => {
     renderConnect();
 
     await user.click(await screen.findByRole('button', { name: 'Say hi to Maya Ellis' }));
-    await user.click(screen.getByRole('button', { name: 'Send hello' }));
+    await user.click(screen.getByRole('button', { name: 'Send' }));
 
     expect(await screen.findByText('Thread screen')).toBeInTheDocument();
   });
@@ -186,20 +186,33 @@ describe('ConnectPage', () => {
     await user.click(await screen.findByRole('button', { name: 'Say hi to Rosa Nunez' }));
     expect(screen.getByText(/if they wave back, the conversation opens/i)).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: 'Send hello' }));
+    await user.click(screen.getByRole('button', { name: 'Send' }));
 
     expect(await screen.findByText('Your hello is on its way')).toBeInTheDocument();
     expect(screen.queryByText('Thread screen')).not.toBeInTheDocument();
-    expect(api.sendWave).toHaveBeenCalledWith('peer-1', null, null);
+    expect(api.sendWave).toHaveBeenCalledWith('peer-1', null, 'Hi 👋');
   });
 
-  it('sends the topic and note a wave was given', async () => {
+  it('keeps "Say hi" to a single tap, with nothing to fill in', async () => {
     const user = userEvent.setup();
     renderConnect();
 
     await user.click(await screen.findByRole('button', { name: 'Say hi to Rosa Nunez' }));
+
+    // The topic list and the message box belong to the other tab.
+    expect(screen.queryByRole('button', { name: 'Transfers' })).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Your message')).not.toBeInTheDocument();
+    expect(screen.getByText('Hi 👋')).toBeVisible();
+  });
+
+  it('sends the topic and the words a written message carries', async () => {
+    const user = userEvent.setup();
+    renderConnect();
+
+    await user.click(await screen.findByRole('button', { name: 'Say hi to Rosa Nunez' }));
+    await user.click(screen.getByRole('button', { name: 'Write a message' }));
     await user.click(screen.getByRole('button', { name: 'Transfers' }));
-    await user.click(screen.getByRole('button', { name: 'Send hello' }));
+    await user.click(screen.getByRole('button', { name: 'Send' }));
 
     expect(api.sendWave).toHaveBeenCalledWith(
       'peer-1',
@@ -220,7 +233,7 @@ describe('ConnectPage', () => {
 
     // And the row is inert — there is no compose panel behind it.
     await user.click(screen.getByText('Dana Boyd'));
-    expect(screen.queryByRole('button', { name: 'Send hello' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Send' })).not.toBeInTheDocument();
   });
 
   it('refuses to wave somebody who has turned off unsolicited contact', async () => {
@@ -240,7 +253,7 @@ describe('ConnectPage', () => {
 
     await user.click(await screen.findByRole('button', { name: 'Say hi to Rosa Nunez' }));
 
-    expect(screen.getByRole('button', { name: 'Send hello' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Send' })).toBeDisabled();
     expect(screen.getByText(/used up today's waves/i)).toBeInTheDocument();
     expect(api.sendWave).not.toHaveBeenCalled();
   });
@@ -256,20 +269,46 @@ describe('ConnectPage', () => {
     expect(screen.queryByRole('button', { name: 'Say hi to Rosa Nunez' })).not.toBeInTheDocument();
   });
 
-  it('writes a first message and lands in the thread it created', async () => {
+  it('sends a written first message as a wave, so a peer still has to wave back', async () => {
     const user = userEvent.setup();
     renderConnect();
 
     await user.click(await screen.findByRole('button', { name: 'Say hi to Rosa Nunez' }));
     await user.click(screen.getByRole('button', { name: 'Write a message' }));
-    await user.type(screen.getByLabelText('Your message'), 'Hi Rosa, how did you find your chair?');
-    await user.click(screen.getByRole('button', { name: 'Send message' }));
+    const box = screen.getByLabelText('Your message');
+    await user.clear(box);
+    await user.type(box, 'Hi Rosa, how did you find your chair?');
+    await user.click(screen.getByRole('button', { name: 'Send' }));
 
-    expect(await screen.findByText('Thread screen')).toBeInTheDocument();
-    expect(api.startConversation).toHaveBeenCalledWith(
+    expect(await screen.findByText('Your hello is on its way')).toBeInTheDocument();
+    expect(api.sendWave).toHaveBeenCalledWith(
       'peer-1',
+      null,
       'Hi Rosa, how did you find your chair?',
     );
+    expect(api.startConversation).not.toHaveBeenCalled();
+  });
+
+  it('lands in the thread when a written message goes to an open mentor', async () => {
+    api.sendWave.mockResolvedValue({ waveId: 'wave-1', conversationId: 'conv-7' });
+    const user = userEvent.setup();
+    renderConnect();
+
+    await user.click(await screen.findByRole('button', { name: 'Say hi to Maya Ellis' }));
+    await user.click(screen.getByRole('button', { name: 'Write a message' }));
+    await user.click(screen.getByRole('button', { name: 'Send' }));
+
+    expect(await screen.findByText('Thread screen')).toBeInTheDocument();
+  });
+
+  it('starts the written message from the same hello the wave sends', async () => {
+    const user = userEvent.setup();
+    renderConnect();
+
+    await user.click(await screen.findByRole('button', { name: 'Say hi to Rosa Nunez' }));
+    await user.click(screen.getByRole('button', { name: 'Write a message' }));
+
+    expect(screen.getByLabelText('Your message')).toHaveValue('Hi 👋');
   });
 
   it('refuses an empty first message', async () => {
@@ -278,10 +317,52 @@ describe('ConnectPage', () => {
 
     await user.click(await screen.findByRole('button', { name: 'Say hi to Rosa Nunez' }));
     await user.click(screen.getByRole('button', { name: 'Write a message' }));
-    await user.click(screen.getByRole('button', { name: 'Send message' }));
+    await user.clear(screen.getByLabelText('Your message'));
+    await user.click(screen.getByRole('button', { name: 'Send' }));
 
     expect(screen.getByText('Write something first.')).toBeInTheDocument();
-    expect(api.startConversation).not.toHaveBeenCalled();
+    expect(api.sendWave).not.toHaveBeenCalled();
+  });
+
+  it('selects "Other" as soon as the message is in the member\'s own words', async () => {
+    const user = userEvent.setup();
+    renderConnect();
+
+    await user.click(await screen.findByRole('button', { name: 'Say hi to Rosa Nunez' }));
+    await user.click(screen.getByRole('button', { name: 'Write a message' }));
+    await user.click(screen.getByRole('button', { name: 'Transfers' }));
+    expect(screen.getByRole('button', { name: 'Transfers' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+
+    await user.type(screen.getByLabelText('Your message'), ' Also, how are the ramps?');
+
+    expect(screen.getByRole('button', { name: 'Other' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: 'Transfers' })).toHaveAttribute(
+      'aria-pressed',
+      'false',
+    );
+  });
+
+  it('gives the member their own words back when they return to "Other"', async () => {
+    const user = userEvent.setup();
+    renderConnect();
+
+    await user.click(await screen.findByRole('button', { name: 'Say hi to Rosa Nunez' }));
+    await user.click(screen.getByRole('button', { name: 'Write a message' }));
+
+    const box = screen.getByLabelText('Your message');
+    await user.clear(box);
+    await user.type(box, 'We met at the clinic in June.');
+
+    // A detour through a topic replaces the box...
+    await user.click(screen.getByRole('button', { name: 'Transfers' }));
+    expect(box).toHaveValue('Hi! I was hoping to ask you about Transfers.');
+
+    // ...and coming back restores what they wrote rather than a blank or the greeting.
+    await user.click(screen.getByRole('button', { name: 'Other' }));
+    expect(box).toHaveValue('We met at the clinic in June.');
   });
 
   it("shows the database's own sentence when a wave is refused", async () => {
@@ -290,7 +371,7 @@ describe('ConnectPage', () => {
     renderConnect();
 
     await user.click(await screen.findByRole('button', { name: 'Say hi to Rosa Nunez' }));
-    await user.click(screen.getByRole('button', { name: 'Send hello' }));
+    await user.click(screen.getByRole('button', { name: 'Send' }));
 
     expect(await screen.findByText('This mentor is at capacity.')).toBeInTheDocument();
     expect(screen.queryByText('Your hello is on its way')).not.toBeInTheDocument();

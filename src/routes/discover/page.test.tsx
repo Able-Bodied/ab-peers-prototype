@@ -361,10 +361,10 @@ describe('saying hi', () => {
     // Once sent, a refresh picks the wave up — this is what makes it show up in Messages' Waves
     // section too, since both surfaces read the same ChatProvider state.
     api.fetchWaves.mockResolvedValue([outboundWave('peer-1', 'Peer One')]);
-    await user.click(screen.getByRole('button', { name: 'Send hello' }));
+    await user.click(screen.getByRole('button', { name: 'Send' }));
 
     expect(await screen.findByText('Your hello is on its way')).toBeInTheDocument();
-    expect(api.sendWave).toHaveBeenCalledWith('peer-1', null, null);
+    expect(api.sendWave).toHaveBeenCalledWith('peer-1', null, 'Hi 👋');
 
     await user.click(screen.getByRole('button', { name: 'Done' }));
     expect(

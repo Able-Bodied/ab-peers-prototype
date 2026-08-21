@@ -243,6 +243,15 @@ export function locationLabel(counterpart: Pick<ChatCounterpart, 'city' | 'state
 export const MESSAGE_MAX_LENGTH = 4000;
 export const WAVE_MESSAGE_MAX_LENGTH = 500;
 
+/**
+ * What "Say hi" sends when nobody has typed anything.
+ *
+ * A wave is meant to cost one tap, but it is not silent: `send_wave` stores this as the wave's
+ * message, and the wave-back trigger copies it into the thread it opens — so the conversation
+ * starts with a greeting rather than with a blank first turn nobody wrote.
+ */
+export const WAVE_MESSAGE = 'Hi 👋';
+
 export function validateMessage(body: string, max = MESSAGE_MAX_LENGTH): string | null {
   const trimmed = body.trim();
   if (trimmed.length === 0) return 'Write something first.';
