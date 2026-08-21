@@ -366,6 +366,34 @@ describe('MessagesPage', () => {
     expect(document.body.textContent).not.toMatch(/declin/i);
   });
 
+  it('says a sent wave was answered above the control that opens the thread', async () => {
+    waves = [
+      {
+        id: 'wave-out-2',
+        direction: 'outbox',
+        status: 'accepted',
+        topic: 'Returning to work',
+        message: null,
+        createdAt: YESTERDAY,
+        conversationId: 'conv-1',
+        counterpart: counterpart('dana-1', 'Dana Ruiz', 'mentor'),
+      },
+    ];
+
+    const user = setupUser();
+    renderMessages();
+
+    await user.click(await screen.findByRole('tab', { name: /Waves/ }));
+
+    // The outcome is a sentence of its own, so the button is free to say only what it does.
+    expect(await screen.findByText(/waved back/i)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Open chat with Dana Ruiz' }));
+
+    expect(
+      await screen.findByRole('region', { name: 'Conversation with Dana Ruiz' }),
+    ).toBeInTheDocument();
+  });
+
   it('shows the daily wave and conversation allowance in the Waves tab, not the Messages tab', async () => {
     fetchLimits.mockResolvedValue({
       waveDailyLimit: 20,
