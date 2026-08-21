@@ -34,7 +34,7 @@ export default defineConfig({
   server: {
     // Lets an ngrok tunnel reach the dev server — Vite otherwise rejects
     // requests whose Host header it doesn't recognize.
-    allowedHosts: ['.ngrok-free.app', '.ngrok.app', '.ngrok.io'],
+    allowedHosts: ['.ngrok-free.app', '.ngrok-free.dev', '.ngrok.app', '.ngrok.io'],
   },
   test: {
     environment: 'jsdom',

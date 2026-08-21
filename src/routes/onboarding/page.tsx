@@ -1,6 +1,7 @@
 import { ChevronLeft } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { LogoSplash } from '@/components/logo-splash';
 import { Button } from '@/components/ui/button';
 import { fetchOwnMember, useSession } from '@/lib/session';
 import { getSupabase } from '@/lib/supabase';
@@ -104,6 +105,10 @@ export default function OnboardingPage() {
 
   return (
     <div className="mx-auto max-w-sm">
+      <div className="mb-6">
+        <LogoSplash />
+      </div>
+
       {isProfileStep(step) && (
         <div className="mb-6 space-y-2">
           <div className="flex items-center justify-between">

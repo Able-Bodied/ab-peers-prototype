@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 
+import { LogoSplash } from '@/components/logo-splash';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -43,6 +44,9 @@ export default function ProfilePage() {
   if (!member) {
     return (
       <div className="mx-auto max-w-md text-center">
+        <div className="mb-6">
+          <LogoSplash />
+        </div>
         <h1 className="text-2xl font-semibold">Profile</h1>
         <p className="text-muted-foreground mt-2 text-sm">
           This is where a signed-in member's own profile lives, pulled from the real Supabase
