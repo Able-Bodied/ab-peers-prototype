@@ -61,6 +61,18 @@ export const OPTIONAL_FILTER_KEYS = [
 
 export type OptionalFilterKey = (typeof OPTIONAL_FILTER_KEYS)[number];
 
+/**
+ * Narrow the deck to one value — what a tappable chip on a profile does.
+ *
+ * Generic rather than one callback per vocabulary, so a chip can only ever pair a key with a
+ * value that key actually accepts: `('interest', 'Wheelchair tennis')` compiles and
+ * `('interest', 'Spanish')` does not.
+ */
+export type FilterSelect = <K extends OptionalFilterKey>(
+  key: K,
+  value: NonNullable<MemberFilters[K]>,
+) => void;
+
 /** Every field of `MemberFilters`, in the order the sheet presents them. */
 export const DISCOVER_FILTER_KEYS = ['state', 'disability', ...OPTIONAL_FILTER_KEYS] as const;
 

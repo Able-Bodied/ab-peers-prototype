@@ -89,7 +89,7 @@ export interface MemberWaveButtonProps {
   waved: boolean;
   sending: boolean;
   onWave: () => void;
-  /** 'card' is the large circle on the deck; 'detail' is the wide button inside the profile. */
+  /** 'card' is the large circle on the deck; 'detail' is the compact button beside the name. */
   variant: 'card' | 'detail';
 }
 
@@ -97,6 +97,10 @@ export interface MemberWaveButtonProps {
  * "Say hi" — the primary action in the product, and on a card the largest tap target on screen
  * (64px circle, well over the 46px floor). Its accessible name always names the person, because
  * a screen-reader user meets several of these in a row.
+ *
+ * The visible text is short and the accessible name is the long sentence, never the other way
+ * round: on a card there is no visible text at all, and on the detail sheet the button sits beside
+ * the person's name, where "Say hi to Ilse V." would both wrap and repeat the name it is next to.
  */
 export function MemberWaveButton({
   member,
@@ -131,6 +135,8 @@ export function MemberWaveButton({
         ? `Say hi to ${member.displayName} — at capacity, may take a while to hear back`
         : `Say hi to ${member.displayName}`;
 
+  const shortLabel = waved ? 'Said hi' : sending ? 'Sending' : 'Say hi';
+
   const Icon = waved ? Check : sending ? Loader2 : Hand;
 
   return (
@@ -143,19 +149,17 @@ export function MemberWaveButton({
       onClick={() => {
         if (!waved) onWave();
       }}
-      aria-label={onCard ? label : undefined}
+      aria-label={label}
       className={cn(
         'focus-visible:ring-ring inline-flex shrink-0 items-center justify-center gap-2 font-bold focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none',
-        onCard
-          ? 'size-16 rounded-full shadow-lg'
-          : 'min-h-12 w-full rounded-2xl px-4 text-sm shadow-sm',
+        onCard ? 'size-16 rounded-full shadow-lg' : 'min-h-12 rounded-2xl px-4 text-sm shadow-sm',
         waved
           ? 'bg-secondary text-secondary-foreground'
           : 'bg-accent text-accent-foreground hover:brightness-105',
       )}
     >
       <Icon className={cn('size-6', sending && 'animate-spin')} aria-hidden="true" />
-      {onCard ? null : <span>{label}</span>}
+      {onCard ? null : <span>{shortLabel}</span>}
     </button>
   );
 }

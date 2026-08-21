@@ -1,5 +1,6 @@
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
 
 import { MEMBERS, ORGS } from '@/mocks/seed';
@@ -29,12 +30,17 @@ function renderDetail(overrides: Partial<MemberDetailProps> = {}) {
     orgName,
     waved: false,
     sending: false,
+    conversationId: null,
     onWave: vi.fn(),
-    onTopicSelect: vi.fn(),
+    onFilterSelect: vi.fn(),
     onOpenChange: vi.fn(),
     ...overrides,
   };
-  render(<MemberDetail {...props} />);
+  render(
+    <MemoryRouter>
+      <MemberDetail {...props} />
+    </MemoryRouter>,
+  );
   return props;
 }
 
@@ -100,9 +106,55 @@ describe('MemberDetail', () => {
 
     await user.click(screen.getByRole('button', { name: /^Grants & funding/ }));
 
-    expect(props.onTopicSelect).toHaveBeenCalledWith('Grants & funding');
+    expect(props.onFilterSelect).toHaveBeenCalledWith('topic', 'Grants & funding');
     expect(props.onWave).not.toHaveBeenCalled();
     expect(props.onOpenChange).not.toHaveBeenCalled();
+  });
+
+  it('filters the deck from an interest chip', async () => {
+    const user = userEvent.setup();
+    const props = renderDetail({ member: peer, viewer: otherPeer });
+
+    await user.click(screen.getByRole('button', { name: /^Wheelchair tennis/ }));
+
+    expect(props.onFilterSelect).toHaveBeenCalledWith('interest', 'Wheelchair tennis');
+    expect(props.onWave).not.toHaveBeenCalled();
+  });
+
+  it('filters the deck from a language chip', async () => {
+    const user = userEvent.setup();
+    const props = renderDetail({ member: openMentor });
+
+    await user.click(screen.getByRole('button', { name: /^Spanish/ }));
+
+    expect(props.onFilterSelect).toHaveBeenCalledWith('language', 'Spanish');
+  });
+
+  it('filters the deck from an equipment chip', async () => {
+    const user = userEvent.setup();
+    const props = renderDetail({ member: peer });
+
+    await user.click(screen.getByRole('button', { name: /^Manual chair/ }));
+
+    expect(props.onFilterSelect).toHaveBeenCalledWith('equipment', 'Manual chair');
+  });
+
+  it('leaves "Prefer not to say" as plain text rather than a chip', () => {
+    // Nobody browses for people who declined to answer, which is why the Filters sheet leaves it
+    // out too (EQUIPMENT_FILTER_OPTIONS).
+    renderDetail({ member: openMentor });
+
+    expect(screen.getByText('Prefer not to say')).toBeVisible();
+    expect(screen.queryByRole('button', { name: /^Prefer not to say/ })).toBeNull();
+  });
+
+  it('leaves a vocabulary the deck cannot filter on as plain text', () => {
+    // Grants have no filter behind them, so a chip would be a promise the deck cannot keep.
+    const withGrant: BrowseMember = { ...openMentor, grants: ['Kelly Brush Foundation'] };
+    renderDetail({ member: withGrant });
+
+    expect(screen.getByText('Kelly Brush Foundation')).toBeVisible();
+    expect(screen.queryByRole('button', { name: /^Kelly Brush Foundation/ })).toBeNull();
   });
 
   it('shows a free-text topic without making it tappable', () => {
@@ -119,7 +171,12 @@ describe('MemberDetail', () => {
     const user = userEvent.setup();
     const props = renderDetail({ member: openMentor });
 
-    await user.click(screen.getByRole('button', { name: 'Say hi to Ilse V.' }));
+    const wave = screen.getByRole('button', { name: 'Say hi to Ilse V.' });
+    // Beside the name there is no room for the long sentence, so only the accessible name carries
+    // it (see MemberWaveButton).
+    expect(wave).toHaveTextContent('Say hi');
+
+    await user.click(wave);
 
     expect(props.onWave).toHaveBeenCalledTimes(1);
   });
@@ -139,6 +196,23 @@ describe('MemberDetail', () => {
     expect(screen.getByRole('button', { name: 'Sending hi to Ilse V.' })).toBeDisabled();
   });
 
+  it('opens the existing thread instead of waving once there is one', () => {
+    renderDetail({ member: openMentor, conversationId: 'conv-7' });
+
+    const link = screen.getByRole('link', { name: 'Open chat with Ilse V.' });
+    expect(link).toHaveTextContent('Open chat');
+    expect(link).toHaveAttribute('href', '/messages/conv-7');
+    expect(screen.queryByRole('button', { name: /Say hi/ })).not.toBeInTheDocument();
+  });
+
+  it('opens the existing thread even for someone no longer taking new contact', () => {
+    // The thread is already open; capacity governs new contact, not a conversation in progress.
+    renderDetail({ member: pausedMentor, conversationId: 'conv-8' });
+
+    expect(screen.getByRole('link', { name: 'Open chat with Andre H.' })).toBeVisible();
+    expect(screen.queryByText('Andre H. is not taking new messages right now.')).toBeNull();
+  });
+
   it('does not present contact as available for a paused mentor', () => {
     renderDetail({ member: pausedMentor });
 
@@ -147,11 +221,11 @@ describe('MemberDetail', () => {
     expect(screen.getByText('Andre H. is not taking new messages right now.')).toBeVisible();
   });
 
-  it('closes through the dialog close control', async () => {
+  it('closes through the back control', async () => {
     const user = userEvent.setup();
     const props = renderDetail({ member: openMentor });
 
-    await user.click(screen.getByRole('button', { name: 'Close' }));
+    await user.click(screen.getByRole('button', { name: 'Back' }));
 
     expect(props.onOpenChange).toHaveBeenCalledWith(false);
   });

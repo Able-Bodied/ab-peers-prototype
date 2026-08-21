@@ -17,6 +17,7 @@ import {
   clearFilter,
   defaultDiscoverFilters,
   discoverOrganizations,
+  type FilterSelect,
   interestsIn,
   languagesIn,
   setFilter,
@@ -126,7 +127,13 @@ export default function DiscoverPage() {
   const { member: account, loading: sessionLoading } = useSession();
   const { members, loading, error, requiresSignIn, reload } = useBrowseMembers();
   const { organizations } = useOrganizations();
-  const { members: chatMembers, waves: chatWaves, limits, error: chatError } = useChat();
+  const {
+    members: chatMembers,
+    waves: chatWaves,
+    limits,
+    error: chatError,
+    conversationWith,
+  } = useChat();
 
   const [segment, setSegment] = useState<DiscoverSegment | null>(null);
   const [filters, setFilters] = useState<MemberFilters>({ ...defaultDiscoverFilters });
@@ -270,11 +277,22 @@ export default function DiscoverPage() {
     setSegment(nextSegment(activeSegment, direction));
   }
 
-  /** PRD §8.1 — a topic chip is a filter, not an outbound message. */
-  const onTopicSelect = useCallback((topic: Topic) => {
-    setFilters((current) => setFilter(current, 'topic', topic));
+  /**
+   * PRD §8.1 — a chip is a filter, not an outbound message. Tapping one on a profile also closes
+   * that profile, so the tap lands back on the deck it just narrowed rather than on the person it
+   * narrowed away from.
+   */
+  const onFilterSelect = useCallback<FilterSelect>((key, value) => {
+    setFilters((current) => setFilter(current, key, value));
     setDetailId(null);
   }, []);
+
+  const onTopicSelect = useCallback(
+    (topic: Topic) => {
+      onFilterSelect('topic', topic);
+    },
+    [onFilterSelect],
+  );
 
   if (sessionLoading || (loading && members.length === 0)) {
     return (
@@ -491,10 +509,11 @@ export default function DiscoverPage() {
         orgName={orgName}
         waved={detailMember ? wavedIds.has(detailMember.id) : false}
         sending={false}
+        conversationId={detailMember ? (conversationWith(detailMember.id)?.id ?? null) : null}
         onWave={() => {
           if (detailMember) setComposeMember(detailMember);
         }}
-        onTopicSelect={onTopicSelect}
+        onFilterSelect={onFilterSelect}
         onOpenChange={(open) => {
           if (!open) setDetailId(null);
         }}
