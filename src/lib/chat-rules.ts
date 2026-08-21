@@ -121,6 +121,19 @@ export function sortConversations(conversations: ChatConversation[]): ChatConver
   });
 }
 
+/**
+ * Connect's order: bots first, everyone else in the order they arrived.
+ *
+ * A bot answers instantly and costs nobody an awkward reply, which makes it the
+ * safest first thing to try for somebody who has never messaged anyone here —
+ * and the hardest to find by surname if it sits in the middle of an alphabetical
+ * roster. Pinning it is the one exception to that alphabetical order; the sort
+ * is stable, so the people below keep whatever order they were given.
+ */
+export function sortConnectMembers(members: ChatMember[]): ChatMember[] {
+  return [...members].sort((a, b) => Number(b.isBot) - Number(a.isBot));
+}
+
 /** What a thread shows in the list under the name. */
 export function conversationPreview(
   conversation: ChatConversation,
