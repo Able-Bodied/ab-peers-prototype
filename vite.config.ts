@@ -4,8 +4,16 @@ import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 import { configDefaults, defineConfig } from 'vitest/config';
 
+// Set by .github/workflows/pages.yml to the repo subpath ('/ab-peers-prototype/'),
+// because a GitHub Pages project site is not served from the domain root. It is unset
+// everywhere else, so `pnpm dev`, `pnpm test` and `pnpm preview` keep building for '/'
+// exactly as before. Read once and reused below: the PWA manifest's `start_url` has to
+// agree with it, and a `start_url` outside the manifest's own `scope` is invalid.
+const base = process.env.VITE_BASE ?? '/';
+
 // https://vite.dev/config/
 export default defineConfig({
+  base,
   plugins: [
     react(),
     tailwindcss(),
@@ -18,7 +26,7 @@ export default defineConfig({
         theme_color: '#1c3a30',
         background_color: '#f4f1e6',
         display: 'standalone',
-        start_url: '/',
+        start_url: base,
         icons: [
           { src: '/icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any' },
           { src: '/icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'maskable' },
