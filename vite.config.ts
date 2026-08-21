@@ -27,9 +27,11 @@ export default defineConfig({
         background_color: '#f4f1e6',
         display: 'standalone',
         start_url: base,
+        // Vite rewrites '/'-rooted URLs in index.html, but the manifest object is
+        // passed through verbatim -- these have to carry the base themselves.
         icons: [
-          { src: '/icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any' },
-          { src: '/icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'maskable' },
+          { src: `${base}icon.svg`, sizes: 'any', type: 'image/svg+xml', purpose: 'any' },
+          { src: `${base}icon.svg`, sizes: 'any', type: 'image/svg+xml', purpose: 'maskable' },
         ],
       },
     }),

@@ -1,5 +1,6 @@
 import { SlidersHorizontal, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 
 import { useBrowseMembers } from '@/lib/browse-members';
 import { useChat } from '@/lib/chat';
@@ -312,12 +313,12 @@ export default function DiscoverPage() {
           Member profiles are only visible to other members, so nobody's name, photo or injury level
           is on the open web. Signing up takes about two minutes.
         </p>
-        <a
-          href="/onboarding"
+        <Link
+          to="/onboarding"
           className="bg-accent text-accent-foreground mt-6 inline-flex min-h-[46px] items-center rounded-full px-6 font-bold"
         >
           Get started
-        </a>
+        </Link>
       </div>
     );
   }
