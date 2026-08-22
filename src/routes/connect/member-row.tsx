@@ -78,14 +78,21 @@ export function MemberRow({ member, conversationId, onSelect }: MemberRowProps) 
         {conversationId !== null ? (
           // Already talking: the thread is the connection, so there is nothing
           // to open that is not already open.
-          <Button asChild variant="outline" className="min-h-[46px] w-full">
-            <Link to={`/messages/${conversationId}`}>
-              Open conversation with {member.displayName}
-            </Link>
+          <Button
+            asChild
+            variant="outline"
+            className="min-h-[46px] w-full"
+            aria-label={`Open chat with ${member.displayName}`}
+          >
+            <Link to={`/messages/${conversationId}`}>Open chat</Link>
           </Button>
         ) : reach.ok ? (
-          <Button onClick={onSelect} className="min-h-[46px] w-full">
-            Say hi to {member.displayName}
+          <Button
+            onClick={onSelect}
+            className="min-h-[46px] w-full"
+            aria-label={`Say hi to ${member.displayName}`}
+          >
+            Say hi
           </Button>
         ) : (
           <p className="bg-muted/60 text-muted-foreground rounded-md px-3 py-2 text-sm">

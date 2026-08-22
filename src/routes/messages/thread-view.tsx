@@ -15,7 +15,7 @@ import {
 } from '@/lib/chat-rules';
 import { cn } from '@/lib/utils';
 import { BlockDialog, ReportDialog } from '@/routes/messages/safety-dialog';
-import type { Capacity, ChatConversation, ChatMessage, ReportReason } from '@/types/domain';
+import type { ChatConversation, ChatMessage, ReportReason } from '@/types/domain';
 
 /**
  * One open conversation: its history, its composer, and the four things a
@@ -26,12 +26,6 @@ import type { Capacity, ChatConversation, ChatMessage, ReportReason } from '@/ty
  * irreversible in effect, and a row of them across the top of every thread
  * frames each conversation as a thing to be managed rather than had.
  */
-
-const CAPACITY_LABELS: Record<Capacity, string> = {
-  open: 'Open to conversations',
-  'at capacity': 'At capacity',
-  paused: 'Paused',
-};
 
 interface ThreadViewProps {
   conversation: ChatConversation;
@@ -150,11 +144,6 @@ export function ThreadView({ conversation, viewerId, onBack }: ThreadViewProps) 
             {counterpart.isBot && (
               <span className="bg-accent text-accent-foreground shrink-0 rounded-lg px-2 py-0.5 text-[10px] font-bold">
                 Bot
-              </span>
-            )}
-            {counterpart.type === 'mentor' && counterpart.capacity && (
-              <span className="bg-secondary text-primary shrink-0 rounded-lg px-2 py-0.5 text-[10px] font-bold">
-                {CAPACITY_LABELS[counterpart.capacity]}
               </span>
             )}
           </h1>

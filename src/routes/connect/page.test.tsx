@@ -263,7 +263,7 @@ describe('ConnectPage', () => {
     renderConnect();
 
     const link = await screen.findByRole('link', {
-      name: 'Open conversation with Rosa Nunez',
+      name: 'Open chat with Rosa Nunez',
     });
     expect(link).toHaveAttribute('href', '/messages/conv-3');
     expect(screen.queryByRole('button', { name: 'Say hi to Rosa Nunez' })).not.toBeInTheDocument();

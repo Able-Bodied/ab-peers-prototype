@@ -135,16 +135,20 @@ export function WaveInbox({ waves, onOpenConversation }: WaveInboxProps) {
                   {/* Anything that is not an opened thread reads the same way, because
                       that is genuinely all the sender is told — see the file header. */}
                   {wave.status === 'accepted' && wave.conversationId ? (
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      className="min-h-11 rounded-xl font-bold"
-                      onClick={() => {
-                        if (wave.conversationId) onOpenConversation(wave.conversationId);
-                      }}
-                    >
-                      They waved back — open the conversation
-                    </Button>
+                    <>
+                      <p className="text-[13px] font-semibold">They&rsquo;ve waved back</p>
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        className="mt-2 min-h-11 rounded-xl font-bold"
+                        aria-label={`Open chat with ${wave.counterpart.displayName}`}
+                        onClick={() => {
+                          if (wave.conversationId) onOpenConversation(wave.conversationId);
+                        }}
+                      >
+                        Open chat
+                      </Button>
+                    </>
                   ) : (
                     <p className="text-muted-foreground text-[13px]">Waiting to hear back</p>
                   )}

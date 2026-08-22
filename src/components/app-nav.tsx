@@ -1,7 +1,7 @@
 import type { LucideIcon } from 'lucide-react';
 import { Sparkles, UserRound } from 'lucide-react';
 import type { SVGProps } from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useMatch } from 'react-router-dom';
 
 import { ActivityIcon, ChatsIcon, DiscoverIcon, EventsIcon } from '@/components/nav-icons';
 import { useSession } from '@/lib/session';
@@ -74,12 +74,22 @@ export function AppNav() {
   const { member } = useSession();
   const items = [...navItems, member ? profileItem : joinItem];
 
+  // An open conversation takes the whole phone screen: the composer sits on the bottom edge, and
+  // a floating tab bar over it is both a mis-tap away from leaving mid-sentence and a row of
+  // somewhere-else offered to somebody who is busy being here. The bar is one back arrow away, in
+  // the thread's own header. From md: up the sidebar is beside the thread rather than over it, so
+  // it keeps its slot and nothing needs hiding.
+  const threadOpen = useMatch('/messages/:conversationId') !== null;
+
   return (
     <nav
       aria-label="Main"
       className={cn(
         // Phone: floating pill bar pinned above the home indicator.
-        'bg-card fixed inset-x-3 bottom-3 z-40 flex rounded-3xl border px-1 py-2 shadow-lg',
+        'bg-card fixed inset-x-3 bottom-3 z-40 rounded-3xl border px-1 py-2 shadow-lg',
+        // Exactly one unprefixed display utility, so which of `flex` and `hidden` Tailwind
+        // happens to emit first never decides whether the bar is on screen.
+        threadOpen ? 'hidden md:flex' : 'flex',
         'pb-[max(0.5rem,env(safe-area-inset-bottom))]',
         // Desktop: back in flow as a sidebar column.
         'md:static md:w-64 md:shrink-0 md:flex-col md:gap-1 md:rounded-none md:border-0 md:border-r',

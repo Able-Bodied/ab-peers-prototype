@@ -13,6 +13,7 @@ import {
   newConversationsRemaining,
   newestMessageAt,
   relativeTime,
+  sortConnectMembers,
   sortConversations,
   totalUnread,
   validateMessage,
@@ -320,6 +321,38 @@ describe('sortConversations', () => {
     const sorted = sortConversations(input);
 
     expect(input.map((c) => c.id)).toEqual(['c-old', 'c-new']);
+    expect(sorted).not.toBe(input);
+  });
+});
+
+describe('sortConnectMembers', () => {
+  it('pins a bot above the people it was listed among', () => {
+    const first = member({ id: 'm-a', displayName: 'Ada' });
+    const bot = member({ id: 'm-bot', displayName: 'Peer Bot', isBot: true });
+    const last = member({ id: 'm-z', displayName: 'Zed' });
+
+    expect(sortConnectMembers([first, bot, last]).map((m) => m.id)).toEqual([
+      'm-bot',
+      'm-a',
+      'm-z',
+    ]);
+  });
+
+  it('leaves everyone else in the order they were given', () => {
+    const zed = member({ id: 'm-z', displayName: 'Zed' });
+    const ada = member({ id: 'm-a', displayName: 'Ada' });
+
+    expect(sortConnectMembers([zed, ada]).map((m) => m.id)).toEqual(['m-z', 'm-a']);
+  });
+
+  it('leaves the array it was given untouched', () => {
+    const person = member({ id: 'm-a' });
+    const bot = member({ id: 'm-bot', isBot: true });
+    const input = [person, bot];
+
+    const sorted = sortConnectMembers(input);
+
+    expect(input.map((m) => m.id)).toEqual(['m-a', 'm-bot']);
     expect(sorted).not.toBe(input);
   });
 });

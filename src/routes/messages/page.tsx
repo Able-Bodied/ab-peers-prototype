@@ -75,136 +75,150 @@ export default function MessagesPage() {
   }
 
   return (
-    <div className="mx-auto flex min-h-0 w-full max-w-5xl flex-1 flex-col">
-      {error && (
-        <div
-          role="alert"
-          className="border-destructive/40 bg-destructive/10 mx-4 mt-2 flex items-center gap-3 rounded-xl border px-3 py-2"
-        >
-          <p className="flex-1 text-sm">{error}</p>
-          <button
-            type="button"
-            onClick={dismissError}
-            className="min-h-11 shrink-0 px-2 text-sm font-bold underline underline-offset-2"
-          >
-            Dismiss
-          </button>
-        </div>
+    /* Chat is the one route that wants the whole window rather than a column of content: the
+       composer belongs on the bottom edge of the screen, not directly under the last message.
+       `main` in src/App.tsx pads and scrolls every route, so this cancels that padding and takes
+       the viewport height instead. The phone-only bottom inset is what keeps the composer and the
+       end of the list clear of the floating tab bar, which overlays the page at that width. */
+    <div
+      className={cn(
+        '-mx-4 -mt-4 -mb-28 flex h-svh flex-col md:-m-8 md:pb-0',
+        // The tab bar is hidden under an open thread (see AppNav), so the space kept clear for
+        // it goes back to the conversation — leaving only the home indicator's own inset.
+        openConversation ? 'pb-[env(safe-area-inset-bottom)]' : 'pb-28',
       )}
+    >
+      <div className="mx-auto flex min-h-0 w-full max-w-7xl flex-1 flex-col">
+        {error && (
+          <div
+            role="alert"
+            className="border-destructive/40 bg-destructive/10 mx-4 mt-2 flex items-center gap-3 rounded-xl border px-3 py-2"
+          >
+            <p className="flex-1 text-sm">{error}</p>
+            <button
+              type="button"
+              onClick={dismissError}
+              className="min-h-11 shrink-0 px-2 text-sm font-bold underline underline-offset-2"
+            >
+              Dismiss
+            </button>
+          </div>
+        )}
 
-      <div className="flex min-h-0 flex-1">
-        {/* On a phone the two panes are two screens; from md: up they sit side by side, so the
+        <div className="flex min-h-0 flex-1">
+          {/* On a phone the two panes are two screens; from md: up they sit side by side, so the
             pane that is hidden here is hidden by width rather than by unmounting — a thread
             reopened on a wide screen should not have to refetch the list beside it. */}
-        <div
-          className={cn(
-            'min-h-0 w-full flex-col md:flex md:w-80 md:shrink-0 md:border-r',
-            // Exactly one unprefixed display utility, so which of `flex` and `hidden`
-            // Tailwind happens to emit first never decides the layout.
-            openConversation ? 'hidden' : 'flex',
-          )}
-        >
-          <div className="flex items-center gap-2 border-b px-4 py-3">
-            <h1 className="flex-1 text-lg font-bold">Messages</h1>
-            <Button
-              asChild
-              type="button"
-              variant="ghost"
-              className="size-11 shrink-0"
-              aria-label="Start a new message"
-            >
-              <Link to="/connect">
-                <Plus aria-hidden="true" />
-              </Link>
-            </Button>
-          </div>
+          <div
+            className={cn(
+              'min-h-0 w-full flex-col md:flex md:w-[22rem] md:shrink-0 md:border-r lg:w-[26rem]',
+              // Exactly one unprefixed display utility, so which of `flex` and `hidden`
+              // Tailwind happens to emit first never decides the layout.
+              openConversation ? 'hidden' : 'flex',
+            )}
+          >
+            <div className="flex items-center gap-2 border-b px-4 py-3">
+              <h1 className="flex-1 text-lg font-bold">Messages</h1>
+              <Button
+                asChild
+                type="button"
+                size="icon"
+                className="size-11 shrink-0 rounded-full [&_svg]:size-6 [&_svg]:stroke-[3]"
+                aria-label="Start a new message"
+              >
+                <Link to="/connect">
+                  <Plus aria-hidden="true" />
+                </Link>
+              </Button>
+            </div>
 
-          <div role="tablist" aria-label="Message inboxes" className="flex gap-2.5 px-4 py-2">
-            <SegmentTab
-              label="Messages"
-              count={conversations.length}
-              countNoun="conversations"
-              selected={segment === 'messages'}
-              onSelect={() => {
-                setSegment('messages');
-              }}
-            />
-            <SegmentTab
-              label="Waves"
-              count={waves.length}
-              countNoun="waves"
-              selected={segment === 'waves'}
-              onSelect={() => {
-                setSegment('waves');
-              }}
-            />
-          </div>
-
-          <div className="min-h-0 flex-1 overflow-y-auto">
-            {loading && conversations.length === 0 && waves.length === 0 ? (
-              <p className="text-muted-foreground px-4 py-8 text-sm">Loading your messages…</p>
-            ) : segment === 'messages' ? (
-              <ConversationList
-                conversations={conversations}
-                viewerId={viewerId}
-                selectedId={conversationId ?? null}
-                onOpen={(id) => {
-                  void navigate(`/messages/${id}`);
+            <div role="tablist" aria-label="Message inboxes" className="flex gap-2.5 px-4 py-2">
+              <SegmentTab
+                label="Messages"
+                count={conversations.length}
+                countNoun="conversations"
+                selected={segment === 'messages'}
+                onSelect={() => {
+                  setSegment('messages');
                 }}
               />
-            ) : (
-              <>
-                {limits ? (
-                  <p role="status" className="bg-muted/60 mx-4 mt-3 rounded-md px-3 py-2 text-sm">
-                    {wavesLeft} of {limits.waveDailyLimit} waves left today · {conversationsLeft} of{' '}
-                    {limits.conversationDailyLimit} new conversations left
-                    {wavesLeft === 0 ? '. Waving is off until tomorrow.' : ''}
-                  </p>
-                ) : null}
-                <WaveInbox
-                  waves={waves}
-                  onOpenConversation={(id) => {
+              <SegmentTab
+                label="Waves"
+                count={waves.length}
+                countNoun="waves"
+                selected={segment === 'waves'}
+                onSelect={() => {
+                  setSegment('waves');
+                }}
+              />
+            </div>
+
+            <div className="min-h-0 flex-1 overflow-y-auto">
+              {loading && conversations.length === 0 && waves.length === 0 ? (
+                <p className="text-muted-foreground px-4 py-8 text-sm">Loading your messages…</p>
+              ) : segment === 'messages' ? (
+                <ConversationList
+                  conversations={conversations}
+                  viewerId={viewerId}
+                  selectedId={conversationId ?? null}
+                  onOpen={(id) => {
                     void navigate(`/messages/${id}`);
                   }}
                 />
-              </>
-            )}
+              ) : (
+                <>
+                  {limits ? (
+                    <p role="status" className="bg-muted/60 mx-4 mt-3 rounded-md px-3 py-2 text-sm">
+                      {wavesLeft} of {limits.waveDailyLimit} waves left today · {conversationsLeft}{' '}
+                      of {limits.conversationDailyLimit} new conversations left
+                      {wavesLeft === 0 ? '. Waving is off until tomorrow.' : ''}
+                    </p>
+                  ) : null}
+                  <WaveInbox
+                    waves={waves}
+                    onOpenConversation={(id) => {
+                      void navigate(`/messages/${id}`);
+                    }}
+                  />
+                </>
+              )}
+            </div>
           </div>
-        </div>
 
-        <div
-          className={cn('min-h-0 flex-1 flex-col md:flex', openConversation ? 'flex' : 'hidden')}
-        >
-          {openConversation ? (
-            <ThreadView
-              key={openConversation.id}
-              conversation={openConversation}
-              viewerId={viewerId}
-              onBack={() => {
-                void navigate('/messages');
-              }}
-            />
-          ) : conversationId && !loading ? (
-            <div className="px-4 py-10 text-center">
-              <p className="text-base font-bold">That conversation isn&rsquo;t here</p>
-              <p className="text-muted-foreground mx-auto mt-1 max-w-xs text-sm">
-                It may have been blocked, or the link may be for a different account.
-              </p>
-              <Button
-                type="button"
-                className="mt-4 min-h-11 rounded-xl font-bold"
-                onClick={() => {
+          <div
+            className={cn('min-h-0 flex-1 flex-col md:flex', openConversation ? 'flex' : 'hidden')}
+          >
+            {openConversation ? (
+              <ThreadView
+                key={openConversation.id}
+                conversation={openConversation}
+                viewerId={viewerId}
+                onBack={() => {
                   void navigate('/messages');
                 }}
-              >
-                Back to inbox
-              </Button>
-            </div>
-          ) : (
-            <p className="text-muted-foreground px-6 py-10 text-center text-sm">
-              Pick a conversation to read it here.
-            </p>
-          )}
+              />
+            ) : conversationId && !loading ? (
+              <div className="px-4 py-10 text-center">
+                <p className="text-base font-bold">That conversation isn&rsquo;t here</p>
+                <p className="text-muted-foreground mx-auto mt-1 max-w-xs text-sm">
+                  It may have been blocked, or the link may be for a different account.
+                </p>
+                <Button
+                  type="button"
+                  className="mt-4 min-h-11 rounded-xl font-bold"
+                  onClick={() => {
+                    void navigate('/messages');
+                  }}
+                >
+                  Back to inbox
+                </Button>
+              </div>
+            ) : (
+              <p className="text-muted-foreground px-6 py-10 text-center text-sm">
+                Pick a conversation to read it here.
+              </p>
+            )}
+          </div>
         </div>
       </div>
     </div>

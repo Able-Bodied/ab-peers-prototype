@@ -5,6 +5,7 @@ import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useChat } from '@/lib/chat';
+import { sortConnectMembers } from '@/lib/chat-rules';
 import { useSession } from '@/lib/session';
 import { ComposeDialog } from '@/routes/connect/compose-dialog';
 import { ErrorBanner } from '@/routes/connect/error-banner';
@@ -33,8 +34,12 @@ export default function ConnectPage() {
 
   const matches = useMemo(() => {
     const needle = query.trim().toLowerCase();
-    if (needle === '') return members;
-    return members.filter((candidate) => candidate.displayName.toLowerCase().includes(needle));
+    // Pinned after the search rather than before it: a name that was typed out in
+    // full should find the person it names, not a bot sitting above them.
+    if (needle === '') return sortConnectMembers(members);
+    return sortConnectMembers(
+      members.filter((candidate) => candidate.displayName.toLowerCase().includes(needle)),
+    );
   }, [members, query]);
 
   if (!viewer && !sessionLoading) {
